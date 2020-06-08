@@ -56,10 +56,18 @@ def get_run_info():
 
     # Arguments allowed to be missing in soops-run calls.
     opt_args = {
+        '--n-cell' : '--n-cell={--n-cell}',
+        '--order' : '--order={--order}',
+        '--quad-order' : '--quad-order={--quad-order}',
+        '--term-name' : '--term-name={--term-name}',
+        '--diff' : '--diff={--diff}',
+        '--repeat' : '--repeat={--repeat}',
+        '--mprof' : '--mprof',
+        '--silent' : '--silent',
     }
 
     output_dir_key = 'output_dir'
-    is_finished_basename = 'stats.txt'
+    is_finished_basename = 'stats.csv'
 
     return run_cmd, opt_args, output_dir_key, is_finished_basename
 
@@ -71,6 +79,7 @@ def get_scoop_info():
             sc.load_split_options,
             split_keys=None,
         )),
+        ('stats.csv', sc.load_csv),
         ('output_log.txt', scrape_output),
     ]
 
