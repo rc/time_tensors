@@ -495,6 +495,7 @@ def main():
         #        nm.linalg.norm(res.ravel() - res_term.ravel()))
 
     df = pd.DataFrame(results)
+    df.index.rename('evaluation', inplace=True)
 
     filename = os.path.join(options.output_dir, 'stats.csv')
     df.to_csv(filename)
