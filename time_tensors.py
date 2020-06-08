@@ -468,25 +468,27 @@ def main():
 
     # -> to functions to enable memory profiling
     evaluators = {
-        'sfepy_term' : (eval_sfepy_term, 0),
-        # 'numpy_einsum1' : (eval_numpy_einsum1, 0), # unusably slow
-        'numpy_einsum2' : (eval_numpy_einsum2, 0),
-        # 'numpy_einsum3' : (eval_numpy_einsum3, 0), # slow, memory hog
-        'opt_einsum1a' : (eval_opt_einsum1a, 0),
-        'opt_einsum1g' : (eval_opt_einsum1g, 0),
-        'opt_einsum1dp' : (eval_opt_einsum1dp, 0),
-        #'opt_einsum2a' : (eval_opt_einsum2a, 0), # more memory than opt_einsum1*
-        'opt_einsum2dp' : (eval_opt_einsum2dp, 0), # more memory than opt_einsum1*
-        'dask_einsum1' : (eval_dask_einsum1, 0), # how to limit to 1 thread?
-        # 'jax_einsum1' : (eval_jax_einsum1, 0), # meddles with memory profiler
+        'sfepy_term' : (eval_sfepy_term, 0, True),
+        # 'numpy_einsum1' : (eval_numpy_einsum1, 0, True), # unusably slow
+        'numpy_einsum2' : (eval_numpy_einsum2, 0, nm),
+        # 'numpy_einsum3' : (eval_numpy_einsum3, 0, nm), # slow, memory hog
+        'opt_einsum1a' : (eval_opt_einsum1a, 0, oe),
+        'opt_einsum1g' : (eval_opt_einsum1g, 0, oe),
+        'opt_einsum1dp' : (eval_opt_einsum1dp, 0, oe),
+        #'opt_einsum2a' : (eval_opt_einsum2a, 0, oe), # more memory than opt_einsum1*
+        'opt_einsum2dp' : (eval_opt_einsum2dp, 0, oe), # more memory than opt_einsum1*
+        'dask_einsum1' : (eval_dask_einsum1, 0, da),
+        # 'jax_einsum1' : (eval_jax_einsum1, 0, jnp), # meddles with memory profiler
     }
 
     results = {}
 
     timer = Timer('')
 
-    for key, (fun, arg_no) in evaluators.items():
+    for key, (fun, arg_no, can_use) in evaluators.items():
+        if not can_use: continue
         output(key)
+
         times = results.setdefault('t_' + key, [])
         norms = results.setdefault('norm_' + key, [])
         for ir in range(options.repeat):
