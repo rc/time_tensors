@@ -39,6 +39,8 @@ try:
 except ImportError:
     oe = None
 
+import pandas as pd
+
 from sfepy.base.base import output, Struct
 from sfepy.base.ioutils import ensure_path, save_options
 from sfepy.base.timing import Timer
@@ -470,27 +472,32 @@ def main():
         # 'jax_einsum1' : (eval_jax_einsum1, 0), # meddles with memory profiler
     }
 
-    results = Struct(name='results')
+    results = {}
 
     timer = Timer('')
 
     for key, (fun, arg_no) in evaluators.items():
         output(key)
-        results.__dict__['t_' + key] = times = []
+        times = results.setdefault('t_' + key, [])
+        norms = results.setdefault('norm_' + key, [])
         for ir in range(options.repeat):
             timer.start()
             res = fun()[arg_no]
             times.append(timer.stop())
-            output('|result|:', nm.linalg.norm(res.reshape(-1)))
+            norms.append(nm.linalg.norm(res.reshape(-1)))
+            output('|result|: {} in {} s'.format(norms[-1], times[-1]))
             del res
             gc.collect()
-            #results.__dict__['res_' + key] = res
+            #results['res_' + key] = res
 
         # res_term = results.get('res_sfepy_term')
         # output('difference w.r.t. term:',
         #        nm.linalg.norm(res.ravel() - res_term.ravel()))
 
-    output(results)
+    df = pd.DataFrame(results)
+
+    filename = os.path.join(options.output_dir, 'stats.csv')
+    df.to_csv(filename)
 
 if __name__ == '__main__':
     main()
