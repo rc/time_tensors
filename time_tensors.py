@@ -39,6 +39,8 @@ try:
 except ImportError:
     oe = None
 
+from mprof import read_mprofile_file
+
 import pandas as pd
 
 from sfepy.base.base import output, Struct
@@ -80,10 +82,17 @@ def get_scoop_info():
             split_keys=None,
         )),
         ('stats.csv', sc.load_csv),
+        ('mprofile.dat', load_mprofile),
         ('output_log.txt', scrape_output),
     ]
 
     return info
+
+def load_mprofile(filename, rdata=None):
+    mdata = read_mprofile_file(filename)
+    mdata.pop('children')
+    mdata.pop('cmd_line')
+    return mdata
 
 def scrape_output(filename, rdata=None):
     out = {}
