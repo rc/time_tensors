@@ -52,7 +52,7 @@ def get_run_info():
     # script_dir is added by soops-run, it is the normalized path to
     # this script.
     run_cmd = """
-    {python} time_tensors.py {output_dir}
+    rm {output_dir}/mprofile.dat; mprof run -o {output_dir}/mprofile.dat time_tensors.py --mprof {output_dir}
     """
     run_cmd = ' '.join(run_cmd.split())
 
@@ -64,7 +64,6 @@ def get_run_info():
         '--term-name' : '--term-name={--term-name}',
         '--diff' : '--diff={--diff}',
         '--repeat' : '--repeat={--repeat}',
-        '--mprof' : '--mprof',
         '--silent' : '--silent',
     }
 
@@ -283,6 +282,9 @@ def main():
     if not options.mprof:
         def profile(fun):
             return fun
+
+    else:
+        profile = globals()['profile']
 
     @profile
     def eval_sfepy_term():
