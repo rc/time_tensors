@@ -52,7 +52,7 @@ def get_run_info():
     # script_dir is added by soops-run, it is the normalized path to
     # this script.
     run_cmd = """
-    rm {output_dir}/mprofile.dat; mprof run -o {output_dir}/mprofile.dat time_tensors.py --mprof {output_dir}
+    rm {output_dir}/mprofile.dat; mprof run -T {sampling} -o {output_dir}/mprofile.dat time_tensors.py --mprof {output_dir}
     """
     run_cmd = ' '.join(run_cmd.split())
 
