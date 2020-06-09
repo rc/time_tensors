@@ -250,20 +250,20 @@ def main():
     # Assumes no E(P)BCs are present!
     adc = state.get_dof_conn(dc_type)
 
-    n_elc, n_qpc, dim, n_enc, n_cc = term.get_data_shape(state)
-    n_cdof = n_cc * n_enc
+    n_cell, n_qp, dim, n_en, n_c = term.get_data_shape(state)
+    n_cdof = n_c * n_en
 
     output('u shape:', state().shape)
     output('adc shape:', adc.shape)
     output('u size [MB]:', uvec.nbytes / 1000**2)
     output('adc size [MB]:', adc.nbytes / 1000**2)
 
-    vec_shape = (n_elc, n_cdof)
-    mtx_shape = (n_elc, n_cdof, n_cdof)
+    vec_shape = (n_cell, n_cdof)
+    mtx_shape = (n_cell, n_cdof, n_cdof)
     output('c vec shape:', vec_shape)
     output('c mtx shape:', mtx_shape)
-    output('c vec size [MB]:', (n_elc * n_cdof * 8) / 1000**2)
-    output('c mtx size [MB]:', (n_elc * n_cdof**2 * 8) / 1000**2)
+    output('c vec size [MB]:', (n_cell * n_cdof * 8) / 1000**2)
+    output('c mtx size [MB]:', (n_cell * n_cdof**2 * 8) / 1000**2)
 
     pid = os.getpid()
     this = psutil.Process(pid)
