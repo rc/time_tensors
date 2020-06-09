@@ -43,7 +43,7 @@ from mprof import read_mprofile_file
 
 import pandas as pd
 
-from sfepy.base.base import output, Struct
+from sfepy.base.base import output
 from sfepy.base.ioutils import ensure_path, save_options
 from sfepy.base.timing import Timer
 from sfepy.discrete.variables import expand_basis
