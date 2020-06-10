@@ -79,7 +79,7 @@ def get_scoop_info():
         ('options.txt', partial(
             sc.load_split_options,
             split_keys=None,
-        )),
+        ), True),
         ('stats.csv', sc.load_csv),
         ('mprofile.dat', load_mprofile),
         ('output_log.txt', scrape_output),
