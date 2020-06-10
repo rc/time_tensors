@@ -136,9 +136,60 @@ def scrape_output(filename, rdata=None):
 def get_plugin_info():
     from soops.plugins import show_figures
 
-    info = [show_figures]
+    info = [plot_results, show_figures]
 
     return info
+
+def plot_results(df, data=None, colormap_name='viridis'):
+    import soops.scoop_outputs as sc
+    import soops.plot_selected as sps
+    import matplotlib.pyplot as plt
+
+    tkeys = [key for key in df.keys() if key.startswith('t_')]
+
+    uniques = {key : val for key, val in data.par_uniques.items()
+               if key not in ['output_dir']}
+    output('parameterization:')
+    for key, val in uniques.items():
+        output(key, val)
+
+    select = sps.normalize_selected(uniques)
+    select['function'] = tkeys
+
+    styles = {key : {} for key in select.keys()}
+    styles['term_name'] = {'ls' : ['-', '--', '-.'], 'lw' : 2}
+    styles['order'] = {'color' : colormap_name}
+    styles['function'] = {'marker' : ['o', 'x', '*', '^', '>', 'v', '<'],
+                          'mfc' : 'None', 'ms' : 8}
+    styles = sps.setup_plot_styles(select, styles)
+
+    mdf =  pd.melt(df, uniques.keys(), tkeys,
+                   var_name='function', value_name='t')
+
+    fig, ax = plt.subplots()
+    used = None
+    for term_name in data.par_uniques['term_name']:
+        for order in data.par_uniques['order']:
+            for tkey in tkeys:
+                sdf = mdf[(mdf['term_name'] == term_name) &
+                          (mdf['order'] == order) &
+                          (mdf['function'] == tkey)]
+                vx = sdf.n_cell.values
+
+                times = nm.array(sdf['t'].to_list())
+                means = times.mean(axis=1)
+                stds = times.std(axis=1)
+
+                style_kwargs, indices = sps.get_row_style(
+                    sdf, 0, select, {}, styles
+                )
+                used = sps.update_used(used, indices)
+
+                plt.errorbar(vx, means, yerr=stds,
+                             ecolor='lightgray', elinewidth=3, capsize=0,
+                             **style_kwargs)
+
+    sps.add_legend(ax, select, styles, used)
 
 def get_v_sol(coors):
     x0 = coors.min(axis=0)
