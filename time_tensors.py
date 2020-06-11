@@ -214,27 +214,43 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect'):
 
     integral = Integral('i', order=quad_order)
 
+    timer = Timer('')
+
+    timer.start()
     mesh = gen_block_mesh((n_cell, 1, 1), (n_cell + 1, 2, 2), (0, 0, 0),
                           name='')
+    output('generate mesh: {} s'.format(timer.stop()))
+    timer.start()
     domain = FEDomain('el', mesh)
+    output('create domain: {} s'.format(timer.stop()))
 
+    timer.start()
     omega = domain.create_region('omega', 'all')
+    output('create omega: {} s'.format(timer.stop()))
 
+    timer.start()
     field = Field.from_args('fu', nm.float64, mesh.dim, omega,
                             approx_order=order)
+    output('create field: {} s'.format(timer.stop()))
 
+    timer.start()
     u = FieldVariable('u', 'unknown', field)
     v = FieldVariable('v', 'test', field, primary_var_name='u')
+    output('create variables: {} s'.format(timer.stop()))
 
+    timer.start()
     u.set_from_function(get_v_sol)
+    output('set state: {} s'.format(timer.stop()))
     uvec = u()
 
+    timer.start()
     if term_name == 'dw_convect':
         term = Term.new('dw_convect(v, u)', integral=integral,
                         region=omega, v=v, u=u)
 
     term.setup()
     term.standalone_setup()
+    output('create setup term: {} s'.format(timer.stop()))
 
     return uvec, term
 
@@ -316,7 +332,11 @@ def main():
         term_name=options.term_name
     )
 
+    timer = Timer('')
+    timer.start()
     vg, geo = term.get_mapping(term.args[1])
+    output('reference element mapping: {} s'.format(timer.stop()))
+
     dets = vg.det
     dim = vg.dim
 
