@@ -99,14 +99,11 @@ def scrape_output(filename, rdata=None):
 
     out = {}
     with open(filename, 'r') as fd:
-        line = io.skip_lines_to(fd, 'qsbg shape')
-        aux = literal_eval(line.split(':')[2].strip())
-        out['n_qp'] = aux[1]
-        out['dim'] = aux[2]
-        out['n_en'] = aux[3]
+        line = io.skip_lines_to(fd, 'total system memory')
+        out['mem_total_mb'] = literal_eval(line.split(':')[2].strip())
 
-        line = io.skip_lines_to(fd, 'qvbg size')
-        out['qvbg_size_mb'] = literal_eval(line.split(':')[2].strip())
+        line = io.skip_lines_to(fd, 'available system memory')
+        out['mem_available_mb'] = literal_eval(line.split(':')[2].strip())
 
         line = io.skip_lines_to(fd, 'u shape')
         aux = literal_eval(line.split(':')[2].strip())
@@ -116,6 +113,15 @@ def scrape_output(filename, rdata=None):
         aux = literal_eval(line.split(':')[2].strip())
         out['n_cdof'] = aux[1]
 
+        line = io.skip_lines_to(fd, 'qsbg shape')
+        aux = literal_eval(line.split(':')[2].strip())
+        out['n_qp'] = aux[1]
+        out['dim'] = aux[2]
+        out['n_en'] = aux[3]
+
+        line = io.skip_lines_to(fd, 'qvbg size')
+        out['qvbg_size_mb'] = literal_eval(line.split(':')[2].strip())
+
         line = io.skip_lines_to(fd, 'c vec size')
         out['c_vec_size_mb'] = literal_eval(line.split(':')[2].strip())
 
@@ -124,12 +130,6 @@ def scrape_output(filename, rdata=None):
 
         line = io.skip_lines_to(fd, 'memory use')
         out['pre_mem_use_mb'] = literal_eval(line.split(':')[2].strip())
-
-        line = io.skip_lines_to(fd, 'total system memory')
-        out['mem_total_mb'] = literal_eval(line.split(':')[2].strip())
-
-        line = io.skip_lines_to(fd, 'available system memory')
-        out['mem_available_mb'] = literal_eval(line.split(':')[2].strip())
 
     return out
 
