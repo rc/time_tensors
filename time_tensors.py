@@ -141,7 +141,6 @@ def get_plugin_info():
     return info
 
 def plot_results(df, data=None, colormap_name='viridis'):
-    import soops.scoop_outputs as sc
     import soops.plot_selected as sps
     import matplotlib.pyplot as plt
 
@@ -175,10 +174,11 @@ def plot_results(df, data=None, colormap_name='viridis'):
                           (mdf['order'] == order) &
                           (mdf['function'] == tkey)]
                 vx = sdf.n_cell.values
-
-                times = nm.array(sdf['t'].to_list())
-                means = times.mean(axis=1)
-                stds = times.std(axis=1)
+                times = sdf['t'].to_list()
+                times = [ii if nm.isfinite(ii).all() else [nm.nan] * len(vx)
+                         for ii in times]
+                means = nm.nanmean(times, axis=1)
+                stds = nm.nanstd(times, axis=1)
 
                 style_kwargs, indices = sps.get_row_style(
                     sdf, 0, select, {}, styles
@@ -325,6 +325,13 @@ def main():
     output('dask:', dask.__version__ if da is not None else 'not available')
     output('jax:', jax.__version__ if jnp is not None else 'not available')
 
+    coef = 3 if options.diff is None else 4
+
+    mem = psutil.virtual_memory()
+    output('total system memory [MB]: {:.2f}'.format(mem.total / 1000**2))
+    output('available system memory [MB]: {:.2f}'
+           .format(mem.available / 1000**2))
+
     uvec, term = setup_data(
         order=options.order,
         quad_order=options.quad_order,
@@ -340,17 +347,6 @@ def main():
     dets = vg.det
     dim = vg.dim
 
-    qsb = vg.bf
-    qsbg = vg.bfg
-
-    qvb = expand_basis(qsb, dim)
-    qvbg = _expand_sbg(qsbg, dim)
-
-    output('qsbg shape:', qsbg.shape)
-    output('qvbg shape:', qvbg.shape)
-    output('qsbg size [MB]:', qsbg.nbytes / 1000**2)
-    output('qvbg size [MB]:', qvbg.nbytes / 1000**2)
-
     state = term.args[1]
     dc_type = term.get_dof_conn_type()
     # Assumes no E(P)BCs are present!
@@ -364,6 +360,23 @@ def main():
     output('u size [MB]:', uvec.nbytes / 1000**2)
     output('adc size [MB]:', adc.nbytes / 1000**2)
 
+    qsb = vg.bf
+    qsbg = vg.bfg
+
+    output('qsbg shape:', qsbg.shape)
+    output('qvbg shape:', (n_cell, n_qp, n_c, dim, dim * n_en))
+
+    size = (n_cell * n_qp * n_c * dim * dim * n_en) * 8
+    output('qvbg assumed size [MB]:', size / 1000**2)
+    if (1.5 * coef * size) > mem.total:
+        raise MemoryError('insufficient memory for timing!')
+
+    qvb = expand_basis(qsb, dim)
+    qvbg = _expand_sbg(qsbg, dim)
+
+    output('qsbg size [MB]:', qsbg.nbytes / 1000**2)
+    output('qvbg size [MB]:', qvbg.nbytes / 1000**2)
+
     vec_shape = (n_cell, n_cdof)
     mtx_shape = (n_cell, n_cdof, n_cdof)
     output('c vec shape:', vec_shape)
@@ -376,12 +389,7 @@ def main():
     mem_this = this.memory_info()
     memory_use = mem_this.rss
     output('memory use [MB]: {:.2f}'.format(memory_use / 1000**2))
-    mem = psutil.virtual_memory()
-    output('total system memory [MB]: {:.2f}'.format(mem.total / 1000**2))
-    output('available system memory [MB]: {:.2f}'
-           .format(mem.available / 1000**2))
 
-    coef = 3 if options.diff is None else 4
     if (coef * memory_use) > mem.total:
         raise MemoryError('insufficient memory for timing!')
 
