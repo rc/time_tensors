@@ -140,7 +140,8 @@ def get_plugin_info():
 
     return info
 
-def plot_results(df, data=None, colormap_name='viridis'):
+def plot_results(df, data=None, colormap_name='viridis',
+                 xscale='log', yscale='log'):
     import soops.plot_selected as sps
     import matplotlib.pyplot as plt
 
@@ -156,7 +157,7 @@ def plot_results(df, data=None, colormap_name='viridis'):
     select['function'] = tkeys
 
     styles = {key : {} for key in select.keys()}
-    styles['term_name'] = {'ls' : ['-', '--', '-.'], 'lw' : 2}
+    styles['term_name'] = {'ls' : ['-', '--', '-.'], 'lw' : 2, 'alpha' : 0.8}
     styles['order'] = {'color' : colormap_name}
     styles['function'] = {'marker' : ['o', 'x', '*', '^', '>', 'v', '<'],
                           'mfc' : 'None', 'ms' : 8}
@@ -174,22 +175,27 @@ def plot_results(df, data=None, colormap_name='viridis'):
                           (mdf['order'] == order) &
                           (mdf['function'] == tkey)]
                 vx = sdf.n_cell.values
+
                 times = sdf['t'].to_list()
-                times = [ii if nm.isfinite(ii).all() else [nm.nan] * len(vx)
+                times = [ii if nm.isfinite(ii).all() else
+                         [nm.nan] * sdf.iloc[0]['repeat']
                          for ii in times]
+
                 means = nm.nanmean(times, axis=1)
                 stds = nm.nanstd(times, axis=1)
-
                 style_kwargs, indices = sps.get_row_style(
                     sdf, 0, select, {}, styles
                 )
                 used = sps.update_used(used, indices)
 
                 plt.errorbar(vx, means, yerr=stds,
-                             ecolor='lightgray', elinewidth=3, capsize=0,
+                             ecolor=style_kwargs['color'],
+                             elinewidth=5, capsize=0,
                              **style_kwargs)
 
     sps.add_legend(ax, select, styles, used)
+    ax.set_xscale(xscale)
+    ax.set_yscale(yscale)
 
 def get_v_sol(coors):
     x0 = coors.min(axis=0)
