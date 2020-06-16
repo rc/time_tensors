@@ -196,6 +196,9 @@ def plot_times(df, data=None, colormap_name='viridis',
     sps.add_legend(ax, select, styles, used)
     ax.set_xscale(xscale)
     ax.set_yscale(yscale)
+    ax.set_xlabel('n_cell')
+    ax.set_ylabel('time [s]')
+    plt.tight_layout()
 
 def plot_mem_usages(df, data=None, colormap_name='viridis',
                     xscale='log', yscale='log'):
@@ -277,6 +280,9 @@ def plot_mem_usages(df, data=None, colormap_name='viridis',
     sps.add_legend(ax, select, styles, used)
     ax.set_xscale(xscale)
     ax.set_yscale(yscale)
+    ax.set_xlabel('n_cell')
+    ax.set_ylabel('memory [MB]')
+    plt.tight_layout()
 
 def get_v_sol(coors):
     x0 = coors.min(axis=0)
