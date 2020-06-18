@@ -136,15 +136,13 @@ def scrape_output(filename, rdata=None):
 def get_plugin_info():
     from soops.plugins import show_figures
 
-    info = [plot_times, plot_mem_usages, show_figures]
+    info = [collect_times, collect_mem_usages,
+            plot_times, plot_mem_usages,
+            show_figures]
 
     return info
 
-def plot_times(df, data=None, colormap_name='viridis',
-                 xscale='log', yscale='log'):
-    import soops.plot_selected as sps
-    import matplotlib.pyplot as plt
-
+def collect_times(df, data=None):
     tkeys = [key for key in df.keys() if key.startswith('t_')]
 
     uniques = {key : val for key, val in data.par_uniques.items()
@@ -153,8 +151,75 @@ def plot_times(df, data=None, colormap_name='viridis',
     for key, val in uniques.items():
         output(key, val)
 
-    select = sps.normalize_selected(uniques)
-    select['function'] = tkeys
+    tdf = pd.melt(df, uniques.keys(), tkeys,
+                  var_name='function', value_name='t')
+
+    def fun(x):
+        return x['t'] if nm.isfinite(x['t']).all() else [nm.nan] * x['repeat']
+    tdf['t'] = tdf.apply(fun, axis=1)
+
+    data.tkeys = tkeys
+    data.uniques = uniques
+    data.tdf = tdf
+    return data
+
+def collect_mem_usages(df, data=None):
+    aux = pd.json_normalize(df['func_timestamp']).rename(
+        lambda x: 'ts_' + x.split('.')[-1], axis=1
+    )
+    del df['func_timestamp']
+    df = pd.concat([df, aux], axis=1)
+    df['index'] = df.index
+
+    mkeys = [key for key in df.keys() if key.startswith('ts_')]
+
+    mdf =  pd.melt(df, list(data.uniques.keys()) + ['index'], mkeys,
+                   var_name='function', value_name='ts')
+    for term_name in data.par_uniques['term_name']:
+        for order in data.par_uniques['order']:
+            dfto = df[(df['term_name'] == term_name) &
+                     (df['order'] == order)]
+            mem_usage = dfto['mem_usage']
+            mem_tss = dfto['timestamp']
+            for mkey in mkeys:
+                indexer = ((mdf['term_name'] == term_name) &
+                           (mdf['order'] == order) &
+                           (mdf['function'] == mkey))
+                sdf = mdf.loc[indexer]
+                repeat = sdf.iloc[0]['repeat']
+                mems = []
+                for ii in dfto.index:
+                    mu = nm.array(mem_usage.loc[ii])
+                    tss = nm.array(mem_tss.loc[ii])
+                    _ts = sdf[sdf['index'] == ii].iloc[0]['ts']
+                    if _ts is not nm.nan:
+                        for ts in _ts:
+                            i0, i1 = nm.searchsorted(tss, ts[:2])
+
+                            mmax = mu[i0:i1].max() if i1 > i0 else ts[3]
+                            mmin = mu[i0:i1].min() if i1 > i0 else ts[2]
+                            mem = mmax - mmin
+                            mems.append(mem)
+
+                    else:
+                        mems.extend([nm.nan] * repeat)
+
+                mems = nm.array(mems).reshape((-1, repeat))
+                # This is to force a column with several values.
+                mm = [pd.Series({'mems' : row.tolist()}) for row in mems]
+                mdf.loc[indexer, 'mems'] = pd.DataFrame(mm, index=sdf.index)
+
+    data.mkeys = mkeys
+    data.mdf = mdf
+    return data
+
+def plot_times(df, data=None, colormap_name='viridis',
+                 xscale='log', yscale='log'):
+    import soops.plot_selected as sps
+    import matplotlib.pyplot as plt
+
+    select = sps.normalize_selected(data.uniques)
+    select['function'] = data.tkeys
 
     styles = {key : {} for key in select.keys()}
     styles['term_name'] = {'ls' : ['-', '--', '-.'], 'lw' : 2, 'alpha' : 0.8}
@@ -163,23 +228,19 @@ def plot_times(df, data=None, colormap_name='viridis',
                           'mfc' : 'None', 'ms' : 8}
     styles = sps.setup_plot_styles(select, styles)
 
-    mdf =  pd.melt(df, uniques.keys(), tkeys,
-                   var_name='function', value_name='t')
+    tdf = data.tdf
 
     fig, ax = plt.subplots()
     used = None
     for term_name in data.par_uniques['term_name']:
         for order in data.par_uniques['order']:
-            for tkey in tkeys:
-                sdf = mdf[(mdf['term_name'] == term_name) &
-                          (mdf['order'] == order) &
-                          (mdf['function'] == tkey)]
+            for tkey in data.tkeys:
+                print(term_name, order, tkey)
+                sdf = tdf[(tdf['term_name'] == term_name) &
+                          (tdf['order'] == order) &
+                          (tdf['function'] == tkey)]
                 vx = sdf.n_cell.values
-
                 times = sdf['t'].to_list()
-                times = [ii if nm.isfinite(ii).all() else
-                         [nm.nan] * sdf.iloc[0]['repeat']
-                         for ii in times]
 
                 means = nm.nanmean(times, axis=1)
                 stds = nm.nanstd(times, axis=1)
@@ -205,23 +266,8 @@ def plot_mem_usages(df, data=None, colormap_name='viridis',
     import soops.plot_selected as sps
     import matplotlib.pyplot as plt
 
-    tdf = pd.json_normalize(df['func_timestamp']).rename(
-        lambda x: 'ts_' + x.split('.')[-1], axis=1
-    )
-    del df['func_timestamp']
-    df = pd.concat([df, tdf], axis=1)
-    df['index'] = df.index
-
-    mkeys = [key for key in df.keys() if key.startswith('ts_')]
-
-    uniques = {key : val for key, val in data.par_uniques.items()
-               if key not in ['output_dir']}
-    output('parameterization:')
-    for key, val in uniques.items():
-        output(key, val)
-
-    select = sps.normalize_selected(uniques)
-    select['function'] = mkeys
+    select = sps.normalize_selected(data.uniques)
+    select['function'] = data.mkeys
 
     styles = {key : {} for key in select.keys()}
     styles['term_name'] = {'ls' : ['-', '--', '-.'], 'lw' : 2, 'alpha' : 0.8}
@@ -230,41 +276,20 @@ def plot_mem_usages(df, data=None, colormap_name='viridis',
                           'mfc' : 'None', 'ms' : 8}
     styles = sps.setup_plot_styles(select, styles)
 
-    mdf =  pd.melt(df, list(uniques.keys()) + ['index'], mkeys,
-                   var_name='function', value_name='ts')
+    mdf = data.mdf
 
     fig, ax = plt.subplots()
     used = None
     for term_name in data.par_uniques['term_name']:
         for order in data.par_uniques['order']:
-            aux = df[(df['term_name'] == term_name) &
-                     (df['order'] == order)]
-            mem_usage = aux['mem_usage']
-            mem_tss = aux['timestamp']
-            for mkey in mkeys:
+            for mkey in data.mkeys:
+                print(term_name, order, mkey)
                 sdf = mdf[(mdf['term_name'] == term_name) &
                           (mdf['order'] == order) &
                           (mdf['function'] == mkey)]
-                vx = sdf['n_cell'].values
-                repeat = sdf.iloc[0]['repeat']
-                mems = []
-                for ii in aux.index:
-                    mu = nm.array(mem_usage.loc[ii])
-                    tss = nm.array(mem_tss.loc[ii])
-                    _ts = sdf[sdf['index'] == ii].iloc[0]['ts']
-                    if _ts is not nm.nan:
-                        for ts in _ts:
-                            i0, i1 = nm.searchsorted(tss, ts[:2])
+                vx = sdf.n_cell.values
+                mems = sdf['mems'].to_list()
 
-                            mmax = mu[i0:i1].max() if i1 > i0 else ts[3]
-                            mmin = mu[i0:i1].min() if i1 > i0 else ts[2]
-                            mem = mmax - mmin
-                            mems.append(mem)
-
-                    else:
-                        mems.extend([nm.nan] * repeat)
-
-                mems = nm.array(mems).reshape((-1, repeat))
                 means = nm.nanmean(mems, axis=1)
                 stds = nm.nanstd(mems, axis=1)
                 style_kwargs, indices = sps.get_row_style(
