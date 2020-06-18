@@ -261,6 +261,9 @@ def plot_times(df, data=None, colormap_name='viridis',
     ax.set_ylabel('time [s]')
     plt.tight_layout()
 
+    fig.savefig(os.path.join(data.output_dir, 'times.png'),
+                bbox_inches='tight')
+
 def plot_mem_usages(df, data=None, colormap_name='viridis',
                     xscale='log', yscale='log'):
     import soops.plot_selected as sps
@@ -308,6 +311,9 @@ def plot_mem_usages(df, data=None, colormap_name='viridis',
     ax.set_xlabel('n_cell')
     ax.set_ylabel('memory [MB]')
     plt.tight_layout()
+
+    fig.savefig(os.path.join(data.output_dir, 'mem_usages.png'),
+                bbox_inches='tight')
 
 def get_v_sol(coors):
     x0 = coors.min(axis=0)
