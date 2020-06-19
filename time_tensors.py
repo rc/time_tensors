@@ -214,7 +214,7 @@ def collect_mem_usages(df, data=None):
     return data
 
 def plot_times(df, data=None, colormap_name='viridis',
-                 xscale='log', yscale='log'):
+               xscale='log', yscale='log'):
     import soops.plot_selected as sps
     import matplotlib.pyplot as plt
 
