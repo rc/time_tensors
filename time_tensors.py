@@ -136,9 +136,14 @@ def scrape_output(filename, rdata=None):
 def get_plugin_info():
     from soops.plugins import show_figures
 
-    info = [collect_times, collect_mem_usages,
-            plot_times, plot_mem_usages,
-            show_figures]
+    info = [
+        collect_times,
+        collect_mem_usages,
+        plot_times,
+        plot_mem_usages,
+        plot_all_as_bars,
+        show_figures,
+    ]
 
     return info
 
@@ -316,6 +321,118 @@ def plot_mem_usages(df, data=None, colormap_name='viridis',
     plt.tight_layout()
 
     fig.savefig(os.path.join(data.output_dir, 'mem_usages.png'),
+                bbox_inches='tight')
+
+def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
+                     mcolormap_name='plasma', yscale='log'):
+    import soops.plot_selected as sps
+    from soops.formatting import format_float_latex
+    import matplotlib.pyplot as plt
+
+    tdf = data.tdf
+    mdf = data.mdf
+
+    select = {}
+    select['tn_cell'] = tdf['n_cell'].unique()
+    select['mn_cell'] = tdf['n_cell'].unique()
+
+    mit = nm.nanmin(tdf['t'].to_list())
+    mat = nm.nanmax(tdf['t'].to_list())
+    tyticks = nm.logspace(nm.log10(mit), nm.log10(mat), 3)
+    tyticks_labels = [format_float_latex(ii, 1) for ii in tyticks]
+
+    styles = {}
+    styles['tn_cell'] = {'color' : tcolormap_name}
+    styles['mn_cell'] = {'color' : mcolormap_name}
+    styles = sps.setup_plot_styles(select, styles)
+
+    mim = max(nm.nanmin(mdf['mems'].to_list()), 1e-3)
+    mam = nm.nanmax(mdf['mems'].to_list())
+    myticks = nm.logspace(nm.log10(mim), nm.log10(mam), 3)
+    myticks_labels = [format_float_latex(ii, 1) for ii in myticks]
+
+    tcolors = styles['tn_cell']['color']
+    mcolors = styles['mn_cell']['color']
+
+    fig, axs = plt.subplots(len(data.par_uniques['order']), figsize=(12, 8))
+    axs2 = []
+    for ax in axs:
+        ax.grid(which='both', axis='y')
+        ax.set_ylim(0.8 * mit, 1.2 * mat)
+        ax.set_yscale(yscale)
+        ax.set_yticks(tyticks)
+        ax.set_yticklabels(tyticks_labels)
+        ax.spines['top'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+
+        ax2 = ax.twinx()
+        ax2.set_ylim(0.8 * mim, 1.2 * mam)
+        ax2.set_yscale(yscale)
+        ax2.set_yticks(myticks)
+        ax2.set_yticklabels(myticks_labels)
+        ax2.spines['top'].set_visible(False)
+        ax2.spines['bottom'].set_visible(False)
+        ax2.get_xaxis().set_visible(False)
+        axs2.append(ax2)
+
+    nax = len(axs)
+
+    sx = 3
+    for term_name in data.par_uniques['term_name']:
+        for io, order in enumerate(data.par_uniques['order']):
+            ax = axs[io]
+            ax2 = axs2[io]
+            bx = 0
+
+            xts = []
+            for im, mkey in enumerate(data.mkeys):
+                tkey = data.tkeys[im]
+                tsdf = tdf[(tdf['term_name'] == term_name) &
+                           (tdf['order'] == order) &
+                           (tdf['function'] == tkey)]
+                msdf = mdf[(mdf['term_name'] == term_name) &
+                           (mdf['order'] == order) &
+                           (mdf['function'] == mkey)]
+                vx = tsdf.n_cell.values
+                times = tsdf['t'].to_list()
+                mems = msdf['mems'].to_list()
+
+                tmeans = nm.nanmean(times, axis=1)
+                tstds = nm.nanstd(times, axis=1)
+                mmeans = nm.nanmean(mems, axis=1)
+                mstds = nm.nanstd(mems, axis=1)
+
+                xs = bx + nm.arange(len(vx))
+                ax.bar(xs, tmeans, width=0.8, align='edge', yerr=tstds,
+                       color=tcolors)
+
+                xts.append(xs[-1])
+
+                xs = xs[-1] + sx + nm.arange(len(vx))
+                ax2.bar(xs, mmeans, width=0.8, align='edge', yerr=mstds,
+                        color=mcolors)
+                bx = xs[-1] + 2 * sx
+
+                if im < len(data.mkeys):
+                    ax.axvline(bx - sx, color='k', lw=0.5)
+
+            ax.set_xlim(0, bx - 2 * sx)
+            if io + 1 < nax:
+                ax.get_xaxis().set_visible(False)
+
+            else:
+                ax.set_xticks(xts)
+                ax.set_xticklabels(data.tkeys)
+
+    plt.tight_layout()
+    fig.subplots_adjust(right=0.8)
+
+    lines, labels = sps.get_legend_items(select, styles)
+    leg = fig.legend(lines, labels, loc='best')
+    if leg is not None:
+        leg.get_frame().set_alpha(0.5)
+
+    fig.savefig(os.path.join(data.output_dir, 'all_bars.png'),
                 bbox_inches='tight')
 
 def get_v_sol(coors):
