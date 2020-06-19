@@ -196,9 +196,12 @@ def collect_mem_usages(df, data=None):
                         for ts in _ts:
                             i0, i1 = nm.searchsorted(tss, ts[:2])
 
-                            mmax = mu[i0:i1].max() if i1 > i0 else ts[3]
-                            mmin = mu[i0:i1].min() if i1 > i0 else ts[2]
+                            mmax = max(mu[i0:i1].max() if i1 > i0 else ts[3],
+                                       ts[3])
+                            mmin = min(mu[i0:i1].min() if i1 > i0 else ts[2],
+                                       ts[2])
                             mem = mmax - mmin
+
                             mems.append(mem)
 
                     else:
