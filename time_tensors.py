@@ -498,145 +498,7 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect'):
 
     return uvec, term
 
-helps = {
-    'output_dir'
-    : 'output directory',
-    'n_cell'
-    : 'the number of cells [default: %(default)s]',
-    'order'
-    : 'displacement field approximation order [default: %(default)s]',
-    'quad_order'
-    : 'quadrature order [default: 2 * approximation order]',
-    'term_name'
-    : 'the sfepy term to time [default: %(default)s]',
-    'diff'
-    : 'if given, differentiate w.r.t. this variable [default: %(default)s]',
-    'repeat'
-    : 'the number of term implementation evaluations [default: %(default)s]',
-    'mprof'
-    : 'indicates a run under memory_profiler',
-    'silent'
-    : 'do not print messages to screen',
-}
-
-def main():
-    parser = ArgumentParser(description=__doc__.rstrip(),
-                            formatter_class=RawDescriptionHelpFormatter)
-    parser.add_argument('output_dir', help=helps['output_dir'])
-    parser.add_argument('--n-cell', metavar='int', type=int,
-                        action='store', dest='n_cell',
-                        default=100, help=helps['n_cell'])
-    parser.add_argument('--order', metavar='int', type=int,
-                        action='store', dest='order',
-                        default=1, help=helps['order'])
-    parser.add_argument('--quad-order', metavar='int', type=int,
-                        action='store', dest='quad_order',
-                        default=None, help=helps['quad_order'])
-    parser.add_argument('-t', '--term-name',
-                        action='store', dest='term_name',
-                        choices=['dw_convect'],
-                        default='dw_convect', help=helps['term_name'])
-    parser.add_argument('--diff',
-                        metavar='variable name',
-                        action='store', dest='diff',
-                        default=None, help=helps['diff'])
-    parser.add_argument('--repeat', metavar='int', type=int,
-                        action='store', dest='repeat',
-                        default=1, help=helps['repeat'])
-    parser.add_argument('--mprof',
-                        action='store_true', dest='mprof',
-                        default=False, help=helps['mprof'])
-    parser.add_argument('--silent',
-                        action='store_true', dest='silent',
-                        default=False, help=helps['silent'])
-    options = parser.parse_args()
-
-    if options.quad_order is None:
-        options.quad_order = 2 * options.order
-
-    output_dir = options.output_dir
-    output.prefix = 'time_tensors:'
-    filename = os.path.join(output_dir, 'output_log.txt')
-    ensure_path(filename)
-    output.set_output(filename=filename, combined=options.silent == False)
-
-    filename = os.path.join(output_dir, 'options.txt')
-    save_options(filename, [('options', vars(options))],
-                 quote_command_line=True)
-
-    output('numpy:', nm.__version__)
-    output('opt_einsum:', oe.__version__ if oe is not None else 'not available')
-    output('dask:', dask.__version__ if da is not None else 'not available')
-    output('jax:', jax.__version__ if jnp is not None else 'not available')
-
-    coef = 3 if options.diff is None else 4
-
-    mem = psutil.virtual_memory()
-    output('total system memory [MB]: {:.2f}'.format(mem.total / 1000**2))
-    output('available system memory [MB]: {:.2f}'
-           .format(mem.available / 1000**2))
-
-    uvec, term = setup_data(
-        order=options.order,
-        quad_order=options.quad_order,
-        n_cell=options.n_cell,
-        term_name=options.term_name
-    )
-
-    timer = Timer('')
-    timer.start()
-    vg, geo = term.get_mapping(term.args[1])
-    output('reference element mapping: {} s'.format(timer.stop()))
-
-    dets = vg.det
-    dim = vg.dim
-
-    state = term.args[1]
-    dc_type = term.get_dof_conn_type()
-    # Assumes no E(P)BCs are present!
-    adc = state.get_dof_conn(dc_type)
-
-    n_cell, n_qp, dim, n_en, n_c = term.get_data_shape(state)
-    n_cdof = n_c * n_en
-
-    output('u shape:', state().shape)
-    output('adc shape:', adc.shape)
-    output('u size [MB]:', uvec.nbytes / 1000**2)
-    output('adc size [MB]:', adc.nbytes / 1000**2)
-
-    qsb = vg.bf
-    qsbg = vg.bfg
-
-    output('qsbg shape:', qsbg.shape)
-    output('qvbg shape:', (n_cell, n_qp, n_c, dim, dim * n_en))
-
-    size = (n_cell * n_qp * n_c * dim * dim * n_en) * 8
-    output('qvbg assumed size [MB]:', size / 1000**2)
-    if (1.5 * coef * size) > mem.total:
-        raise MemoryError('insufficient memory for timing!')
-
-    qvb = expand_basis(qsb, dim)
-    qvbg = _expand_sbg(qsbg, dim)
-
-    output('qsbg size [MB]:', qsbg.nbytes / 1000**2)
-    output('qvbg size [MB]:', qvbg.nbytes / 1000**2)
-
-    vec_shape = (n_cell, n_cdof)
-    mtx_shape = (n_cell, n_cdof, n_cdof)
-    output('c vec shape:', vec_shape)
-    output('c mtx shape:', mtx_shape)
-    output('c vec size [MB]:', (n_cell * n_cdof * 8) / 1000**2)
-    output('c mtx size [MB]:', (n_cell * n_cdof**2 * 8) / 1000**2)
-
-    pid = os.getpid()
-    this = psutil.Process(pid)
-    mem_this = this.memory_info()
-    memory_use = mem_this.rss
-    output('memory use [MB]: {:.2f}'.format(memory_use / 1000**2))
-
-    if (coef * memory_use) > mem.total:
-        raise MemoryError('insufficient memory for timing!')
-
+def get_evals_dw_convect(options, term, dets, qsb, qsbg, qvb, qvbg, state, adc):
     if not options.mprof:
         def profile(fun):
             return fun
@@ -849,6 +711,152 @@ def main():
         'dask_einsum1' : (eval_dask_einsum1, 0, da),
         # 'jax_einsum1' : (eval_jax_einsum1, 0, jnp), # meddles with memory profiler
     }
+
+    return evaluators
+
+helps = {
+    'output_dir'
+    : 'output directory',
+    'n_cell'
+    : 'the number of cells [default: %(default)s]',
+    'order'
+    : 'displacement field approximation order [default: %(default)s]',
+    'quad_order'
+    : 'quadrature order [default: 2 * approximation order]',
+    'term_name'
+    : 'the sfepy term to time [default: %(default)s]',
+    'diff'
+    : 'if given, differentiate w.r.t. this variable [default: %(default)s]',
+    'repeat'
+    : 'the number of term implementation evaluations [default: %(default)s]',
+    'mprof'
+    : 'indicates a run under memory_profiler',
+    'silent'
+    : 'do not print messages to screen',
+}
+
+def main():
+    parser = ArgumentParser(description=__doc__.rstrip(),
+                            formatter_class=RawDescriptionHelpFormatter)
+    parser.add_argument('output_dir', help=helps['output_dir'])
+    parser.add_argument('--n-cell', metavar='int', type=int,
+                        action='store', dest='n_cell',
+                        default=100, help=helps['n_cell'])
+    parser.add_argument('--order', metavar='int', type=int,
+                        action='store', dest='order',
+                        default=1, help=helps['order'])
+    parser.add_argument('--quad-order', metavar='int', type=int,
+                        action='store', dest='quad_order',
+                        default=None, help=helps['quad_order'])
+    parser.add_argument('-t', '--term-name',
+                        action='store', dest='term_name',
+                        choices=['dw_convect'],
+                        default='dw_convect', help=helps['term_name'])
+    parser.add_argument('--diff',
+                        metavar='variable name',
+                        action='store', dest='diff',
+                        default=None, help=helps['diff'])
+    parser.add_argument('--repeat', metavar='int', type=int,
+                        action='store', dest='repeat',
+                        default=1, help=helps['repeat'])
+    parser.add_argument('--mprof',
+                        action='store_true', dest='mprof',
+                        default=False, help=helps['mprof'])
+    parser.add_argument('--silent',
+                        action='store_true', dest='silent',
+                        default=False, help=helps['silent'])
+    options = parser.parse_args()
+
+    if options.quad_order is None:
+        options.quad_order = 2 * options.order
+
+    output_dir = options.output_dir
+    output.prefix = 'time_tensors:'
+    filename = os.path.join(output_dir, 'output_log.txt')
+    ensure_path(filename)
+    output.set_output(filename=filename, combined=options.silent == False)
+
+    filename = os.path.join(output_dir, 'options.txt')
+    save_options(filename, [('options', vars(options))],
+                 quote_command_line=True)
+
+    output('numpy:', nm.__version__)
+    output('opt_einsum:', oe.__version__ if oe is not None else 'not available')
+    output('dask:', dask.__version__ if da is not None else 'not available')
+    output('jax:', jax.__version__ if jnp is not None else 'not available')
+
+    coef = 3 if options.diff is None else 4
+
+    mem = psutil.virtual_memory()
+    output('total system memory [MB]: {:.2f}'.format(mem.total / 1000**2))
+    output('available system memory [MB]: {:.2f}'
+           .format(mem.available / 1000**2))
+
+    uvec, term = setup_data(
+        order=options.order,
+        quad_order=options.quad_order,
+        n_cell=options.n_cell,
+        term_name=options.term_name
+    )
+
+    timer = Timer('')
+    timer.start()
+    vg, geo = term.get_mapping(term.args[1])
+    output('reference element mapping: {} s'.format(timer.stop()))
+
+    dets = vg.det
+    dim = vg.dim
+
+    state = term.args[1]
+    dc_type = term.get_dof_conn_type()
+    # Assumes no E(P)BCs are present!
+    adc = state.get_dof_conn(dc_type)
+
+    n_cell, n_qp, dim, n_en, n_c = term.get_data_shape(state)
+    n_cdof = n_c * n_en
+
+    output('u shape:', state().shape)
+    output('adc shape:', adc.shape)
+    output('u size [MB]:', uvec.nbytes / 1000**2)
+    output('adc size [MB]:', adc.nbytes / 1000**2)
+
+    qsb = vg.bf
+    qsbg = vg.bfg
+
+    output('qsbg shape:', qsbg.shape)
+    output('qvbg shape:', (n_cell, n_qp, n_c, dim, dim * n_en))
+
+    size = (n_cell * n_qp * n_c * dim * dim * n_en) * 8
+    output('qvbg assumed size [MB]:', size / 1000**2)
+    if (1.5 * coef * size) > mem.total:
+        raise MemoryError('insufficient memory for timing!')
+
+    qvb = expand_basis(qsb, dim)
+    qvbg = _expand_sbg(qsbg, dim)
+
+    output('qsbg size [MB]:', qsbg.nbytes / 1000**2)
+    output('qvbg size [MB]:', qvbg.nbytes / 1000**2)
+
+    vec_shape = (n_cell, n_cdof)
+    mtx_shape = (n_cell, n_cdof, n_cdof)
+    output('c vec shape:', vec_shape)
+    output('c mtx shape:', mtx_shape)
+    output('c vec size [MB]:', (n_cell * n_cdof * 8) / 1000**2)
+    output('c mtx size [MB]:', (n_cell * n_cdof**2 * 8) / 1000**2)
+
+    pid = os.getpid()
+    this = psutil.Process(pid)
+    mem_this = this.memory_info()
+    memory_use = mem_this.rss
+    output('memory use [MB]: {:.2f}'.format(memory_use / 1000**2))
+
+    if (coef * memory_use) > mem.total:
+        raise MemoryError('insufficient memory for timing!')
+
+    if options.term_name == 'dw_convect':
+        evaluators = get_evals_dw_convect(
+            options, term, dets, qsb, qsbg, qvb, qvbg, state, adc
+        )
 
     results = {}
 
