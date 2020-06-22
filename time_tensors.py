@@ -738,6 +738,125 @@ def get_evals_dw_convect(options, term, dets, qsb, qsbg, qvb, qvbg, state, adc):
 
     return evaluators
 
+def get_evals_dw_laplace(options, term, dets, qsb, qsbg, qvb, qvbg, state, adc):
+    if not options.mprof:
+        def profile(fun):
+            return fun
+
+    else:
+        profile = globals()['profile']
+
+    @profile
+    def eval_sfepy_term():
+        return term.evaluate(mode='weak',
+                             diff_var=options.diff,
+                             standalone=False, ret_status=True)
+
+    @profile
+    def eval_numpy_einsum2():
+        if options.diff == 'u':
+            return nm.einsum('cqab,cqjk,cqjn->ckn',
+                             dets, qsbg, qsbg,
+                             optimize='greedy'), 0
+
+        else:
+            uc = state()[adc]
+            return nm.einsum('cqab,cqjk,cqjn,cn->ck',
+                             dets, qsbg, qsbg, uc,
+                             optimize='greedy'), 0
+
+    @profile
+    def eval_opt_einsum1a():
+        if options.diff == 'u':
+            return oe.contract('cqab,cqjk,cqjn->ckn',
+                               dets, qsbg, qsbg,
+                               optimize='auto'), 0
+
+        else:
+            uc = state()[adc]
+            return oe.contract('cqab,cqjk,cqjn,cn->ck',
+                               dets, qsbg, qsbg, uc,
+                               optimize='auto'), 0
+
+    @profile
+    def eval_opt_einsum1g():
+        if options.diff == 'u':
+            return oe.contract('cqab,cqjk,cqjn->ckn',
+                               dets, qsbg, qsbg,
+                               optimize='greedy'), 0
+
+        else:
+            uc = state()[adc]
+            return oe.contract('cqab,cqjk,cqjn,cn->ck',
+                               dets, qsbg, qsbg, uc,
+                               optimize='greedy'), 0
+
+
+    @profile
+    def eval_opt_einsum1dp():
+        if options.diff == 'u':
+            return oe.contract('cqab,cqjk,cqjn->ckn',
+                               dets, qsbg, qsbg,
+                               optimize='dynamic-programming'), 0
+
+        else:
+            uc = state()[adc]
+            return oe.contract('cqab,cqjk,cqjn,cn->ck',
+                               dets, qsbg, qsbg, uc,
+                               optimize='dynamic-programming'), 0
+
+    def eval_jax2(dets, Gs, u):
+        out = jnp.einsum('qab,qjk,qjn,n->k',
+                         dets, Gs, Gs, u)
+        return out
+
+    if jax is not None:
+        eval_jax2_grad = jax.jacobian(eval_jax2, 2)
+
+    @profile
+    def eval_jax_einsum1():
+        if jax is None: return nm.zeros(1), 1
+        uc = state()[adc]
+        f = 0
+        vm = (0, 0, 0)
+        if options.diff is None:
+            f = jax.jit(jax.vmap(eval_jax2, vm, 0))(dets, qsbg, uc)
+
+        elif options.diff == 'u':
+            f = jax.jit(jax.vmap(eval_jax2_grad, vm, 0))(dets, qsbg, uc)
+
+        return f, 0
+
+    @profile
+    def eval_dask_einsum1():
+        if options.diff == 'u':
+            return da.einsum('cqab,cqjk,cqjn->ckn',
+                             dets, qsbg, qsbg,
+                             optimize='greedy').compute(
+                                 scheduler='single-threaded'
+                             ), 0
+
+        else:
+            uc = state()[adc]
+            return da.einsum('cqab,cqjk,cqjn,cn->ck',
+                             dets, qsbg, qsbg, uc,
+                             optimize='greedy').compute(
+                                 scheduler='single-threaded'
+                             ), 0
+
+    # -> to functions to enable memory profiling
+    evaluators = {
+        'sfepy_term' : (eval_sfepy_term, 0, True),
+        'numpy_einsum2' : (eval_numpy_einsum2, 0, nm),
+        'opt_einsum1a' : (eval_opt_einsum1a, 0, oe),
+        'opt_einsum1g' : (eval_opt_einsum1g, 0, oe),
+        'opt_einsum1dp' : (eval_opt_einsum1dp, 0, oe),
+        'dask_einsum1' : (eval_dask_einsum1, 0, da),
+        # 'jax_einsum1' : (eval_jax_einsum1, 0, jnp), # meddles with memory profiler
+    }
+
+    return evaluators
+
 helps = {
     'output_dir'
     : 'output directory',
@@ -774,7 +893,7 @@ def main():
                         default=None, help=helps['quad_order'])
     parser.add_argument('-t', '--term-name',
                         action='store', dest='term_name',
-                        choices=['dw_convect'],
+                        choices=['dw_convect', 'dw_laplace'],
                         default='dw_convect', help=helps['term_name'])
     parser.add_argument('--diff',
                         metavar='variable name',
@@ -825,13 +944,13 @@ def main():
 
     timer = Timer('')
     timer.start()
-    vg, geo = term.get_mapping(term.args[1])
+    vg, geo = term.get_mapping(term.args[-1])
     output('reference element mapping: {} s'.format(timer.stop()))
 
     dets = vg.det
     dim = vg.dim
 
-    state = term.args[1]
+    state = term.args[-1]
     dc_type = term.get_dof_conn_type()
     # Assumes no E(P)BCs are present!
     adc = state.get_dof_conn(dc_type)
@@ -879,6 +998,11 @@ def main():
 
     if options.term_name == 'dw_convect':
         evaluators = get_evals_dw_convect(
+            options, term, dets, qsb, qsbg, qvb, qvbg, state, adc
+        )
+
+    else:
+        evaluators = get_evals_dw_laplace(
             options, term, dets, qsb, qsbg, qvb, qvbg, state, adc
         )
 
