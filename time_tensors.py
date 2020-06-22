@@ -443,6 +443,14 @@ def get_v_sol(coors):
     cc = (coors - x0) / dims[None, :]
     return cc
 
+def get_s_sol(coors):
+    x0 = coors.min(axis=0)
+    x1 = coors.max(axis=0)
+    dims = x1 - x0
+
+    cc = (coors[:, 0] - x0[0]) / dims[0]
+    return cc
+
 def _expand_sbg(basis, dpn):
     dim, n_ep = basis.shape[-2:]
     vg = nm.zeros(basis.shape[:2] + (dpn, dim, dim * n_ep))
@@ -472,8 +480,14 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect'):
     omega = domain.create_region('omega', 'all')
     output('create omega: {} s'.format(timer.stop()))
 
+    if term_name == 'dw_convect':
+        n_c = mesh.dim
+
+    else:
+        n_c = 1
+
     timer.start()
-    field = Field.from_args('fu', nm.float64, mesh.dim, omega,
+    field = Field.from_args('fu', nm.float64, n_c, omega,
                             approx_order=order)
     output('create field: {} s'.format(timer.stop()))
 
@@ -482,14 +496,24 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect'):
     v = FieldVariable('v', 'test', field, primary_var_name='u')
     output('create variables: {} s'.format(timer.stop()))
 
-    timer.start()
-    u.set_from_function(get_v_sol)
-    output('set state: {} s'.format(timer.stop()))
-    uvec = u()
-
-    timer.start()
     if term_name == 'dw_convect':
+        timer.start()
+        u.set_from_function(get_v_sol)
+        output('set state: {} s'.format(timer.stop()))
+        uvec = u()
+
+        timer.start()
         term = Term.new('dw_convect(v, u)', integral=integral,
+                        region=omega, v=v, u=u)
+
+    else:
+        timer.start()
+        u.set_from_function(get_s_sol)
+        output('set state: {} s'.format(timer.stop()))
+        uvec = u()
+
+        timer.start()
+        term = Term.new('dw_laplace(v, u)', integral=integral,
                         region=omega, v=v, u=u)
 
     term.setup()
