@@ -849,7 +849,7 @@ def get_evals_dw_laplace(options, term, dets, qsb, qsbg, qvb, qvbg, state, adc):
         'sfepy_term' : (eval_sfepy_term, 0, True),
         'numpy_einsum2' : (eval_numpy_einsum2, 0, nm),
         'opt_einsum1a' : (eval_opt_einsum1a, 0, oe),
-        'opt_einsum1g' : (eval_opt_einsum1g, 0, oe),
+        # 'opt_einsum1g' : (eval_opt_einsum1g, 0, oe), # Uses too much memory in this case
         'opt_einsum1dp' : (eval_opt_einsum1dp, 0, oe),
         'dask_einsum1' : (eval_dask_einsum1, 0, da),
         # 'jax_einsum1' : (eval_jax_einsum1, 0, jnp), # meddles with memory profiler
@@ -929,6 +929,8 @@ def main():
     output('jax:', jax.__version__ if jnp is not None else 'not available')
 
     coef = 3 if options.diff is None else 4
+    if options.term_name == 'dw_laplace':
+        coef *= 0.4
 
     mem = psutil.virtual_memory()
     output('total system memory [MB]: {:.2f}'.format(mem.total / 1000**2))
