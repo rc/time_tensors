@@ -721,7 +721,6 @@ def get_evals_dw_convect(options, term, dets, qsb, qsbg, qvb, qvbg, state, adc):
                                  scheduler='single-threaded'
                              ), 0
 
-    # -> to functions to enable memory profiling
     evaluators = {
         'sfepy_term' : (eval_sfepy_term, 0, True),
         # 'numpy_einsum1' : (eval_numpy_einsum1, 0, True), # unusably slow
@@ -805,6 +804,19 @@ def get_evals_dw_laplace(options, term, dets, qsb, qsbg, qvb, qvbg, state, adc):
                                dets, qsbg, qsbg, uc,
                                optimize='dynamic-programming'), 0
 
+    @profile
+    def eval_opt_einsum1dp2():
+        if options.diff == 'u':
+            return oe.contract('cq,cqjk,cqjn->ckn',
+                               dets[..., 0, 0], qsbg, qsbg,
+                               optimize='dynamic-programming'), 0
+
+        else:
+            uc = state()[adc]
+            return oe.contract('cq,cqjk,cqjn,cn->ck',
+                               dets[..., 0, 0], qsbg, qsbg, uc,
+                               optimize='dynamic-programming'), 0
+
     def eval_jax2(dets, Gs, u):
         out = jnp.einsum('qab,qjk,qjn,n->k',
                          dets, Gs, Gs, u)
@@ -844,13 +856,13 @@ def get_evals_dw_laplace(options, term, dets, qsb, qsbg, qvb, qvbg, state, adc):
                                  scheduler='single-threaded'
                              ), 0
 
-    # -> to functions to enable memory profiling
     evaluators = {
         'sfepy_term' : (eval_sfepy_term, 0, True),
         'numpy_einsum2' : (eval_numpy_einsum2, 0, nm),
         'opt_einsum1a' : (eval_opt_einsum1a, 0, oe),
         # 'opt_einsum1g' : (eval_opt_einsum1g, 0, oe), # Uses too much memory in this case
         'opt_einsum1dp' : (eval_opt_einsum1dp, 0, oe),
+        'opt_einsum1dp2' : (eval_opt_einsum1dp2, 0, oe),
         'dask_einsum1' : (eval_dask_einsum1, 0, da),
         # 'jax_einsum1' : (eval_jax_einsum1, 0, jnp), # meddles with memory profiler
     }
