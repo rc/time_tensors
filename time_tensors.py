@@ -856,6 +856,23 @@ def get_evals_dw_laplace(options, term, dets, qsb, qsbg, qvb, qvbg, state, adc):
                                  scheduler='single-threaded'
                              ), 0
 
+    @profile
+    def eval_dask_einsum2():
+        if options.diff == 'u':
+            return da.einsum('cqab,cqjk,cqjn->ckn',
+                             dets, qsbg, qsbg,
+                             optimize='greedy').compute(
+                                 scheduler='threads'
+                             ), 0
+
+        else:
+            uc = state()[adc]
+            return da.einsum('cqab,cqjk,cqjn,cn->ck',
+                             dets, qsbg, qsbg, uc,
+                             optimize='greedy').compute(
+                                 scheduler='threads'
+                             ), 0
+
     evaluators = {
         'sfepy_term' : (eval_sfepy_term, 0, True),
         'numpy_einsum2' : (eval_numpy_einsum2, 0, nm),
@@ -864,6 +881,7 @@ def get_evals_dw_laplace(options, term, dets, qsb, qsbg, qvb, qvbg, state, adc):
         'opt_einsum1dp' : (eval_opt_einsum1dp, 0, oe),
         'opt_einsum1dp2' : (eval_opt_einsum1dp2, 0, oe),
         'dask_einsum1' : (eval_dask_einsum1, 0, da),
+        'dask_einsum2' : (eval_dask_einsum2, 0, da),
         # 'jax_einsum1' : (eval_jax_einsum1, 0, jnp), # meddles with memory profiler
     }
 
