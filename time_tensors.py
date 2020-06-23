@@ -119,7 +119,7 @@ def scrape_output(filename, rdata=None):
         out['dim'] = aux[2]
         out['n_en'] = aux[3]
 
-        line = io.skip_lines_to(fd, 'qvbg size')
+        line = io.skip_lines_to(fd, 'qvbg assumed size')
         out['qvbg_size_mb'] = literal_eval(line.split(':')[2].strip())
 
         line = io.skip_lines_to(fd, 'c vec size')
@@ -988,8 +988,13 @@ def main():
     if (1.5 * coef * size) > mem.total:
         raise MemoryError('insufficient memory for timing!')
 
-    qvb = expand_basis(qsb, dim)
-    qvbg = _expand_sbg(qsbg, dim)
+    if options.term_name == 'dw_convect':
+        qvb = expand_basis(qsb, dim)
+        qvbg = _expand_sbg(qsbg, dim)
+
+    else:
+        qvb = nm.zeros(0)
+        qvbg = nm.zeros(0)
 
     output('qsbg size [MB]:', qsbg.nbytes / 1000**2)
     output('qvbg size [MB]:', qvbg.nbytes / 1000**2)
