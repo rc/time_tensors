@@ -522,6 +522,18 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect'):
 
     return uvec, term
 
+def _get_shape(expr, *arrays):
+    lhs, output = expr.split('->')
+    inputs = lhs.split(',')
+
+    sizes = {}
+    for term, array in zip(inputs, arrays):
+        for k, d in zip(term, array.shape):
+            sizes[k] = d
+
+    out_shape = tuple(sizes[k] for k in output)
+    return sizes, out_shape
+
 def get_evals_dw_convect(options, term, dets, qsb, qsbg, qvb, qvbg, state, adc):
     if not options.mprof:
         def profile(fun):
@@ -873,6 +885,37 @@ def get_evals_dw_laplace(options, term, dets, qsb, qsbg, qvb, qvbg, state, adc):
                                  scheduler='threads'
                              ), 0
 
+    @profile
+    def eval_opt_einsum_loop():
+        if options.diff == 'u':
+            sizes, out_shape = _get_shape('cqab,cqjk,cqjn->ckn',
+                                          dets, qsbg, qsbg)
+            out = nm.empty(out_shape, dtype=nm.float64)
+            path, path_info =  oe.contract_path('qab,qjk,qjn->kn',
+                                                dets[0], qsbg[0], qsbg[0],
+                                                optimize='auto')
+            for c in range(sizes['c']):
+                sbg = qsbg[c]
+                out[c] = oe.contract('qab,qjk,qjn->kn', dets[c], sbg, sbg,
+                                     optimize=path)
+
+            return out, 0
+
+        else:
+            uc = state()[adc]
+            sizes, out_shape = _get_shape('cqab,cqjk,cqjn,cn->ck',
+                                          dets, qsbg, qsbg, uc)
+            out = nm.empty(out_shape, dtype=nm.float64)
+            path, path_info =  oe.contract_path('qab,qjk,qjn,n->k',
+                                                dets[0], qsbg[0], qsbg[0],
+                                                uc[0], optimize='auto')
+            for c in range(sizes['c']):
+                sbg = qsbg[c]
+                out[c] = oe.contract('qab,qjk,qjn,n->k', dets[c], sbg, sbg,
+                                     uc[c], optimize=path)
+
+            return out, 0
+
     evaluators = {
         'sfepy_term' : (eval_sfepy_term, 0, True),
         'numpy_einsum2' : (eval_numpy_einsum2, 0, nm),
@@ -882,6 +925,7 @@ def get_evals_dw_laplace(options, term, dets, qsb, qsbg, qvb, qvbg, state, adc):
         'opt_einsum1dp2' : (eval_opt_einsum1dp2, 0, oe),
         'dask_einsum1' : (eval_dask_einsum1, 0, da),
         'dask_einsum2' : (eval_dask_einsum2, 0, da),
+        'opt_einsum_loop' : (eval_opt_einsum_loop, 0, oe),
         # 'jax_einsum1' : (eval_jax_einsum1, 0, jnp), # meddles with memory profiler
     }
 
