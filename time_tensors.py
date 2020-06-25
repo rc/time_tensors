@@ -139,6 +139,7 @@ def get_plugin_info():
     info = [
         collect_times,
         collect_mem_usages,
+        setup_styles,
         plot_times,
         plot_mem_usages,
         plot_all_as_bars,
@@ -221,10 +222,12 @@ def collect_mem_usages(df, data=None):
     data.mdf = mdf
     return data
 
-def plot_times(df, data=None, colormap_name='viridis',
-               xscale='log', yscale='log'):
+def setup_styles(df, data=None, colormap_name='viridis', markers=None):
     import soops.plot_selected as sps
-    import matplotlib.pyplot as plt
+
+    if markers is None:
+        from matplotlib.lines import Line2D
+        markers = list(Line2D.filled_markers)
 
     select = sps.normalize_selected(data.uniques)
     select['function'] = data.tkeys
@@ -232,9 +235,21 @@ def plot_times(df, data=None, colormap_name='viridis',
     styles = {key : {} for key in select.keys()}
     styles['term_name'] = {'ls' : ['-', '--', '-.'], 'lw' : 2, 'alpha' : 0.8}
     styles['order'] = {'color' : colormap_name}
-    styles['function'] = {'marker' : ['o', 'x', '*', '^', '>', 'v', '<'],
+    styles['function'] = {'marker' : markers,
                           'mfc' : 'None', 'ms' : 8}
     styles = sps.setup_plot_styles(select, styles)
+
+    data.select = select
+    data.styles = styles
+    return data
+
+def plot_times(df, data=None, xscale='log', yscale='log'):
+    import soops.plot_selected as sps
+    import matplotlib.pyplot as plt
+
+    select = data.select.copy()
+    select['function'] = data.tkeys
+    styles = data.styles
 
     tdf = data.tdf
 
@@ -277,15 +292,9 @@ def plot_mem_usages(df, data=None, colormap_name='viridis',
     import soops.plot_selected as sps
     import matplotlib.pyplot as plt
 
-    select = sps.normalize_selected(data.uniques)
+    select = data.select.copy()
     select['function'] = data.mkeys
-
-    styles = {key : {} for key in select.keys()}
-    styles['term_name'] = {'ls' : ['-', '--', '-.'], 'lw' : 2, 'alpha' : 0.8}
-    styles['order'] = {'color' : colormap_name}
-    styles['function'] = {'marker' : ['o', 'x', '*', '^', '>', 'v', '<'],
-                          'mfc' : 'None', 'ms' : 8}
-    styles = sps.setup_plot_styles(select, styles)
+    styles = data.styles
 
     mdf = data.mdf
 
