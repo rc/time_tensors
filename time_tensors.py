@@ -48,6 +48,8 @@ from sfepy.base.ioutils import ensure_path, save_options
 from sfepy.base.timing import Timer
 from sfepy.discrete.variables import expand_basis
 
+import terms_multilinear; terms_multilinear
+
 def get_run_info():
     # script_dir is added by soops-run, it is the normalized path to
     # this script.
@@ -512,7 +514,7 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect'):
         uvec = u()
 
         timer.start()
-        term = Term.new('dw_convect(v, u)', integral=integral,
+        term = Term.new('dw_econvect(v, u)', integral=integral,
                         region=omega, v=v, u=u)
 
     else:
@@ -522,7 +524,7 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect'):
         uvec = u()
 
         timer.start()
-        term = Term.new('dw_laplace(v, u)', integral=integral,
+        term = Term.new('dw_elaplace(v, u)', integral=integral,
                         region=omega, v=v, u=u)
 
     term.setup()
@@ -925,16 +927,39 @@ def get_evals_dw_laplace(options, term, dets, qsb, qsbg, qvb, qvbg, state, adc):
 
             return out, 0
 
+    @profile
+    def eval_opt_einsum_dask(coef=1000):
+        n_cell, n_qp, dim, n_en = qsbg.shape
+        # print(coef * qsbg.nbytes / n_cell)
+        _dets = da.from_array(dets, chunks=(coef, n_qp, 1, 1), name='dets')
+        _qsbg = da.from_array(qsbg, chunks=(coef, n_qp, dim, n_en), name='qsbg')
+        if options.diff == 'u':
+            return oe.contract('cqab,cqjk,cqjn->ckn',
+                               _dets, _qsbg, _qsbg,
+                               optimize='auto', backend='dask').compute(
+                                   scheduler='single-threaded'
+                               ), 0
+
+        else:
+            uc = state()[adc]
+            return oe.contract('cqab,cqjk,cqjn,cn->ck',
+                               _dets, _qsbg, _qsbg, uc,
+                               optimize='auto', backend='dask').compute(
+                                   scheduler='single-threaded'
+                               ), 0
+
+
     evaluators = {
         'sfepy_term' : (eval_sfepy_term, 0, True),
-        'numpy_einsum2' : (eval_numpy_einsum2, 0, nm),
-        'opt_einsum1a' : (eval_opt_einsum1a, 0, oe),
-        # 'opt_einsum1g' : (eval_opt_einsum1g, 0, oe), # Uses too much memory in this case
+        # 'numpy_einsum2' : (eval_numpy_einsum2, 0, nm),
+        # 'opt_einsum1a' : (eval_opt_einsum1a, 0, oe),
+        # # 'opt_einsum1g' : (eval_opt_einsum1g, 0, oe), # Uses too much memory in this case
         'opt_einsum1dp' : (eval_opt_einsum1dp, 0, oe),
-        'opt_einsum1dp2' : (eval_opt_einsum1dp2, 0, oe),
+        # 'opt_einsum1dp2' : (eval_opt_einsum1dp2, 0, oe),
         'dask_einsum1' : (eval_dask_einsum1, 0, da),
-        'dask_einsum2' : (eval_dask_einsum2, 0, da),
+        # 'dask_einsum2' : (eval_dask_einsum2, 0, da),
         'opt_einsum_loop' : (eval_opt_einsum_loop, 0, oe),
+        'opt_einsum_dask' : (eval_opt_einsum_dask, 0, oe and da),
         # 'jax_einsum1' : (eval_jax_einsum1, 0, jnp), # meddles with memory profiler
     }
 
@@ -1099,6 +1124,22 @@ def main():
     results = {}
 
     timer = Timer('')
+
+    # coefs = []
+    # times = []
+    # fun = evaluators['opt_einsum_dask'][0]
+    # for coef in nm.logspace(nm.log10(2), nm.log10(n_cell), 20):
+    #     cc = int(coef)
+    #     if cc in coefs: continue
+    #     coefs.append(cc)
+    #     print(cc)
+    #     timer.start()
+    #     res = fun(cc)
+    #     times.append(timer.stop())
+
+    # import matplotlib.pyplot as plt
+    # plt.semilogy(coefs, times)
+    # plt.show()
 
     for key, (fun, arg_no, can_use) in evaluators.items():
         if not can_use: continue
