@@ -268,7 +268,7 @@ def plot_times(df, data=None, xscale='log', yscale='log'):
                 means = nm.nanmean(times, axis=1)
                 stds = nm.nanstd(times, axis=1)
                 style_kwargs, indices = sps.get_row_style(
-                    sdf, 0, select, {}, styles
+                    sdf.iloc[0], select, {}, styles
                 )
                 used = sps.update_used(used, indices)
 
@@ -313,7 +313,7 @@ def plot_mem_usages(df, data=None, colormap_name='viridis',
                 means = nm.nanmean(mems, axis=1)
                 stds = nm.nanstd(mems, axis=1)
                 style_kwargs, indices = sps.get_row_style(
-                    sdf, 0, select, {}, styles
+                    sdf.iloc[0], select, {}, styles
                 )
                 used = sps.update_used(used, indices)
 
