@@ -343,7 +343,7 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
 
     select = {}
     select['tn_cell'] = tdf['n_cell'].unique()
-    select['mn_cell'] = tdf['n_cell'].unique()
+    select['mn_cell'] = mdf['n_cell'].unique()
 
     mit = nm.nanmin(tdf['t'].to_list())
     mat = nm.nanmax(tdf['t'].to_list())
