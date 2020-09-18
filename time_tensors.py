@@ -581,6 +581,48 @@ def get_evals_dw_convect(options, term, dets, qsb, qsbg, qvb, qvbg, state, adc):
             return nm.einsum('cqab,qji,cqjkl,cl,qkn,cn->ci',
                              dets, qvb[0], qvbg, uc, qvb[0], uc,
                              optimize='greedy'), 0
+    @profile
+    def eval_numpy_einsum_qsb():
+        uc = state()[adc]
+
+        n_cell, n_ed = uc.shape
+        ucc = uc.reshape((dets.shape[0], -1, qsb.shape[-1]))
+        ee = nm.eye(ucc.shape[-2])
+        if options.diff == 'u':
+            # v1 = nm.einsum('cqab,qji,cqjkl,qkn,cn->cil',
+            #                dets, qvb[0], qvbg, qvb[0], uc,
+            #                optimize='greedy')
+            val1 = nm.einsum('cqab,qzy,jx,cqkY,jX,qzn,ckn->cxyXY',
+                             dets, qsb[0], ee, qsbg, ee, qsb[0], ucc,
+                             optimize='greedy')
+            v1 = val1.reshape((n_cell, n_ed, n_ed))
+            # print(nm.abs(_v1 - v1).max())
+
+            # v2 = nm.einsum('cqab,qji,cqjkl,cl,qkn->cin',
+            #                dets, qvb[0], qvbg, uc, qvb[0],
+            #                optimize='greedy')
+            val2 = nm.einsum('cqab,qzy,jx,cqkl,cjl,qzY,kX->cxyXY',
+                             dets, qsb[0], ee, qsbg, ucc, qsb[0], ee,
+                             optimize='greedy')
+            v2 = val2.reshape((n_cell, n_ed, n_ed))
+            # print(nm.abs(_v2 - v2).max())
+            # from sfepy.base.base import debug; debug()
+            return v1 + v2, 0
+
+        else:
+            # print(qsb.shape)
+            # print(qsbg.shape)
+            # val1 = nm.einsum('cqab,qji,cqjkl,cl,qkn,cn->ci',
+            #                  dets, qvb[0], qvbg, uc, qvb[0], uc,
+            #                  optimize='greedy')
+            val2 = nm.einsum('cqab,qzy,jx,cqkl,cjl,qzn,ckn->cxy',
+                             dets, qsb[0], ee, qsbg, ucc, qsb[0], ucc,
+                             optimize='greedy')
+            # print(val2.flags)
+            v2 = val2.reshape((n_cell, n_ed))
+            # print(nm.abs(v2 - val1).max())
+
+            return v2, 0
 
     @profile
     def eval_numpy_einsum3():
@@ -746,6 +788,7 @@ def get_evals_dw_convect(options, term, dets, qsb, qsbg, qvb, qvbg, state, adc):
         'sfepy_term' : (eval_sfepy_term, 0, True),
         # 'numpy_einsum1' : (eval_numpy_einsum1, 0, True), # unusably slow
         'numpy_einsum2' : (eval_numpy_einsum2, 0, nm),
+        'numpy_einsum_qsb' : (eval_numpy_einsum_qsb, 0, nm),
         # 'numpy_einsum3' : (eval_numpy_einsum3, 0, nm), # slow, memory hog
         'opt_einsum1a' : (eval_opt_einsum1a, 0, oe),
         'opt_einsum1g' : (eval_opt_einsum1g, 0, oe),
