@@ -706,6 +706,67 @@ def get_evals_dw_convect(options, term, dets, qsb, qsbg, qvb, qvbg, state, adc):
                                optimize='dynamic-programming'), 0
 
     @profile
+    def eval_opt_einsum_qsb():
+        uc = state()[adc]
+        n_cell, n_ed = uc.shape
+        ucc = uc.reshape((dets.shape[0], -1, qsb.shape[-1]))
+        ee = nm.eye(ucc.shape[-2])
+
+        if options.diff == 'u':
+            # v1 = oe.contract('cqab,qji,cqjkl,qkn,cn->cil',
+            #                  dets, qvb[0], qvbg, qvb[0], uc,
+            #                  optimize='greedy')
+            val1 = oe.contract('cqab,qzy,jx,cqkY,jX,qzn,ckn->cxyXY',
+                               dets, qsb[0], ee, qsbg, ee, qsb[0], ucc,
+                               optimize='greedy')
+            v1 = val1.reshape((n_cell, n_ed, n_ed))
+            # print(nm.abs(_v1 - v1).max())
+
+            # v2 = oe.contract('cqab,qji,cqjkl,cl,qkn->cin',
+            #                  dets, qvb[0], qvbg, uc, qvb[0],
+            #                  optimize='greedy')
+            val2 = oe.contract('cqab,qzy,jx,cqkl,cjl,qzY,kX->cxyXY',
+                               dets, qsb[0], ee, qsbg, ucc, qsb[0], ee,
+                               optimize='greedy')
+            v2 = val2.reshape((n_cell, n_ed, n_ed))
+            # print(nm.abs(_v2 - v2).max())
+            # from sfepy.base.base import debug; debug()
+            return v1 + v2, 0
+
+        else:
+            # val1 = oe.contract('cqab,qji,cqjkl,cl,qkn,cn->ci',
+            #                  dets, qvb[0], qvbg, uc, qvb[0], uc,
+            #                  optimize='greedy')
+            # val2 = oe.contract('cqab,qrd,is,cqie,cje,qvf,cjf->csd',
+            #                    #'cqab,qzy,jx,cqkl,cjl,qzn,ckn->cxy',
+            #                    dets, qsb[0], ee, qsbg, ucc, qsb[0], ucc,
+            #                    optimize='greedy')
+            # # print(val2.flags)
+            # v2 = val2.reshape((n_cell, n_ed))
+            # print(nm.abs(v2 - val1).max())
+            # from sfepy.base.base import debug; debug()
+
+            # no time difference with the above
+            v2 = nm.empty((n_cell, n_ed), dtype=nm.float64)
+            vout = v2.reshape(ucc.shape)
+            oe.contract('cqab,qzy,jx,cqkl,cjl,qzn,ckn->cxy',
+                        dets, qsb[0], ee, qsbg, ucc, qsb[0], ucc,
+                        out=vout,
+                        optimize='greedy')
+            # time differences below! (size 1 qsb axis)
+            # check values!!!
+            # oe.contract('cqab,qzy,jx,cqkl,cjl,qwn,ckn->cxy',
+            #             dets, qsb[0], ee, qsbg, ucc, qsb[0], ucc,
+            #             out=vout,
+            #             optimize='greedy')
+            # oe.contract('cqab,qy,jx,cqkl,cjl,qwn,ckn->cxy',
+            #             dets, qsb[0, :, 0], ee, qsbg, ucc, qsb[0, :, 0], ucc,
+            #             out=vout,
+            #             optimize='greedy')
+
+            return v2, 0
+
+    @profile
     def eval_opt_einsum2a():
         uc = state()[adc]
 
@@ -790,9 +851,10 @@ def get_evals_dw_convect(options, term, dets, qsb, qsbg, qvb, qvbg, state, adc):
         'numpy_einsum2' : (eval_numpy_einsum2, 0, nm),
         'numpy_einsum_qsb' : (eval_numpy_einsum_qsb, 0, nm),
         # 'numpy_einsum3' : (eval_numpy_einsum3, 0, nm), # slow, memory hog
-        'opt_einsum1a' : (eval_opt_einsum1a, 0, oe),
+        #'opt_einsum1a' : (eval_opt_einsum1a, 0, oe),
         'opt_einsum1g' : (eval_opt_einsum1g, 0, oe),
         'opt_einsum1dp' : (eval_opt_einsum1dp, 0, oe),
+        'opt_einsum_qsb' : (eval_opt_einsum_qsb, 0, oe),
         #'opt_einsum2a' : (eval_opt_einsum2a, 0, oe), # more memory than opt_einsum1*
         'opt_einsum2dp' : (eval_opt_einsum2dp, 0, oe), # more memory than opt_einsum1*
         'dask_einsum1' : (eval_dask_einsum1, 0, da),
