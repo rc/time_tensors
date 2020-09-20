@@ -530,6 +530,11 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect'):
                             integral=integral,
                             region=omega, v=v, u=u)
 
+        elif term_name == 'dw_volume_dot':
+            term = Term.new('dw_{}volume_dot(v, u)'.format(prefix),
+                            integral=integral,
+                            region=omega, v=v, u=u)
+
         else:
             raise ValueError(term_name)
 
@@ -1079,6 +1084,34 @@ def get_evals_dw_laplace(options, term, eterm,
 
     return evaluators
 
+def get_evals_dw_volume_dot(options, term, eterm,
+                            dets, qsb, qsbg, qvb, qvbg, state, adc):
+    if not options.mprof:
+        def profile(fun):
+            return fun
+
+    else:
+        profile = globals()['profile']
+
+    @profile
+    def eval_sfepy_term():
+        return term.evaluate(mode='weak',
+                             diff_var=options.diff,
+                             standalone=False, ret_status=True)
+
+    @profile
+    def eval_sfepy_eterm():
+        return eterm.evaluate(mode='weak',
+                              diff_var=options.diff,
+                              standalone=False, ret_status=True)
+
+    evaluators = {
+        'sfepy_term' : (eval_sfepy_term, 0, True),
+        'sfepy_eterm' : (eval_sfepy_eterm, 0, True),
+    }
+
+    return evaluators
+
 helps = {
     'output_dir'
     : 'output directory',
@@ -1115,7 +1148,7 @@ def main():
                         default=None, help=helps['quad_order'])
     parser.add_argument('-t', '--term-name',
                         action='store', dest='term_name',
-                        choices=['dw_convect', 'dw_laplace'],
+                        choices=['dw_convect', 'dw_laplace', 'dw_volume_dot'],
                         default='dw_convect', help=helps['term_name'])
     parser.add_argument('--diff',
                         metavar='variable name',
@@ -1151,7 +1184,7 @@ def main():
     output('jax:', jax.__version__ if jnp is not None else 'not available')
 
     coef = 3 if options.diff is None else 4
-    if options.term_name == 'dw_laplace':
+    if options.term_name != 'dw_convect':
         coef *= 0.4
 
     mem = psutil.virtual_memory()
@@ -1232,6 +1265,11 @@ def main():
 
     elif options.term_name == 'dw_laplace':
         evaluators = get_evals_dw_laplace(
+            options, term, eterm, dets, qsb, qsbg, qvb, qvbg, state, adc
+        )
+
+    elif options.term_name == 'dw_volume_dot':
+        evaluators = get_evals_dw_volume_dot(
             options, term, eterm, dets, qsb, qsbg, qvb, qvbg, state, adc
         )
 
