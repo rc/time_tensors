@@ -48,6 +48,8 @@ from sfepy.base.ioutils import ensure_path, save_options
 from sfepy.base.timing import Timer
 from sfepy.discrete.variables import expand_basis
 
+import terms_multilinear; terms_multilinear
+
 def get_run_info():
     # script_dir is added by soops-run, it is the normalized path to
     # this script.
@@ -511,25 +513,41 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect'):
         output('set state: {} s'.format(timer.stop()))
         uvec = u()
 
-        timer.start()
-        term = Term.new('dw_convect(v, u)', integral=integral,
-                        region=omega, v=v, u=u)
-
     else:
         timer.start()
         u.set_from_function(get_s_sol)
         output('set state: {} s'.format(timer.stop()))
         uvec = u()
 
-        timer.start()
-        term = Term.new('dw_laplace(v, u)', integral=integral,
-                        region=omega, v=v, u=u)
+    def _create_term(prefix=''):
+        if term_name == 'dw_convect':
+            term = Term.new('dw_{}convect(v, u)'.format(prefix),
+                            integral=integral,
+                            region=omega, v=v, u=u)
 
+        elif term_name == 'dw_laplace':
+            term = Term.new('dw_{}laplace(v, u)'.format(prefix),
+                            integral=integral,
+                            region=omega, v=v, u=u)
+
+        else:
+            raise ValueError(term_name)
+
+        return term
+
+    timer.start()
+    term = _create_term()
     term.setup()
     term.standalone_setup()
     output('create setup term: {} s'.format(timer.stop()))
 
-    return uvec, term
+    timer.start()
+    eterm = _create_term('e')
+    eterm.setup()
+    eterm.standalone_setup()
+    output('create setup eterm: {} s'.format(timer.stop()))
+
+    return uvec, term, eterm
 
 def _get_shape(expr, *arrays):
     lhs, output = expr.split('->')
@@ -543,7 +561,8 @@ def _get_shape(expr, *arrays):
     out_shape = tuple(sizes[k] for k in output)
     return sizes, out_shape
 
-def get_evals_dw_convect(options, term, dets, qsb, qsbg, qvb, qvbg, state, adc):
+def get_evals_dw_convect(options, term, eterm,
+                         dets, qsb, qsbg, qvb, qvbg, state, adc):
     if not options.mprof:
         def profile(fun):
             return fun
@@ -556,6 +575,12 @@ def get_evals_dw_convect(options, term, dets, qsb, qsbg, qvb, qvbg, state, adc):
         return term.evaluate(mode='weak',
                              diff_var=options.diff,
                              standalone=False, ret_status=True)
+
+    @profile
+    def eval_sfepy_eterm():
+        return eterm.evaluate(mode='weak',
+                              diff_var=options.diff,
+                              standalone=False, ret_status=True)
 
     @profile
     def eval_numpy_einsum1():
@@ -847,6 +872,7 @@ def get_evals_dw_convect(options, term, dets, qsb, qsbg, qvb, qvbg, state, adc):
 
     evaluators = {
         'sfepy_term' : (eval_sfepy_term, 0, True),
+        'sfepy_eterm' : (eval_sfepy_eterm, 0, True),
         # 'numpy_einsum1' : (eval_numpy_einsum1, 0, True), # unusably slow
         'numpy_einsum2' : (eval_numpy_einsum2, 0, nm),
         'numpy_einsum_qsb' : (eval_numpy_einsum_qsb, 0, nm),
@@ -863,7 +889,8 @@ def get_evals_dw_convect(options, term, dets, qsb, qsbg, qvb, qvbg, state, adc):
 
     return evaluators
 
-def get_evals_dw_laplace(options, term, dets, qsb, qsbg, qvb, qvbg, state, adc):
+def get_evals_dw_laplace(options, term, eterm,
+                         dets, qsb, qsbg, qvb, qvbg, state, adc):
     if not options.mprof:
         def profile(fun):
             return fun
@@ -876,6 +903,12 @@ def get_evals_dw_laplace(options, term, dets, qsb, qsbg, qvb, qvbg, state, adc):
         return term.evaluate(mode='weak',
                              diff_var=options.diff,
                              standalone=False, ret_status=True)
+
+    @profile
+    def eval_sfepy_eterm():
+        return eterm.evaluate(mode='weak',
+                              diff_var=options.diff,
+                              standalone=False, ret_status=True)
 
     @profile
     def eval_numpy_einsum2():
@@ -1032,6 +1065,7 @@ def get_evals_dw_laplace(options, term, dets, qsb, qsbg, qvb, qvbg, state, adc):
 
     evaluators = {
         'sfepy_term' : (eval_sfepy_term, 0, True),
+        'sfepy_eterm' : (eval_sfepy_eterm, 0, True),
         'numpy_einsum2' : (eval_numpy_einsum2, 0, nm),
         'opt_einsum1a' : (eval_opt_einsum1a, 0, oe),
         # 'opt_einsum1g' : (eval_opt_einsum1g, 0, oe), # Uses too much memory in this case
@@ -1125,7 +1159,7 @@ def main():
     output('available system memory [MB]: {:.2f}'
            .format(mem.available / 1000**2))
 
-    uvec, term = setup_data(
+    uvec, term, eterm = setup_data(
         order=options.order,
         quad_order=options.quad_order,
         n_cell=options.n_cell,
@@ -1193,13 +1227,16 @@ def main():
 
     if options.term_name == 'dw_convect':
         evaluators = get_evals_dw_convect(
-            options, term, dets, qsb, qsbg, qvb, qvbg, state, adc
+            options, term, eterm, dets, qsb, qsbg, qvb, qvbg, state, adc
+        )
+
+    elif options.term_name == 'dw_laplace':
+        evaluators = get_evals_dw_laplace(
+            options, term, eterm, dets, qsb, qsbg, qvb, qvbg, state, adc
         )
 
     else:
-        evaluators = get_evals_dw_laplace(
-            options, term, dets, qsb, qsbg, qvb, qvbg, state, adc
-        )
+        raise NotImplementedError(options.term_name)
 
     results = {}
 
