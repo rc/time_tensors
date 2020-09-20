@@ -469,7 +469,7 @@ def _expand_sbg(basis, dpn):
         vg[..., ir, :, n_ep*ir:n_ep*(ir+1)] = basis
     return vg
 
-def setup_data(order, quad_order, n_cell, term_name='dw_convect'):
+def setup_data(order, quad_order, n_cell, term_name='dw_convect', variant=None):
     from sfepy.discrete.fem import FEDomain, Field
     from sfepy.discrete import (FieldVariable, Integral)
     from sfepy.terms import Term
@@ -491,7 +491,7 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect'):
     omega = domain.create_region('omega', 'all')
     output('create omega: {} s'.format(timer.stop()))
 
-    if term_name == 'dw_convect':
+    if term_name == 'dw_convect' or ('vector' in variant):
         n_c = mesh.dim
 
     else:
@@ -507,7 +507,7 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect'):
     v = FieldVariable('v', 'test', field, primary_var_name='u')
     output('create variables: {} s'.format(timer.stop()))
 
-    if term_name == 'dw_convect':
+    if n_c == mesh.dim:
         timer.start()
         u.set_from_function(get_v_sol)
         output('set state: {} s'.format(timer.stop()))
@@ -1123,6 +1123,8 @@ helps = {
     : 'quadrature order [default: 2 * approximation order]',
     'term_name'
     : 'the sfepy term to time [default: %(default)s]',
+    'variant'
+    : 'the term variant [default: %(default)s]',
     'diff'
     : 'if given, differentiate w.r.t. this variable [default: %(default)s]',
     'repeat'
@@ -1150,6 +1152,11 @@ def main():
                         action='store', dest='term_name',
                         choices=['dw_convect', 'dw_laplace', 'dw_volume_dot'],
                         default='dw_convect', help=helps['term_name'])
+    parser.add_argument('--variant',
+                        action='store', dest='variant',
+                        choices=[None, '', 'scalar', 'vector',
+                                 'scalar-material', 'vector-material'],
+                        default=None, help=helps['variant'])
     parser.add_argument('--diff',
                         metavar='variable name',
                         action='store', dest='diff',
@@ -1167,6 +1174,9 @@ def main():
 
     if options.quad_order is None:
         options.quad_order = 2 * options.order
+
+    if options.variant is None:
+        options.variant = ''
 
     output_dir = options.output_dir
     output.prefix = 'time_tensors:'
@@ -1196,7 +1206,8 @@ def main():
         order=options.order,
         quad_order=options.quad_order,
         n_cell=options.n_cell,
-        term_name=options.term_name
+        term_name=options.term_name,
+        variant=options.variant,
     )
 
     timer = Timer('')
