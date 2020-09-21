@@ -582,7 +582,22 @@ def get_evals_dw_convect(options, term, eterm,
                              standalone=False, ret_status=True)
 
     @profile
-    def eval_sfepy_eterm():
+    def eval_sfepy_eterm_auto():
+        eterm.optimize = 'auto'
+        return eterm.evaluate(mode='weak',
+                              diff_var=options.diff,
+                              standalone=False, ret_status=True)
+
+    @profile
+    def eval_sfepy_eterm_greedy():
+        eterm.optimize = 'greedy'
+        return eterm.evaluate(mode='weak',
+                              diff_var=options.diff,
+                              standalone=False, ret_status=True)
+
+    @profile
+    def eval_sfepy_eterm_dp():
+        eterm.optimize = 'dynamic-programming'
         return eterm.evaluate(mode='weak',
                               diff_var=options.diff,
                               standalone=False, ret_status=True)
@@ -877,7 +892,9 @@ def get_evals_dw_convect(options, term, eterm,
 
     evaluators = {
         'sfepy_term' : (eval_sfepy_term, 0, True),
-        'sfepy_eterm' : (eval_sfepy_eterm, 0, True),
+        'sfepy_eterm_auto' : (eval_sfepy_eterm_auto, 0, True),
+        'sfepy_eterm_greedy' : (eval_sfepy_eterm_greedy, 0, True),
+        'sfepy_eterm_dp' : (eval_sfepy_eterm_dp, 0, True),
         # 'numpy_einsum1' : (eval_numpy_einsum1, 0, True), # unusably slow
         'numpy_einsum2' : (eval_numpy_einsum2, 0, nm),
         'numpy_einsum_qsb' : (eval_numpy_einsum_qsb, 0, nm),
