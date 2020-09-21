@@ -491,7 +491,7 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect', variant=None):
     omega = domain.create_region('omega', 'all')
     output('create omega: {} s'.format(timer.stop()))
 
-    if term_name == 'dw_convect' or ('vector' in variant):
+    if term_name in ('dw_convect', 'dw_div') or ('vector' in variant):
         n_c = mesh.dim
 
     else:
@@ -534,6 +534,11 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect', variant=None):
             term = Term.new('dw_{}volume_dot(v, u)'.format(prefix),
                             integral=integral,
                             region=omega, v=v, u=u)
+
+        elif term_name == 'dw_div':
+            term = Term.new('dw_{}div(v)'.format(prefix),
+                            integral=integral,
+                            region=omega, v=v)
 
         else:
             raise ValueError(term_name)
@@ -1101,8 +1106,8 @@ def get_evals_dw_laplace(options, term, eterm,
 
     return evaluators
 
-def get_evals_dw_volume_dot(options, term, eterm,
-                            dets, qsb, qsbg, qvb, qvbg, state, adc):
+def get_evals_sfepy(options, term, eterm,
+                    dets, qsb, qsbg, qvb, qvbg, state, adc):
     if not options.mprof:
         def profile(fun):
             return fun
@@ -1117,14 +1122,31 @@ def get_evals_dw_volume_dot(options, term, eterm,
                              standalone=False, ret_status=True)
 
     @profile
-    def eval_sfepy_eterm():
+    def eval_sfepy_eterm_auto():
+        eterm.optimize = 'auto'
+        return eterm.evaluate(mode='weak',
+                              diff_var=options.diff,
+                              standalone=False, ret_status=True)
+
+    @profile
+    def eval_sfepy_eterm_greedy():
+        eterm.optimize = 'greedy'
+        return eterm.evaluate(mode='weak',
+                              diff_var=options.diff,
+                              standalone=False, ret_status=True)
+
+    @profile
+    def eval_sfepy_eterm_dp():
+        eterm.optimize = 'dynamic-programming'
         return eterm.evaluate(mode='weak',
                               diff_var=options.diff,
                               standalone=False, ret_status=True)
 
     evaluators = {
         'sfepy_term' : (eval_sfepy_term, 0, True),
-        'sfepy_eterm' : (eval_sfepy_eterm, 0, True),
+        'sfepy_eterm_auto' : (eval_sfepy_eterm_auto, 0, True),
+        'sfepy_eterm_greedy' : (eval_sfepy_eterm_greedy, 0, True),
+        'sfepy_eterm_dp' : (eval_sfepy_eterm_dp, 0, True),
     }
 
     return evaluators
@@ -1167,7 +1189,8 @@ def main():
                         default=None, help=helps['quad_order'])
     parser.add_argument('-t', '--term-name',
                         action='store', dest='term_name',
-                        choices=['dw_convect', 'dw_laplace', 'dw_volume_dot'],
+                        choices=['dw_convect', 'dw_laplace', 'dw_volume_dot',
+                                 'dw_div'],
                         default='dw_convect', help=helps['term_name'])
     parser.add_argument('--variant',
                         action='store', dest='variant',
@@ -1243,7 +1266,7 @@ def main():
     n_cell, n_qp, dim, n_en, n_c = term.get_data_shape(state)
     n_cdof = n_c * n_en
 
-    output('u shape:', state().shape)
+    output('u shape:', uvec.shape)
     output('adc shape:', adc.shape)
     output('u size [MB]:', uvec.nbytes / 1000**2)
     output('adc size [MB]:', adc.nbytes / 1000**2)
@@ -1296,13 +1319,10 @@ def main():
             options, term, eterm, dets, qsb, qsbg, qvb, qvbg, state, adc
         )
 
-    elif options.term_name == 'dw_volume_dot':
-        evaluators = get_evals_dw_volume_dot(
+    else:
+        evaluators = get_evals_sfepy(
             options, term, eterm, dets, qsb, qsbg, qvb, qvbg, state, adc
         )
-
-    else:
-        raise NotImplementedError(options.term_name)
 
     results = {}
 
