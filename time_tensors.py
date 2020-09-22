@@ -1090,6 +1090,29 @@ def get_evals_dw_laplace(options, term, eterm,
 
             return out, 0
 
+    @profile
+    def eval_opt_einsum_dask(coef=1000):
+        n_cell, n_qp, dim, n_en = qsbg.shape
+        # print(coef * qsbg.nbytes / n_cell)
+        _dets = da.from_array(dets, chunks=(coef, n_qp, 1, 1), name='dets')
+        _qsbg = da.from_array(qsbg, chunks=(coef, n_qp, dim, n_en), name='qsbg')
+        if options.diff == 'u':
+            return oe.contract(
+                'cqab,cqjk,cqjn->ckn',
+                _dets, _qsbg, _qsbg,
+                optimize='dynamic-programming', backend='dask').compute(
+                    scheduler='single-threaded'
+            ), 0
+
+        else:
+            uc = state()[adc]
+            return oe.contract(
+                'cqab,cqjk,cqjn,cn->ck',
+                _dets, _qsbg, _qsbg, uc,
+                optimize='dynamic-programming', backend='dask').compute(
+                    scheduler='single-threaded'
+            ), 0
+
     evaluators = {
         'sfepy_term' : (eval_sfepy_term, 0, True),
         'sfepy_eterm' : (eval_sfepy_eterm, 0, True),
@@ -1101,6 +1124,7 @@ def get_evals_dw_laplace(options, term, eterm,
         'dask_einsum1' : (eval_dask_einsum1, 0, da),
         'dask_einsum2' : (eval_dask_einsum2, 0, da),
         'opt_einsum_loop' : (eval_opt_einsum_loop, 0, oe),
+        'opt_einsum_dask' : (eval_opt_einsum_dask, 0, oe and da),
         # 'jax_einsum1' : (eval_jax_einsum1, 0, jnp), # meddles with memory profiler
     }
 
