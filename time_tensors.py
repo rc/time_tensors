@@ -581,33 +581,6 @@ def get_evals_dw_convect(options, term, eterm,
         profile = globals()['profile']
 
     @profile
-    def eval_sfepy_term():
-        return term.evaluate(mode='weak',
-                             diff_var=options.diff,
-                             standalone=False, ret_status=True)
-
-    @profile
-    def eval_sfepy_eterm_auto():
-        eterm.optimize = 'auto'
-        return eterm.evaluate(mode='weak',
-                              diff_var=options.diff,
-                              standalone=False, ret_status=True)
-
-    @profile
-    def eval_sfepy_eterm_greedy():
-        eterm.optimize = 'greedy'
-        return eterm.evaluate(mode='weak',
-                              diff_var=options.diff,
-                              standalone=False, ret_status=True)
-
-    @profile
-    def eval_sfepy_eterm_dp():
-        eterm.optimize = 'dynamic-programming'
-        return eterm.evaluate(mode='weak',
-                              diff_var=options.diff,
-                              standalone=False, ret_status=True)
-
-    @profile
     def eval_numpy_einsum1():
         # Unusably slow - not using optimize arg of einsum().
         uc = state()[adc]
@@ -896,10 +869,6 @@ def get_evals_dw_convect(options, term, eterm,
                              ), 0
 
     evaluators = {
-        'sfepy_term' : (eval_sfepy_term, 0, True),
-        'sfepy_eterm_auto' : (eval_sfepy_eterm_auto, 0, True),
-        'sfepy_eterm_greedy' : (eval_sfepy_eterm_greedy, 0, True),
-        'sfepy_eterm_dp' : (eval_sfepy_eterm_dp, 0, True),
         # 'numpy_einsum1' : (eval_numpy_einsum1, 0, True), # unusably slow
         'numpy_einsum2' : (eval_numpy_einsum2, 0, nm),
         'numpy_einsum_qsb' : (eval_numpy_einsum_qsb, 0, nm),
@@ -924,18 +893,6 @@ def get_evals_dw_laplace(options, term, eterm,
 
     else:
         profile = globals()['profile']
-
-    @profile
-    def eval_sfepy_term():
-        return term.evaluate(mode='weak',
-                             diff_var=options.diff,
-                             standalone=False, ret_status=True)
-
-    @profile
-    def eval_sfepy_eterm():
-        return eterm.evaluate(mode='weak',
-                              diff_var=options.diff,
-                              standalone=False, ret_status=True)
 
     @profile
     def eval_numpy_einsum2():
@@ -1114,8 +1071,6 @@ def get_evals_dw_laplace(options, term, eterm,
             ), 0
 
     evaluators = {
-        'sfepy_term' : (eval_sfepy_term, 0, True),
-        'sfepy_eterm' : (eval_sfepy_eterm, 0, True),
         'numpy_einsum2' : (eval_numpy_einsum2, 0, nm),
         'opt_einsum1a' : (eval_opt_einsum1a, 0, oe),
         # 'opt_einsum1g' : (eval_opt_einsum1g, 0, oe), # Uses too much memory in this case
@@ -1333,20 +1288,19 @@ def main():
     if (coef * memory_use) > mem.total:
         raise MemoryError('insufficient memory for timing!')
 
+    evaluators = get_evals_sfepy(
+        options, term, eterm, dets, qsb, qsbg, qvb, qvbg, state, adc
+    )
+
     if options.term_name == 'dw_convect':
-        evaluators = get_evals_dw_convect(
+        evaluators.update(get_evals_dw_convect(
             options, term, eterm, dets, qsb, qsbg, qvb, qvbg, state, adc
-        )
+        ))
 
     elif options.term_name == 'dw_laplace':
-        evaluators = get_evals_dw_laplace(
+        evaluators.update(get_evals_dw_laplace(
             options, term, eterm, dets, qsb, qsbg, qvb, qvbg, state, adc
-        )
-
-    else:
-        evaluators = get_evals_sfepy(
-            options, term, eterm, dets, qsb, qsbg, qvb, qvbg, state, adc
-        )
+        ))
 
     results = {}
 
