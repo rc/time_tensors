@@ -305,8 +305,8 @@ def plot_times(df, data=None, xscale='log', yscale='log',
     fig.savefig(os.path.join(data.output_dir, prefix + 'times' + suffix),
                 bbox_inches='tight')
 
-def plot_mem_usages(df, data=None, colormap_name='viridis',
-                    xscale='log', yscale='log', prefix='', suffix='.pdf'):
+def plot_mem_usages(df, data=None, xscale='log', yscale='log',
+                    prefix='', suffix='.pdf'):
     import soops.plot_selected as sps
     import matplotlib.pyplot as plt
 
