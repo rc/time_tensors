@@ -173,13 +173,13 @@ def collect_times(df, data=None):
 
 def collect_mem_usages(df, data=None):
     aux = pd.json_normalize(df['func_timestamp']).rename(
-        lambda x: 'ts_' + x.split('.')[-1], axis=1
+        lambda x: 'm_' + x.split('.')[-1].replace('eval_', ''), axis=1
     )
     del df['func_timestamp']
     df = pd.concat([df, aux], axis=1)
     df['index'] = df.index
 
-    mkeys = [key for key in df.keys() if key.startswith('ts_')]
+    mkeys = [key for key in df.keys() if key.startswith('m_')]
 
     mdf =  pd.melt(df, list(data.uniques.keys()) + ['index'], mkeys,
                    var_name='function', value_name='ts')
