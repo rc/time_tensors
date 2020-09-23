@@ -141,6 +141,7 @@ def get_plugin_info():
     info = [
         collect_times,
         collect_mem_usages,
+        select_data,
         setup_styles,
         plot_times,
         plot_mem_usages,
@@ -224,6 +225,17 @@ def collect_mem_usages(df, data=None):
     data.mdf = mdf
     return data
 
+def select_data(df, data=None, term_names=None, orders=None, functions=None):
+    data.term_names = (data.par_uniques['term_name']
+                       if term_names is None else term_names)
+    data.orders = data.par_uniques['order'] if orders is None else orders
+    data.t_funs = (data.tkeys
+                   if functions is None else ['t_' + fun for fun in functions])
+    data.m_funs = (data.mkeys
+                   if functions is None else ['m_' + fun for fun in functions])
+
+    return data
+
 def setup_styles(df, data=None, colormap_name='viridis', markers=None):
     import soops.plot_selected as sps
 
@@ -258,8 +270,11 @@ def plot_times(df, data=None, xscale='log', yscale='log'):
     fig, ax = plt.subplots()
     used = None
     for term_name in data.par_uniques['term_name']:
+        if term_name not in data.term_names: continue
         for order in data.par_uniques['order']:
+            if order not in data.orders: continue
             for tkey in data.tkeys:
+                if tkey not in data.t_funs: continue
                 print(term_name, order, tkey)
                 sdf = tdf[(tdf['term_name'] == term_name) &
                           (tdf['order'] == order) &
@@ -303,8 +318,11 @@ def plot_mem_usages(df, data=None, colormap_name='viridis',
     fig, ax = plt.subplots()
     used = None
     for term_name in data.par_uniques['term_name']:
+        if term_name not in data.term_names: continue
         for order in data.par_uniques['order']:
+            if order not in data.orders: continue
             for mkey in data.mkeys:
+                if mkey not in data.m_funs: continue
                 print(term_name, order, mkey)
                 sdf = mdf[(mdf['term_name'] == term_name) &
                           (mdf['order'] == order) &
@@ -365,7 +383,7 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
     tcolors = styles['tn_cell']['color']
     mcolors = styles['mn_cell']['color']
 
-    fig, axs = plt.subplots(len(data.par_uniques['order']), figsize=(12, 8))
+    fig, axs = plt.subplots(len(data.orders), figsize=(12, 8))
     axs2 = []
     for ax in axs:
         ax.grid(which='both', axis='y')
@@ -389,14 +407,18 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
     nax = len(axs)
 
     sx = 3
+    ia = 0
     for term_name in data.par_uniques['term_name']:
+        if term_name not in data.term_names: continue
         for io, order in enumerate(data.par_uniques['order']):
-            ax = axs[io]
-            ax2 = axs2[io]
+            if order not in data.orders: continue
+            ax = axs[ia]
+            ax2 = axs2[ia]
             bx = 0
 
             xts = []
             for im, mkey in enumerate(data.mkeys):
+                if mkey not in data.m_funs: continue
                 tkey = data.tkeys[im]
                 tsdf = tdf[(tdf['term_name'] == term_name) &
                            (tdf['order'] == order) &
@@ -428,18 +450,20 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
                     ax.axvline(bx - sx, color='k', lw=0.5)
 
             ax.set_xlim(0, bx - 2 * sx)
-            if io + 1 < nax:
+            if ia + 1 < nax:
                 ax.get_xaxis().set_visible(False)
 
             else:
                 ax.set_xticks(xts)
-                ax.set_xticklabels(data.tkeys)
+                ax.set_xticklabels(data.t_funs)
+
+            ia += 1
 
     plt.tight_layout()
     fig.subplots_adjust(right=0.8)
 
     lines, labels = sps.get_legend_items(select, styles)
-    leg = fig.legend(lines, labels, loc='best')
+    leg = fig.legend(lines, labels)
     if leg is not None:
         leg.get_frame().set_alpha(0.5)
 
