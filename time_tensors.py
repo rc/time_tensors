@@ -257,7 +257,8 @@ def setup_styles(df, data=None, colormap_name='viridis', markers=None):
     data.styles = styles
     return data
 
-def plot_times(df, data=None, xscale='log', yscale='log'):
+def plot_times(df, data=None, xscale='log', yscale='log',
+               prefix='', suffix='.pdf'):
     import soops.plot_selected as sps
     import matplotlib.pyplot as plt
 
@@ -301,11 +302,11 @@ def plot_times(df, data=None, xscale='log', yscale='log'):
     ax.set_ylabel('time [s]')
     plt.tight_layout()
 
-    fig.savefig(os.path.join(data.output_dir, 'times.png'),
+    fig.savefig(os.path.join(data.output_dir, prefix + 'times' + suffix),
                 bbox_inches='tight')
 
 def plot_mem_usages(df, data=None, colormap_name='viridis',
-                    xscale='log', yscale='log'):
+                    xscale='log', yscale='log', prefix='', suffix='.pdf'):
     import soops.plot_selected as sps
     import matplotlib.pyplot as plt
 
@@ -349,11 +350,12 @@ def plot_mem_usages(df, data=None, colormap_name='viridis',
     ax.set_ylabel('memory [MB]')
     plt.tight_layout()
 
-    fig.savefig(os.path.join(data.output_dir, 'mem_usages.png'),
+    fig.savefig(os.path.join(data.output_dir, prefix + 'mem_usages' + suffix),
                 bbox_inches='tight')
 
 def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
-                     mcolormap_name='plasma', yscale='log'):
+                     mcolormap_name='plasma', yscale='log',
+                     prefix='', suffix='.pdf'):
     import soops.plot_selected as sps
     from soops.formatting import format_float_latex
     import matplotlib.pyplot as plt
@@ -467,7 +469,7 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
     if leg is not None:
         leg.get_frame().set_alpha(0.5)
 
-    fig.savefig(os.path.join(data.output_dir, 'all_bars.png'),
+    fig.savefig(os.path.join(data.output_dir, prefix + 'all_bars' + suffix),
                 bbox_inches='tight')
 
 def get_v_sol(coors):
