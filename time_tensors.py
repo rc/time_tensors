@@ -590,6 +590,63 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect', variant=None):
 
     return uvec, term, eterm
 
+def setup_data_mixed(order1, order2, quad_order, n_cell, term_name='dw_stokes',
+                     variant='div'):
+
+    integral = Integral('i', order=quad_order)
+
+    timer = Timer('')
+
+    mesh, domain, omega = create_domain(n_cell, timer)
+
+    if term_name in ('dw_stokes',):
+        n_c1 = mesh.dim
+        n_c2 = 1
+
+    else:
+        raise ValueError(term_name)
+
+    timer.start()
+    field1 = Field.from_args('f1', nm.float64, n_c1, omega,
+                             approx_order=order1)
+    field2 = Field.from_args('f2', nm.float64, n_c2, omega,
+                             approx_order=order2)
+    output('create fields: {} s'.format(timer.stop()))
+
+    timer.start()
+    u1 = FieldVariable('u1', 'unknown', field1)
+    v1 = FieldVariable('v1', 'test', field1, primary_var_name='u1')
+    u2 = FieldVariable('u2', 'unknown', field2)
+    v2 = FieldVariable('v2', 'test', field2, primary_var_name='u2')
+    output('create variables: {} s'.format(timer.stop()))
+
+    if variant == 'div':
+        uvec = set_sol(u1, mesh, timer)
+
+    else:
+        uvec = set_sol(u2, mesh, timer)
+
+    def _create_term(prefix=''):
+        if term_name == 'dw_stokes':
+            if variant == 'div':
+                term = Term.new('dw_{}stokes(u1, v2)'.format(prefix),
+                                integral=integral,
+                                region=omega, v2=v2, u1=u1)
+
+            else:
+                term = Term.new('dw_{}stokes(v1, u2)'.format(prefix),
+                                integral=integral,
+                                region=omega, v1=v1, u2=u2)
+
+        else:
+            raise ValueError(term_name)
+
+        return term
+
+    term, eterm = create_terms(_create_term, timer)
+
+    return uvec, term, eterm
+
 def _get_shape(expr, *arrays):
     lhs, output = expr.split('->')
     inputs = lhs.split(',')
@@ -1207,12 +1264,13 @@ def main():
     parser.add_argument('-t', '--term-name',
                         action='store', dest='term_name',
                         choices=['dw_convect', 'dw_laplace', 'dw_volume_dot',
-                                 'dw_div'],
+                                 'dw_div', 'dw_stokes'],
                         default='dw_convect', help=helps['term_name'])
     parser.add_argument('--variant',
                         action='store', dest='variant',
                         choices=[None, '', 'scalar', 'vector',
-                                 'scalar-material', 'vector-material'],
+                                 'scalar-material', 'vector-material',
+                                 'div', 'grad'],
                         default=None, help=helps['variant'])
     parser.add_argument('--diff',
                         metavar='variable name',
@@ -1259,13 +1317,23 @@ def main():
     output('available system memory [MB]: {:.2f}'
            .format(mem.available / 1000**2))
 
-    uvec, term, eterm = setup_data(
-        order=options.order,
-        quad_order=options.quad_order,
-        n_cell=options.n_cell,
-        term_name=options.term_name,
-        variant=options.variant,
-    )
+    if options.term_name not in ['dw_stokes']:
+        uvec, term, eterm = setup_data(
+            order=options.order,
+            quad_order=options.quad_order,
+            n_cell=options.n_cell,
+            term_name=options.term_name,
+            variant=options.variant,
+        )
+
+    else:
+        uvec, term, eterm = setup_data_mixed(
+            order1=options.order+1, order2=options.order,
+            quad_order=options.quad_order,
+            n_cell=options.n_cell,
+            term_name=options.term_name,
+            variant=options.variant,
+        )
 
     timer = Timer('')
     timer.start()
