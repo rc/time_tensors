@@ -47,6 +47,10 @@ from sfepy.base.base import output
 from sfepy.base.ioutils import ensure_path, save_options
 from sfepy.base.timing import Timer
 from sfepy.discrete.variables import expand_basis
+from sfepy.discrete.fem import FEDomain, Field
+from sfepy.discrete import (FieldVariable, Integral)
+from sfepy.terms import Term
+from sfepy.mesh.mesh_generators import gen_block_mesh
 
 import terms_multilinear; terms_multilinear
 
@@ -472,6 +476,21 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
     fig.savefig(os.path.join(data.output_dir, prefix + 'all_bars' + suffix),
                 bbox_inches='tight')
 
+def create_domain(n_cell, timer):
+    timer.start()
+    mesh = gen_block_mesh((n_cell, 1, 1), (n_cell + 1, 2, 2), (0, 0, 0),
+                          name='')
+    output('generate mesh: {} s'.format(timer.stop()))
+    timer.start()
+    domain = FEDomain('el', mesh)
+    output('create domain: {} s'.format(timer.stop()))
+
+    timer.start()
+    omega = domain.create_region('omega', 'all')
+    output('create omega: {} s'.format(timer.stop()))
+
+    return mesh, domain, omega
+
 def get_v_sol(coors):
     x0 = coors.min(axis=0)
     x1 = coors.max(axis=0)
@@ -488,34 +507,40 @@ def get_s_sol(coors):
     cc = (coors[:, 0] - x0[0]) / dims[0]
     return cc
 
-def _expand_sbg(basis, dpn):
-    dim, n_ep = basis.shape[-2:]
-    vg = nm.zeros(basis.shape[:2] + (dpn, dim, dim * n_ep))
-    for ir in range(dpn):
-        vg[..., ir, :, n_ep*ir:n_ep*(ir+1)] = basis
-    return vg
+def set_sol(uvar, mesh, timer):
+    timer.start()
+    if uvar.n_components == mesh.dim:
+        uvar.set_from_function(get_v_sol)
+
+    else:
+        uvar.set_from_function(get_s_sol)
+
+    output('set state {}: {} s'.format(uvar.name, timer.stop()))
+    uvec = uvar()
+    return uvec
+
+def create_terms(_create_term, timer):
+    timer.start()
+    term = _create_term()
+    term.setup()
+    term.standalone_setup()
+    output('create setup term: {} s'.format(timer.stop()))
+
+    timer.start()
+    eterm = _create_term('e')
+    eterm.setup()
+    eterm.standalone_setup()
+    output('create setup eterm: {} s'.format(timer.stop()))
+
+    return term, eterm
 
 def setup_data(order, quad_order, n_cell, term_name='dw_convect', variant=None):
-    from sfepy.discrete.fem import FEDomain, Field
-    from sfepy.discrete import (FieldVariable, Integral)
-    from sfepy.terms import Term
-    from sfepy.mesh.mesh_generators import gen_block_mesh
 
     integral = Integral('i', order=quad_order)
 
     timer = Timer('')
 
-    timer.start()
-    mesh = gen_block_mesh((n_cell, 1, 1), (n_cell + 1, 2, 2), (0, 0, 0),
-                          name='')
-    output('generate mesh: {} s'.format(timer.stop()))
-    timer.start()
-    domain = FEDomain('el', mesh)
-    output('create domain: {} s'.format(timer.stop()))
-
-    timer.start()
-    omega = domain.create_region('omega', 'all')
-    output('create omega: {} s'.format(timer.stop()))
+    mesh, domain, omega = create_domain(n_cell, timer)
 
     if term_name in ('dw_convect', 'dw_div') or ('vector' in variant):
         n_c = mesh.dim
@@ -533,17 +558,7 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect', variant=None):
     v = FieldVariable('v', 'test', field, primary_var_name='u')
     output('create variables: {} s'.format(timer.stop()))
 
-    if n_c == mesh.dim:
-        timer.start()
-        u.set_from_function(get_v_sol)
-        output('set state: {} s'.format(timer.stop()))
-        uvec = u()
-
-    else:
-        timer.start()
-        u.set_from_function(get_s_sol)
-        output('set state: {} s'.format(timer.stop()))
-        uvec = u()
+    uvec = set_sol(u, mesh, timer)
 
     def _create_term(prefix=''):
         if term_name == 'dw_convect':
@@ -571,17 +586,7 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect', variant=None):
 
         return term
 
-    timer.start()
-    term = _create_term()
-    term.setup()
-    term.standalone_setup()
-    output('create setup term: {} s'.format(timer.stop()))
-
-    timer.start()
-    eterm = _create_term('e')
-    eterm.setup()
-    eterm.standalone_setup()
-    output('create setup eterm: {} s'.format(timer.stop()))
+    term, eterm = create_terms(_create_term, timer)
 
     return uvec, term, eterm
 
@@ -596,6 +601,13 @@ def _get_shape(expr, *arrays):
 
     out_shape = tuple(sizes[k] for k in output)
     return sizes, out_shape
+
+def _expand_sbg(basis, dpn):
+    dim, n_ep = basis.shape[-2:]
+    vg = nm.zeros(basis.shape[:2] + (dpn, dim, dim * n_ep))
+    for ir in range(dpn):
+        vg[..., ir, :, n_ep*ir:n_ep*(ir+1)] = basis
+    return vg
 
 def get_evals_dw_convect(options, term, eterm,
                          dets, qsb, qsbg, qvb, qvbg, state, adc):
