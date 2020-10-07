@@ -48,7 +48,7 @@ from sfepy.base.ioutils import ensure_path, save_options
 from sfepy.base.timing import Timer
 from sfepy.discrete.variables import expand_basis
 from sfepy.discrete.fem import FEDomain, Field
-from sfepy.discrete import (FieldVariable, Integral)
+from sfepy.discrete import (FieldVariable, Material, Integral)
 from sfepy.terms import Term
 from sfepy.mesh.mesh_generators import gen_block_mesh
 
@@ -558,6 +558,16 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect', variant=None):
     v = FieldVariable('v', 'test', field, primary_var_name='u')
     output('create variables: {} s'.format(timer.stop()))
 
+    if 'material' in variant:
+        timer.start()
+        if term_name == 'dw_volume_dot':
+            mat = Material('m', val=nm.ones((n_c, n_c), dtype=nm.float64))
+
+        else:
+            raise ValueError(term_name)
+
+        output('create material: {} s'.format(timer.stop()))
+
     uvec = set_sol(u, mesh, timer)
 
     def _create_term(prefix=''):
@@ -572,9 +582,15 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect', variant=None):
                             region=omega, v=v, u=u)
 
         elif term_name == 'dw_volume_dot':
-            term = Term.new('dw_{}volume_dot(v, u)'.format(prefix),
-                            integral=integral,
-                            region=omega, v=v, u=u)
+            if 'material' in variant:
+                term = Term.new('dw_{}volume_dot(m.val, v, u)'.format(prefix),
+                                integral=integral,
+                                region=omega, m=mat, v=v, u=u)
+
+            else:
+                term = Term.new('dw_{}volume_dot(v, u)'.format(prefix),
+                                integral=integral,
+                                region=omega, v=v, u=u)
 
         elif term_name == 'dw_div':
             term = Term.new('dw_{}div(v)'.format(prefix),
