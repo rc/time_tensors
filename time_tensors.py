@@ -1008,6 +1008,17 @@ def get_evals_dw_convect(options, term, eterm,
 
 def get_evals_dw_laplace(options, term, eterm,
                          dets, qsb, qsbg, qvb, qvbg, state, adc):
+    dets2 = dets[..., 0, 0]
+    qsbg2 = qsbg.transpose((2, 3, 0, 1)).copy(order='C')
+    qsbg4 = qsbg.transpose((3, 2, 0, 1)).copy(order='C')
+    adc2 = adc.T.copy(order='C')
+    dets3 = dets[..., 0, 0].transpose((1, 0)).copy(order='C')
+    qsbg3 = qsbg.transpose((2, 3, 1, 0)).copy(order='C')
+    qsbg3a = qsbg.transpose((3, 2, 1, 0)).copy(order='C')
+
+    dets = dets.copy(order='F')
+    qsbg = qsbg.copy(order='F')
+
     if not options.mprof:
         def profile(fun):
             return fun
@@ -1079,6 +1090,83 @@ def get_evals_dw_laplace(options, term, eterm,
             uc = state()[adc]
             return oe.contract('cq,cqjk,cqjn,cn->ck',
                                dets[..., 0, 0], qsbg, qsbg, uc,
+                               optimize='dynamic-programming'), 0
+
+    @profile
+    def eval_opt_einsum1dp3():
+        if options.diff == 'u':
+            return oe.contract('cq,jkcq,jncq->knc',
+                               dets2, qsbg2, qsbg2,
+                               optimize='dynamic-programming'), 0
+
+        else:
+            uc = state()[adc2]
+            return oe.contract('cq,jkcq,jncq,nc->kc',
+                               dets2, qsbg2, qsbg2, uc,
+                               optimize='dynamic-programming'), 0
+
+    @profile
+    def eval_opt_einsum1dp4():
+        if options.diff == 'u':
+            return oe.contract('cq,jkcq,jncq->ckn',
+                               dets2, qsbg2, qsbg2,
+                               optimize='dynamic-programming'), 0
+
+        else:
+            uc = state()[adc2]
+            return oe.contract('cq,jkcq,jncq,nc->ck',
+                               dets2, qsbg2, qsbg2, uc,
+                               optimize='dynamic-programming'), 0
+
+    @profile
+    def eval_opt_einsum1dp4a():
+        if options.diff == 'u':
+            return oe.contract('cq,kjcq,njcq->ckn',
+                               dets2, qsbg4, qsbg4,
+                               optimize='dynamic-programming'), 0
+
+        else:
+            uc = state()[adc2]
+            return oe.contract('cq,kjcq,njcq,nc->ck',
+                               dets2, qsbg4, qsbg4, uc,
+                               optimize='dynamic-programming'), 0
+
+    @profile
+    def eval_opt_einsum1dp4b():
+        if options.diff == 'u':
+            return oe.contract('cq,jkcq,jncq->ckn',
+                               dets[..., 0, 0], qsbg2, qsbg2,
+                               optimize='dynamic-programming'), 0
+
+        else:
+            uc = state()[adc2]
+            return oe.contract('cq,jkcq,jncq,nc->ck',
+                               dets[..., 0, 0], qsbg2, qsbg2, uc,
+                               optimize='dynamic-programming'), 0
+    @profile
+    def eval_opt_einsum1dp5():
+        if options.diff == 'u':
+            return oe.contract('qc,jkqc,jnqc->ckn',
+                               dets3, qsbg3, qsbg3,
+                               optimize='dynamic-programming'), 0
+
+        else:
+            uc = state()[adc2]
+            return oe.contract('qc,jkqc,jnqc,nc->ck',
+                               dets3, qsbg3, qsbg3, uc,
+                               optimize='dynamic-programming'), 0
+
+    @profile
+    def eval_opt_einsum1dp5a():
+        if options.diff == 'u':
+            return oe.contract('qc,kjqc,njqc->ckn',
+                               dets3, qsbg3a, qsbg3a,
+                               optimize='dynamic-programming'), 0
+
+        else:
+            uc = state()[adc2]
+            return oe.contract('qc,jkqc,jnqc,nc->ck',
+                               dets3, qsbg3, qsbg3, uc,
                                optimize='dynamic-programming'), 0
 
     def eval_jax2(dets, Gs, u):
@@ -1197,6 +1285,12 @@ def get_evals_dw_laplace(options, term, eterm,
         # 'opt_einsum1g' : (eval_opt_einsum1g, 0, oe), # Uses too much memory in this case
         'opt_einsum1dp' : (eval_opt_einsum1dp, 0, oe),
         'opt_einsum1dp2' : (eval_opt_einsum1dp2, 0, oe),
+        # 'opt_einsum1dp3' : (eval_opt_einsum1dp3, 0, oe),
+        'opt_einsum1dp4' : (eval_opt_einsum1dp4, 0, oe),
+        'opt_einsum1dp4a' : (eval_opt_einsum1dp4a, 0, oe),
+        'opt_einsum1dp4b' : (eval_opt_einsum1dp4b, 0, oe),
+        'opt_einsum1dp5' : (eval_opt_einsum1dp5, 0, oe),
+        'opt_einsum1dp5a' : (eval_opt_einsum1dp5a, 0, oe),
         'dask_einsum1' : (eval_dask_einsum1, 0, da),
         'dask_einsum2' : (eval_dask_einsum2, 0, da),
         'opt_einsum_loop' : (eval_opt_einsum_loop, 0, oe),
