@@ -653,7 +653,11 @@ def setup_data_mixed(order1, order2, quad_order, n_cell, term_name='dw_stokes',
     v2 = FieldVariable('v2', 'test', field2, primary_var_name='u2')
     output('create variables: {} s'.format(timer.stop()))
 
-    if variant == 'div':
+    if eval_mode == 'eval':
+        uvec = set_sol(u1, mesh, timer)
+        set_sol(u2, mesh, timer)
+
+    elif variant == 'div':
         uvec = set_sol(u1, mesh, timer)
 
     else:
