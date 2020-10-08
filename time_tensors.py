@@ -535,7 +535,8 @@ def create_terms(_create_term, timer):
 
     return term, eterm
 
-def setup_data(order, quad_order, n_cell, term_name='dw_convect', variant=None):
+def setup_data(order, quad_order, n_cell, term_name='dw_convect',
+               eval_mode='weak', variant=None):
 
     integral = Integral('i', order=quad_order)
 
@@ -603,9 +604,15 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect', variant=None):
                             region=omega, v=v)
 
         elif term_name == 'dw_lin_elastic':
-            term = Term.new('dw_{}lin_elastic(m.D, v, u)'.format(prefix),
-                            integral=integral,
-                            region=omega, m=mat, v=v, u=u)
+            if eval_mode == 'weak':
+                term = Term.new('dw_{}lin_elastic(m.D, v, u)'.format(prefix),
+                                integral=integral,
+                                region=omega, m=mat, v=v, u=u)
+
+            else:
+                term = Term.new('dw_{}lin_elastic(m.D, u, u)'.format(prefix),
+                                integral=integral,
+                                region=omega, m=mat, u=u)
 
         else:
             raise ValueError(term_name)
@@ -617,7 +624,7 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect', variant=None):
     return uvec, term, eterm
 
 def setup_data_mixed(order1, order2, quad_order, n_cell, term_name='dw_stokes',
-                     variant='div'):
+                     eval_mode='weak', variant='div'):
 
     integral = Integral('i', order=quad_order)
 
@@ -655,14 +662,26 @@ def setup_data_mixed(order1, order2, quad_order, n_cell, term_name='dw_stokes',
     def _create_term(prefix=''):
         if term_name == 'dw_stokes':
             if variant == 'div':
-                term = Term.new('dw_{}stokes(u1, v2)'.format(prefix),
-                                integral=integral,
-                                region=omega, v2=v2, u1=u1)
+                if eval_mode == 'weak':
+                    term = Term.new('dw_{}stokes(u1, v2)'.format(prefix),
+                                    integral=integral,
+                                    region=omega, v2=v2, u1=u1)
+
+                else:
+                    term = Term.new('dw_{}stokes(u1, u2)'.format(prefix),
+                                    integral=integral,
+                                    region=omega, u2=u2, u1=u1)
 
             else:
-                term = Term.new('dw_{}stokes(v1, u2)'.format(prefix),
-                                integral=integral,
-                                region=omega, v1=v1, u2=u2)
+                if eval_mode == 'weak':
+                    term = Term.new('dw_{}stokes(v1, u2)'.format(prefix),
+                                    integral=integral,
+                                    region=omega, v1=v1, u2=u2)
+
+                else:
+                    term = Term.new('dw_{}stokes(u1, u2)'.format(prefix),
+                                    integral=integral,
+                                    region=omega, u1=u1, u2=u2)
 
         else:
             raise ValueError(term_name)
@@ -1311,28 +1330,28 @@ def get_evals_sfepy(options, term, eterm,
 
     @profile
     def eval_sfepy_term():
-        return term.evaluate(mode='weak',
+        return term.evaluate(mode=options.eval_mode,
                              diff_var=options.diff,
                              standalone=False, ret_status=True)
 
     @profile
     def eval_sfepy_eterm_auto():
         eterm.optimize = 'auto'
-        return eterm.evaluate(mode='weak',
+        return eterm.evaluate(mode=options.eval_mode,
                               diff_var=options.diff,
                               standalone=False, ret_status=True)
 
     @profile
     def eval_sfepy_eterm_greedy():
         eterm.optimize = 'greedy'
-        return eterm.evaluate(mode='weak',
+        return eterm.evaluate(mode=options.eval_mode,
                               diff_var=options.diff,
                               standalone=False, ret_status=True)
 
     @profile
     def eval_sfepy_eterm_dp():
         eterm.optimize = 'dynamic-programming'
-        return eterm.evaluate(mode='weak',
+        return eterm.evaluate(mode=options.eval_mode,
                               diff_var=options.diff,
                               standalone=False, ret_status=True)
 
@@ -1379,6 +1398,8 @@ helps = {
     : 'quadrature order [default: 2 * approximation order]',
     'term_name'
     : 'the sfepy term to time [default: %(default)s]',
+    'eval_mode'
+    : 'the term evaluation mode [default: %(default)s]',
     'variant'
     : 'the term variant [default: %(default)s]',
     'diff'
@@ -1409,6 +1430,10 @@ def main():
                         choices=['dw_convect', 'dw_laplace', 'dw_volume_dot',
                                  'dw_div', 'dw_stokes', 'dw_lin_elastic'],
                         default='dw_convect', help=helps['term_name'])
+    parser.add_argument('--eval-mode',
+                        action='store', dest='eval_mode',
+                        choices=['weak', 'eval'],
+                        default='weak', help=helps['eval_mode'])
     parser.add_argument('--variant',
                         action='store', dest='variant',
                         choices=[None, '', 'scalar', 'vector',
@@ -1466,6 +1491,7 @@ def main():
             quad_order=options.quad_order,
             n_cell=options.n_cell,
             term_name=options.term_name,
+            eval_mode=options.eval_mode,
             variant=options.variant,
         )
 
@@ -1475,6 +1501,7 @@ def main():
             quad_order=options.quad_order,
             n_cell=options.n_cell,
             term_name=options.term_name,
+            eval_mode=options.eval_mode,
             variant=options.variant,
         )
 
