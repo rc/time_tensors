@@ -1251,6 +1251,29 @@ def get_evals_sfepy(options, term, eterm,
 
     return evaluators
 
+def run_evaluator(results, key, fun, arg_no, can_use, options, timer,
+                  ref_res=None):
+    output(key)
+    times = results.setdefault('t_' + key, [])
+    norms = results.setdefault('norm_' + key, [])
+    rnorms = results.setdefault('rnorm_' + key, [])
+    for ir in range(options.repeat):
+        timer.start()
+        res = fun()[arg_no]
+        times.append(timer.stop())
+        res = res.reshape(-1)
+        if ref_res is None:
+            ref_res = res
+        norms.append(nm.linalg.norm(res))
+        rnorms.append(nm.linalg.norm(res - ref_res))
+        output('|result|: {} ({:.1e}) in {} s'
+               .format(norms[-1], rnorms[-1], times[-1]))
+        del res
+        gc.collect()
+        #results['res_' + key] = res
+
+    return ref_res
+
 helps = {
     'output_dir'
     : 'output directory',
@@ -1436,27 +1459,13 @@ def main():
 
     results = {}
 
-    timer = Timer('')
-
+    key = 'sfepy_term'
+    fun, arg_no, can_use = evaluators.pop(key)
+    ref_res = run_evaluator(results, key, fun, arg_no, can_use, options, timer)
     for key, (fun, arg_no, can_use) in evaluators.items():
         if not can_use: continue
-        output(key)
-
-        times = results.setdefault('t_' + key, [])
-        norms = results.setdefault('norm_' + key, [])
-        for ir in range(options.repeat):
-            timer.start()
-            res = fun()[arg_no]
-            times.append(timer.stop())
-            norms.append(nm.linalg.norm(res.reshape(-1)))
-            output('|result|: {} in {} s'.format(norms[-1], times[-1]))
-            del res
-            gc.collect()
-            #results['res_' + key] = res
-
-        # res_term = results.get('res_sfepy_term')
-        # output('difference w.r.t. term:',
-        #        nm.linalg.norm(res.ravel() - res_term.ravel()))
+        run_evaluator(results, key, fun, arg_no, can_use, options, timer,
+                      ref_res=ref_res)
 
     df = pd.DataFrame(results)
     df.index.rename('evaluation', inplace=True)
