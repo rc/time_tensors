@@ -583,20 +583,37 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect',
                             region=omega, v=v, u=u)
 
         elif term_name == 'dw_laplace':
-            term = Term.new('dw_{}laplace(v, u)'.format(prefix),
-                            integral=integral,
-                            region=omega, v=v, u=u)
-
-        elif term_name == 'dw_volume_dot':
-            if 'material' in variant:
-                term = Term.new('dw_{}volume_dot(m.val, v, u)'.format(prefix),
-                                integral=integral,
-                                region=omega, m=mat, v=v, u=u)
-
-            else:
-                term = Term.new('dw_{}volume_dot(v, u)'.format(prefix),
+            if eval_mode == 'weak':
+                term = Term.new('dw_{}laplace(v, u)'.format(prefix),
                                 integral=integral,
                                 region=omega, v=v, u=u)
+
+            else:
+                term = Term.new('dw_{}laplace(u, u)'.format(prefix),
+                                integral=integral,
+                                region=omega, u=u)
+
+        elif term_name == 'dw_volume_dot':
+            if eval_mode == 'weak':
+                if 'material' in variant:
+                    tstr = 'dw_{}volume_dot(m.val, v, u)'
+                    targs = {'m' : mat, 'v' : v, 'u' : u}
+
+                else:
+                    tstr = 'dw_{}volume_dot(v, u)'
+                    targs = {'v' : v, 'u' : u}
+
+            else:
+                if 'material' in variant:
+                    tstr = 'dw_{}volume_dot(m.val, u, u)'
+                    targs = {'m' : mat, 'u' : u}
+
+                else:
+                    tstr = 'dw_{}volume_dot(u, u)'
+                    targs = {'u' : u}
+
+            term = Term.new(tstr.format(prefix), integral=integral,
+                            region=omega, **targs)
 
         elif term_name == 'dw_div':
             term = Term.new('dw_{}div(v)'.format(prefix),
