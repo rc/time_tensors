@@ -390,7 +390,8 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
     tcolors = styles['tn_cell']['color']
     mcolors = styles['mn_cell']['color']
 
-    fig, axs = plt.subplots(len(data.orders), figsize=(12, 8))
+    fig, axs = plt.subplots(len(data.orders) * len(data.term_names),
+                            figsize=(12, 8))
     axs2 = []
     for ax in axs:
         ax.grid(which='both', axis='y')
