@@ -151,6 +151,7 @@ def get_plugin_info():
         plot_times,
         plot_mem_usages,
         plot_all_as_bars,
+        plot_all_as_bars2,
         show_figures,
     ]
 
@@ -230,9 +231,11 @@ def collect_mem_usages(df, data=None):
     data.mdf = mdf
     return data
 
-def select_data(df, data=None, term_names=None, orders=None, functions=None):
+def select_data(df, data=None, term_names=None, n_cell=None, orders=None,
+                functions=None):
     data.term_names = (data.par_uniques['term_name']
                        if term_names is None else term_names)
+    data.n_cell = data.par_uniques['n_cell'] if n_cell is None else n_cell
     data.orders = data.par_uniques['order'] if orders is None else orders
     data.t_funs = (data.tkeys
                    if functions is None else ['t_' + fun for fun in functions])
@@ -476,6 +479,128 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
         leg.get_frame().set_alpha(0.5)
 
     fig.savefig(os.path.join(data.output_dir, prefix + 'all_bars' + suffix),
+                bbox_inches='tight')
+
+def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
+                      mcolormap_name='plasma', yscale='linear',
+                      prefix='', suffix='.pdf'):
+    import soops.plot_selected as sps
+    from soops.formatting import format_float_latex
+    import matplotlib.pyplot as plt
+
+    tdf = data.tdf
+    mdf = data.mdf
+
+    select = {}
+    select['tfunction'] = tdf['function'].unique()
+    select['mfunction'] = mdf['function'].unique()
+
+    mit = nm.nanmin(tdf['t'].to_list())
+    mat = nm.nanmax(tdf['t'].to_list())
+    tyticks = nm.logspace(nm.log10(mit), nm.log10(mat), 3)
+    tyticks_labels = [format_float_latex(ii, 1) for ii in tyticks]
+
+    styles = {}
+    styles['tfunction'] = {'color' : tcolormap_name}
+    styles['mfunction'] = {'color' : mcolormap_name}
+    styles = sps.setup_plot_styles(select, styles)
+
+    mim = max(nm.nanmin(mdf['mems'].to_list()), 1e-3)
+    mam = nm.nanmax(mdf['mems'].to_list())
+    myticks = nm.logspace(nm.log10(mim), nm.log10(mam), 3)
+    myticks_labels = [format_float_latex(ii, 1) for ii in myticks]
+
+    tcolors = styles['tfunction']['color']
+    mcolors = styles['mfunction']['color']
+
+    fig, axs = plt.subplots(len(data.term_names) * len(data.n_cell),
+                            figsize=(12, 8), squeeze=False)
+    axs = axs.T[0]
+    axs2 = []
+    for ax in axs:
+        ax.grid(which='both', axis='y')
+        ax.set_ylim(0.8 * mit, 1.2 * mat)
+        ax.set_yscale(yscale)
+        ax.set_yticks(tyticks)
+        ax.set_yticklabels(tyticks_labels)
+        ax.spines['top'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+
+        ax2 = ax.twinx()
+        ax2.set_ylim(0.8 * mim, 1.2 * mam)
+        ax2.set_yscale(yscale)
+        ax2.set_yticks(myticks)
+        ax2.set_yticklabels(myticks_labels)
+        ax2.spines['top'].set_visible(False)
+        ax2.spines['bottom'].set_visible(False)
+        ax2.get_xaxis().set_visible(False)
+        axs2.append(ax2)
+
+    nax = len(axs)
+
+    sx = 3
+    ia = 0
+    for term_name in data.par_uniques['term_name']:
+        if term_name not in data.term_names: continue
+        for ic, n_cell in enumerate(data.par_uniques['n_cell']):
+            if n_cell not in data.n_cell: continue
+            ax = axs[ia]
+            ax2 = axs2[ia]
+            bx = 0
+
+            xts = []
+            for io, order in enumerate(data.par_uniques['order']):
+                if order not in data.orders: continue
+                tsdf = tdf[(tdf['term_name'] == term_name) &
+                           (tdf['n_cell'] == n_cell) &
+                           (tdf['order'] == order)]
+                msdf = mdf[(mdf['term_name'] == term_name) &
+                           (mdf['n_cell'] == n_cell) &
+                           (mdf['order'] == order)]
+
+                vx = tsdf.function.values
+                times = tsdf['t'].to_list()
+                mems = msdf['mems'].to_list()
+
+                tmeans = nm.nanmean(times, axis=1)
+                tstds = nm.nanstd(times, axis=1)
+                mmeans = nm.nanmean(mems, axis=1)
+                mstds = nm.nanstd(mems, axis=1)
+
+                xs = bx + nm.arange(len(vx))
+                ax.bar(xs, tmeans, width=0.8, align='edge', yerr=tstds,
+                       color=tcolors, capsize=2)
+
+                xts.append(xs[-1])
+
+                xs = xs[-1] + sx + nm.arange(len(vx))
+                ax2.bar(xs, mmeans, width=0.8, align='edge', yerr=mstds,
+                        color=mcolors, capsize=2)
+                bx = xs[-1] + 2 * sx
+
+                if io < len(data.orders):
+                        ax.axvline(bx - sx, color='k', lw=0.5)
+
+            ax.set_title('{}/{} cells'.format(term_name, n_cell))
+            ax.set_xlim(0, bx - 2 * sx)
+            if ia + 1 < nax:
+                ax.get_xaxis().set_visible(False)
+
+            else:
+                ax.set_xticks(xts)
+                ax.set_xticklabels(data.orders)
+
+            ia += 1
+
+    plt.tight_layout()
+    fig.subplots_adjust(right=0.8)
+
+    lines, labels = sps.get_legend_items(select, styles)
+    leg = fig.legend(lines, labels)
+    if leg is not None:
+        leg.get_frame().set_alpha(0.5)
+
+    fig.savefig(os.path.join(data.output_dir, prefix + 'all_bars2' + suffix),
                 bbox_inches='tight')
 
 def create_domain(n_cell, timer):
