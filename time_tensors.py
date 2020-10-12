@@ -297,7 +297,7 @@ def plot_times(df, data=None, xscale='log', yscale='log',
 
                 plt.errorbar(vx, means, yerr=stds,
                              ecolor=style_kwargs['color'],
-                             elinewidth=5, capsize=0,
+                             elinewidth=1, capsize=2,
                              **style_kwargs)
 
     sps.add_legend(ax, select, styles, used)
@@ -310,7 +310,7 @@ def plot_times(df, data=None, xscale='log', yscale='log',
     fig.savefig(os.path.join(data.output_dir, prefix + 'times' + suffix),
                 bbox_inches='tight')
 
-def plot_mem_usages(df, data=None, xscale='log', yscale='log',
+def plot_mem_usages(df, data=None, xscale='log', yscale='symlog',
                     prefix='', suffix='.pdf'):
     import soops.plot_selected as sps
     import matplotlib.pyplot as plt
@@ -345,7 +345,7 @@ def plot_mem_usages(df, data=None, xscale='log', yscale='log',
 
                 plt.errorbar(vx, means, yerr=stds,
                              ecolor=style_kwargs['color'],
-                             elinewidth=5, capsize=0,
+                             elinewidth=1, capsize=2,
                              **style_kwargs)
 
     sps.add_legend(ax, select, styles, used)
@@ -445,13 +445,13 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
 
                 xs = bx + nm.arange(len(vx))
                 ax.bar(xs, tmeans, width=0.8, align='edge', yerr=tstds,
-                       color=tcolors)
+                       color=tcolors, capsize=2)
 
                 xts.append(xs[-1])
 
                 xs = xs[-1] + sx + nm.arange(len(vx))
                 ax2.bar(xs, mmeans, width=0.8, align='edge', yerr=mstds,
-                        color=mcolors)
+                        color=mcolors, capsize=2)
                 bx = xs[-1] + 2 * sx
 
                 if im < len(data.mkeys):
