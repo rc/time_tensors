@@ -394,7 +394,8 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
     mcolors = styles['mn_cell']['color']
 
     fig, axs = plt.subplots(len(data.orders) * len(data.term_names),
-                            figsize=(12, 8))
+                            figsize=(12, 8), squeeze=False)
+    axs = axs.T[0]
     axs2 = []
     for ax in axs:
         ax.grid(which='both', axis='y')
@@ -460,6 +461,7 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
                 if im < len(data.mkeys):
                     ax.axvline(bx - sx, color='k', lw=0.5)
 
+            ax.set_title('{}/order {}'.format(term_name, order))
             ax.set_xlim(0, bx - 2 * sx)
             if ia + 1 < nax:
                 ax.get_xaxis().set_visible(False)
