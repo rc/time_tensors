@@ -1484,31 +1484,47 @@ def get_evals_sfepy(options, term, eterm,
                              standalone=False, ret_status=True)
 
     @profile
-    def eval_sfepy_eterm_auto():
-        eterm.optimize = 'auto'
+    def eval_eterm_np_greedy():
+        eterm.set_backend(backend='numpy', optimize='greedy')
         return eterm.evaluate(mode=options.eval_mode,
                               diff_var=options.diff,
                               standalone=False, ret_status=True)
 
     @profile
-    def eval_sfepy_eterm_greedy():
-        eterm.optimize = 'greedy'
+    def eval_eterm_np_optimal():
+        eterm.set_backend(backend='numpy', optimize='optimal')
         return eterm.evaluate(mode=options.eval_mode,
                               diff_var=options.diff,
                               standalone=False, ret_status=True)
 
     @profile
-    def eval_sfepy_eterm_dp():
-        eterm.optimize = 'dynamic-programming'
+    def eval_eterm_oe_auto():
+        eterm.set_backend(backend='opt_einsum', optimize='auto')
+        return eterm.evaluate(mode=options.eval_mode,
+                              diff_var=options.diff,
+                              standalone=False, ret_status=True)
+
+    @profile
+    def eval_eterm_oe_greedy():
+        eterm.set_backend(backend='opt_einsum', optimize='greedy')
+        return eterm.evaluate(mode=options.eval_mode,
+                              diff_var=options.diff,
+                              standalone=False, ret_status=True)
+
+    @profile
+    def eval_eterm_oe_dp():
+        eterm.set_backend(backend='opt_einsum', optimize='dynamic-programming')
         return eterm.evaluate(mode=options.eval_mode,
                               diff_var=options.diff,
                               standalone=False, ret_status=True)
 
     evaluators = {
         'sfepy_term' : (eval_sfepy_term, 0, True),
-        'sfepy_eterm_auto' : (eval_sfepy_eterm_auto, 0, True),
-        'sfepy_eterm_greedy' : (eval_sfepy_eterm_greedy, 0, True),
-        'sfepy_eterm_dp' : (eval_sfepy_eterm_dp, 0, True),
+        'eterm_np_greedy' : (eval_eterm_np_greedy, 0, True),
+        'eterm_np_optimal' : (eval_eterm_np_optimal, 0, True),
+        'eterm_oe_auto' : (eval_eterm_oe_auto, 0, True),
+        'eterm_oe_greedy' : (eval_eterm_oe_greedy, 0, True),
+        'eterm_oe_dp' : (eval_eterm_oe_dp, 0, True),
     }
 
     return evaluators
