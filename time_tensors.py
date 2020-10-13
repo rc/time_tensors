@@ -1518,6 +1518,20 @@ def get_evals_sfepy(options, term, eterm,
                               diff_var=options.diff,
                               standalone=False, ret_status=True)
 
+    @profile
+    def eval_eterm_da_s_greedy():
+        eterm.set_backend(backend='dask_single', optimize='greedy')
+        return eterm.evaluate(mode=options.eval_mode,
+                              diff_var=options.diff,
+                              standalone=False, ret_status=True)
+
+    @profile
+    def eval_eterm_da_t_greedy():
+        eterm.set_backend(backend='dask_threads', optimize='greedy')
+        return eterm.evaluate(mode=options.eval_mode,
+                              diff_var=options.diff,
+                              standalone=False, ret_status=True)
+
     evaluators = {
         'sfepy_term' : (eval_sfepy_term, 0, True),
         'eterm_np_greedy' : (eval_eterm_np_greedy, 0, True),
@@ -1525,6 +1539,8 @@ def get_evals_sfepy(options, term, eterm,
         'eterm_oe_auto' : (eval_eterm_oe_auto, 0, True),
         'eterm_oe_greedy' : (eval_eterm_oe_greedy, 0, True),
         'eterm_oe_dp' : (eval_eterm_oe_dp, 0, True),
+        'eterm_da_s_greedy' : (eval_eterm_da_s_greedy, 0, True),
+        'eterm_da_t_greedy' : (eval_eterm_da_t_greedy, 0, True),
     }
 
     return evaluators
