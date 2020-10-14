@@ -43,6 +43,7 @@ from mprof import read_mprofile_file
 
 import pandas as pd
 
+import soops as so
 from sfepy.base.base import output
 from sfepy.base.ioutils import ensure_path, save_options
 from sfepy.base.timing import Timer
@@ -1622,6 +1623,8 @@ helps = {
     : 'the term variant [default: %(default)s]',
     'diff'
     : 'if given, differentiate w.r.t. this variable [default: %(default)s]',
+    'select'
+    : ' evaluation functions selection [default: %(default)s]',
     'repeat'
     : 'the number of term implementation evaluations [default: %(default)s]',
     'mprof'
@@ -1662,6 +1665,10 @@ def main():
                         metavar='variable name',
                         action='store', dest='diff',
                         default=None, help=helps['diff'])
+    parser.add_argument('--select',
+                        metavar='functions list',
+                        action='store', dest='select',
+                        default='all', help=helps['select'])
     parser.add_argument('--repeat', metavar='int', type=int,
                         action='store', dest='repeat',
                         default=1, help=helps['repeat'])
@@ -1678,6 +1685,8 @@ def main():
 
     if options.variant is None:
         options.variant = ''
+
+    options.select = so.parse_as_list(options.select)
 
     output_dir = options.output_dir
     output.prefix = 'time_tensors:'
@@ -1796,6 +1805,9 @@ def main():
             options, term, eterm, dets, qsb, qsbg, qvb, qvbg, state, adc
         ))
 
+    if options.select[0] == 'all':
+        options.select = list(evaluators.keys())
+
     results = {}
 
     key = 'sfepy_term'
@@ -1803,6 +1815,8 @@ def main():
     ref_res = run_evaluator(results, key, fun, arg_no, can_use, options, timer)
     for key, (fun, arg_no, can_use) in evaluators.items():
         if not can_use: continue
+        if key not in options.select: continue
+
         run_evaluator(results, key, fun, arg_no, can_use, options, timer,
                       ref_res=ref_res)
 
