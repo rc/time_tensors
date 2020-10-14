@@ -1498,6 +1498,13 @@ def get_evals_sfepy(options, term, eterm,
                               standalone=False, ret_status=True)
 
     @profile
+    def eval_eterm_np_greedy_loop():
+        eterm.set_backend(backend='numpy_loop', optimize='greedy')
+        return eterm.evaluate(mode=options.eval_mode,
+                              diff_var=options.diff,
+                              standalone=False, ret_status=True)
+
+    @profile
     def eval_eterm_oe_auto():
         eterm.set_backend(backend='opt_einsum', optimize='auto')
         return eterm.evaluate(mode=options.eval_mode,
@@ -1514,6 +1521,14 @@ def get_evals_sfepy(options, term, eterm,
     @profile
     def eval_eterm_oe_dp():
         eterm.set_backend(backend='opt_einsum', optimize='dynamic-programming')
+        return eterm.evaluate(mode=options.eval_mode,
+                              diff_var=options.diff,
+                              standalone=False, ret_status=True)
+
+    @profile
+    def eval_eterm_oe_dp_loop():
+        eterm.set_backend(backend='opt_einsum_loop',
+                          optimize='dynamic-programming')
         return eterm.evaluate(mode=options.eval_mode,
                               diff_var=options.diff,
                               standalone=False, ret_status=True)
@@ -1536,9 +1551,11 @@ def get_evals_sfepy(options, term, eterm,
         'sfepy_term' : (eval_sfepy_term, 0, True),
         'eterm_np_greedy' : (eval_eterm_np_greedy, 0, True),
         'eterm_np_optimal' : (eval_eterm_np_optimal, 0, True),
+        'eterm_np_greedy_loop' : (eval_eterm_np_greedy_loop, 0, True),
         'eterm_oe_auto' : (eval_eterm_oe_auto, 0, True),
         'eterm_oe_greedy' : (eval_eterm_oe_greedy, 0, True),
         'eterm_oe_dp' : (eval_eterm_oe_dp, 0, True),
+        'eterm_oe_dp_loop' : (eval_eterm_oe_dp_loop, 0, True),
         'eterm_da_s_greedy' : (eval_eterm_da_s_greedy, 0, True),
         'eterm_da_t_greedy' : (eval_eterm_da_t_greedy, 0, True),
     }
