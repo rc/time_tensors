@@ -1621,6 +1621,8 @@ helps = {
     : 'the term evaluation mode [default: %(default)s]',
     'variant'
     : 'the term variant [default: %(default)s]',
+    'layout'
+    : 'the term argument arrays layout [default: %(default)s]',
     'diff'
     : 'if given, differentiate w.r.t. this variable [default: %(default)s]',
     'select'
@@ -1661,6 +1663,10 @@ def main():
                                  'scalar-material', 'vector-material',
                                  'div', 'grad'],
                         default=None, help=helps['variant'])
+    parser.add_argument('--layout',
+                        action='store', dest='layout',
+                        choices=['C', 'F'],
+                        default='C', help=helps['layout'])
     parser.add_argument('--diff',
                         metavar='variable name',
                         action='store', dest='diff',
@@ -1813,6 +1819,21 @@ def main():
     key = 'sfepy_term'
     fun, arg_no, can_use = evaluators.pop(key)
     ref_res = run_evaluator(results, key, fun, arg_no, can_use, options, timer)
+
+    if options.layout == 'F':
+        for iv, arg in enumerate(eterm.args):
+            if isinstance(arg, FieldVariable):
+                ag, _ = eterm.get_mapping(arg)
+                ag.det = nm.require(ag.det, requirements='F')
+                ag.bfg = nm.require(ag.bfg, requirements='F')
+
+            else:
+                if arg[0] is not None:
+                    key = (eterm.region.name, eterm.integral.order)
+                    mat = arg[0].get_data(key, arg[1])
+                    arg[0].datas[key][arg[1]] = nm.require(mat,
+                                                           requirements='F')
+
     for key, (fun, arg_no, can_use) in evaluators.items():
         if not can_use: continue
         if key not in options.select: continue
