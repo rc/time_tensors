@@ -179,6 +179,11 @@ def collect_times(df, data=None):
     return data
 
 def collect_mem_usages(df, data=None):
+    if 'func_timestamp' not in df:
+        data.mkeys = []
+        data.mdf = None
+        return data
+
     aux = pd.json_normalize(df['func_timestamp']).rename(
         lambda x: 'm_' + x.split('.')[-1].replace('eval_', ''), axis=1
     )
@@ -373,7 +378,6 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
 
     select = {}
     select['tn_cell'] = tdf['n_cell'].unique()
-    select['mn_cell'] = mdf['n_cell'].unique()
 
     mit = nm.nanmin(tdf['t'].to_list())
     mat = nm.nanmax(tdf['t'].to_list())
@@ -385,10 +389,13 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
     styles['mn_cell'] = {'color' : mcolormap_name}
     styles = sps.setup_plot_styles(select, styles)
 
-    mim = max(nm.nanmin(mdf['mems'].to_list()), 1e-3)
-    mam = nm.nanmax(mdf['mems'].to_list())
-    myticks = nm.logspace(nm.log10(mim), nm.log10(mam), 3)
-    myticks_labels = [format_float_latex(ii, 1) for ii in myticks]
+    if mdf is not None:
+        select['mn_cell'] = mdf['n_cell'].unique()
+
+        mim = max(nm.nanmin(mdf['mems'].to_list()), 1e-3)
+        mam = nm.nanmax(mdf['mems'].to_list())
+        myticks = nm.logspace(nm.log10(mim), nm.log10(mam), 3)
+        myticks_labels = [format_float_latex(ii, 1) for ii in myticks]
 
     tcolors = styles['tn_cell']['color']
     mcolors = styles['mn_cell']['color']
@@ -406,15 +413,16 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
         ax.spines['top'].set_visible(False)
         ax.spines['bottom'].set_visible(False)
 
-        ax2 = ax.twinx()
-        ax2.set_ylim(0.8 * mim, 1.2 * mam)
-        ax2.set_yscale(yscale)
-        ax2.set_yticks(myticks)
-        ax2.set_yticklabels(myticks_labels)
-        ax2.spines['top'].set_visible(False)
-        ax2.spines['bottom'].set_visible(False)
-        ax2.get_xaxis().set_visible(False)
-        axs2.append(ax2)
+        if mdf is not None:
+            ax2 = ax.twinx()
+            ax2.set_ylim(0.8 * mim, 1.2 * mam)
+            ax2.set_yscale(yscale)
+            ax2.set_yticks(myticks)
+            ax2.set_yticklabels(myticks_labels)
+            ax2.spines['top'].set_visible(False)
+            ax2.spines['bottom'].set_visible(False)
+            ax2.get_xaxis().set_visible(False)
+            axs2.append(ax2)
 
     nax = len(axs)
 
@@ -425,27 +433,20 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
         for io, order in enumerate(data.par_uniques['order']):
             if order not in data.orders: continue
             ax = axs[ia]
-            ax2 = axs2[ia]
+            if mdf is not None:
+                ax2 = axs2[ia]
             bx = 0
 
             xts = []
-            for im, mkey in enumerate(data.mkeys):
-                if mkey not in data.m_funs: continue
-                tkey = data.tkeys[im]
+            for it, tkey in enumerate(data.tkeys):
+                if tkey not in data.t_funs: continue
                 tsdf = tdf[(tdf['term_name'] == term_name) &
                            (tdf['order'] == order) &
                            (tdf['function'] == tkey)]
-                msdf = mdf[(mdf['term_name'] == term_name) &
-                           (mdf['order'] == order) &
-                           (mdf['function'] == mkey)]
                 vx = tsdf.n_cell.values
                 times = tsdf['t'].to_list()
-                mems = msdf['mems'].to_list()
-
                 tmeans = nm.nanmean(times, axis=1)
                 tstds = nm.nanstd(times, axis=1)
-                mmeans = nm.nanmean(mems, axis=1)
-                mstds = nm.nanstd(mems, axis=1)
 
                 xs = bx + nm.arange(len(vx))
                 ax.bar(xs, tmeans, width=0.8, align='edge', yerr=tstds,
@@ -453,16 +454,27 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
 
                 xts.append(xs[-1])
 
-                xs = xs[-1] + sx + nm.arange(len(vx))
-                ax2.bar(xs, mmeans, width=0.8, align='edge', yerr=mstds,
-                        color=mcolors, capsize=2)
+                if mdf is not None:
+                    mkey = data.mkeys[it]
+                    msdf = mdf[(mdf['term_name'] == term_name) &
+                               (mdf['order'] == order) &
+                               (mdf['function'] == mkey)]
+                    mems = msdf['mems'].to_list()
+
+                    mmeans = nm.nanmean(mems, axis=1)
+                    mstds = nm.nanstd(mems, axis=1)
+
+                    xs = xs[-1] + sx + nm.arange(len(vx))
+                    ax2.bar(xs, mmeans, width=0.8, align='edge', yerr=mstds,
+                            color=mcolors, capsize=2)
+
                 bx = xs[-1] + 2 * sx
 
-                if im < len(data.mkeys):
+                if it < len(data.tkeys):
                     ax.axvline(bx - sx, color='k', lw=0.5)
 
             ax.set_title('{}/order {}'.format(term_name, order))
-            ax.set_xlim(0, bx - 2 * sx)
+            ax.set_xlim(0, bx + 1 - 2 * sx)
             if ia + 1 < nax:
                 ax.get_xaxis().set_visible(False)
 
@@ -495,7 +507,6 @@ def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
 
     select = {}
     select['tfunction'] = tdf['function'].unique()
-    select['mfunction'] = mdf['function'].unique()
 
     mit = nm.nanmin(tdf['t'].to_list())
     mat = nm.nanmax(tdf['t'].to_list())
@@ -507,10 +518,13 @@ def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
     styles['mfunction'] = {'color' : mcolormap_name}
     styles = sps.setup_plot_styles(select, styles)
 
-    mim = max(nm.nanmin(mdf['mems'].to_list()), 1e-3)
-    mam = nm.nanmax(mdf['mems'].to_list())
-    myticks = nm.logspace(nm.log10(mim), nm.log10(mam), 3)
-    myticks_labels = [format_float_latex(ii, 1) for ii in myticks]
+    if mdf is not None:
+        select['mfunction'] = mdf['function'].unique()
+
+        mim = max(nm.nanmin(mdf['mems'].to_list()), 1e-3)
+        mam = nm.nanmax(mdf['mems'].to_list())
+        myticks = nm.logspace(nm.log10(mim), nm.log10(mam), 3)
+        myticks_labels = [format_float_latex(ii, 1) for ii in myticks]
 
     tcolors = styles['tfunction']['color']
     mcolors = styles['mfunction']['color']
@@ -528,15 +542,16 @@ def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
         ax.spines['top'].set_visible(False)
         ax.spines['bottom'].set_visible(False)
 
-        ax2 = ax.twinx()
-        ax2.set_ylim(0.8 * mim, 1.2 * mam)
-        ax2.set_yscale(yscale)
-        ax2.set_yticks(myticks)
-        ax2.set_yticklabels(myticks_labels)
-        ax2.spines['top'].set_visible(False)
-        ax2.spines['bottom'].set_visible(False)
-        ax2.get_xaxis().set_visible(False)
-        axs2.append(ax2)
+        if mdf is not None:
+            ax2 = ax.twinx()
+            ax2.set_ylim(0.8 * mim, 1.2 * mam)
+            ax2.set_yscale(yscale)
+            ax2.set_yticks(myticks)
+            ax2.set_yticklabels(myticks_labels)
+            ax2.spines['top'].set_visible(False)
+            ax2.spines['bottom'].set_visible(False)
+            ax2.get_xaxis().set_visible(False)
+            axs2.append(ax2)
 
     nax = len(axs)
 
@@ -547,7 +562,8 @@ def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
         for ic, n_cell in enumerate(data.par_uniques['n_cell']):
             if n_cell not in data.n_cell: continue
             ax = axs[ia]
-            ax2 = axs2[ia]
+            if mdf is not None:
+                ax2 = axs2[ia]
             bx = 0
 
             xts = []
@@ -556,18 +572,12 @@ def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
                 tsdf = tdf[(tdf['term_name'] == term_name) &
                            (tdf['n_cell'] == n_cell) &
                            (tdf['order'] == order)]
-                msdf = mdf[(mdf['term_name'] == term_name) &
-                           (mdf['n_cell'] == n_cell) &
-                           (mdf['order'] == order)]
 
                 vx = tsdf.function.values
                 times = tsdf['t'].to_list()
-                mems = msdf['mems'].to_list()
 
                 tmeans = nm.nanmean(times, axis=1)
                 tstds = nm.nanstd(times, axis=1)
-                mmeans = nm.nanmean(mems, axis=1)
-                mstds = nm.nanstd(mems, axis=1)
 
                 xs = bx + nm.arange(len(vx))
                 ax.bar(xs, tmeans, width=0.8, align='edge', yerr=tstds,
@@ -575,16 +585,26 @@ def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
 
                 xts.append(xs[-1])
 
-                xs = xs[-1] + sx + nm.arange(len(vx))
-                ax2.bar(xs, mmeans, width=0.8, align='edge', yerr=mstds,
-                        color=mcolors, capsize=2)
+                if mdf is not None:
+                    msdf = mdf[(mdf['term_name'] == term_name) &
+                               (mdf['n_cell'] == n_cell) &
+                               (mdf['order'] == order)]
+                    mems = msdf['mems'].to_list()
+
+                    mmeans = nm.nanmean(mems, axis=1)
+                    mstds = nm.nanstd(mems, axis=1)
+
+                    xs = xs[-1] + sx + nm.arange(len(vx))
+                    ax2.bar(xs, mmeans, width=0.8, align='edge', yerr=mstds,
+                            color=mcolors, capsize=2)
+
                 bx = xs[-1] + 2 * sx
 
                 if io < len(data.orders):
                         ax.axvline(bx - sx, color='k', lw=0.5)
 
             ax.set_title('{}/{} cells'.format(term_name, n_cell))
-            ax.set_xlim(0, bx - 2 * sx)
+            ax.set_xlim(0, bx + 1 - 2 * sx)
             if ia + 1 < nax:
                 ax.get_xaxis().set_visible(False)
 
