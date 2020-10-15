@@ -1568,6 +1568,29 @@ def get_evals_sfepy(options, term, eterm,
                               diff_var=options.diff,
                               standalone=False, ret_status=True)
 
+    @profile
+    def eval_eterm_oe_dp_da_s(c_chunk_size=10):
+        eterm.set_backend(
+            backend='opt_einsum_dask_single',
+            optimize='dynamic-programming',
+            c_chunk_size=c_chunk_size,
+        )
+        return eterm.evaluate(mode=options.eval_mode,
+                              diff_var=options.diff,
+                              standalone=False, ret_status=True)
+
+    @profile
+    def eval_eterm_oe_dp_da_t(c_chunk_size=10):
+        eterm.set_backend(
+            backend='opt_einsum_dask_threads',
+            optimize='dynamic-programming',
+            c_chunk_size=c_chunk_size,
+            memory_limit='max_input',
+        )
+        return eterm.evaluate(mode=options.eval_mode,
+                              diff_var=options.diff,
+                              standalone=False, ret_status=True)
+
     evaluators = {
         'sfepy_term' : (eval_sfepy_term, 0, True),
         'eterm_np_greedy' : (eval_eterm_np_greedy, 0, True),
@@ -1579,6 +1602,8 @@ def get_evals_sfepy(options, term, eterm,
         'eterm_oe_dp_loop' : (eval_eterm_oe_dp_loop, 0, True),
         'eterm_da_s_greedy' : (eval_eterm_da_s_greedy, 0, True),
         'eterm_da_t_greedy' : (eval_eterm_da_t_greedy, 0, True),
+        'eterm_oe_dp_da_s' : (eval_eterm_oe_dp_da_s, 0, True),
+        'eterm_oe_dp_da_t' : (eval_eterm_oe_dp_da_t, 0, True),
     }
 
     return evaluators
