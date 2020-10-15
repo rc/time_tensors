@@ -387,17 +387,17 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
 
     styles = {}
     styles['tn_cell'] = {'color' : tcolormap_name}
-    styles['mn_cell'] = {'color' : mcolormap_name}
-    styles = sps.setup_plot_styles(select, styles)
 
     if mdf is not None:
         select['mn_cell'] = mdf['n_cell'].unique()
+        styles['mn_cell'] = {'color' : mcolormap_name}
 
         mim = max(nm.nanmin(mdf['mems'].to_list()), 1e-3)
         mam = nm.nanmax(mdf['mems'].to_list())
         myticks = nm.logspace(nm.log10(mim), nm.log10(mam), 3)
         myticks_labels = [format_float_latex(ii, 1) for ii in myticks]
 
+    styles = sps.setup_plot_styles(select, styles)
     tcolors = styles['tn_cell']['color']
     mcolors = styles['mn_cell']['color']
 
@@ -516,17 +516,17 @@ def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
 
     styles = {}
     styles['tfunction'] = {'color' : tcolormap_name}
-    styles['mfunction'] = {'color' : mcolormap_name}
-    styles = sps.setup_plot_styles(select, styles)
 
     if mdf is not None:
         select['mfunction'] = mdf['function'].unique()
+        styles['mfunction'] = {'color' : mcolormap_name}
 
         mim = max(nm.nanmin(mdf['mems'].to_list()), 1e-3)
         mam = nm.nanmax(mdf['mems'].to_list())
         myticks = nm.logspace(nm.log10(mim), nm.log10(mam), 3)
         myticks_labels = [format_float_latex(ii, 1) for ii in myticks]
 
+    styles = sps.setup_plot_styles(select, styles)
     tcolors = styles['tfunction']['color']
     mcolors = styles['mfunction']['color']
 
