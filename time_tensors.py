@@ -49,6 +49,7 @@ from sfepy.base.ioutils import ensure_path, save_options
 from sfepy.base.timing import Timer
 from sfepy.discrete.variables import expand_basis
 from sfepy.discrete.fem import FEDomain, Field
+import sfepy.discrete.fem.refine_hanging as rh
 from sfepy.discrete import (FieldVariable, Material, Integral)
 from sfepy.terms import Term
 from sfepy.mesh.mesh_generators import gen_block_mesh
@@ -626,7 +627,7 @@ def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
     fig.savefig(os.path.join(data.output_dir, prefix + 'all_bars2' + suffix),
                 bbox_inches='tight')
 
-def create_domain(n_cell, timer):
+def create_domain(n_cell, refine, timer):
     timer.start()
     mesh = gen_block_mesh((n_cell, 1, 1), (n_cell + 1, 2, 2), (0, 0, 0),
                           name='')
@@ -635,11 +636,17 @@ def create_domain(n_cell, timer):
     domain = FEDomain('el', mesh)
     output('create domain: {} s'.format(timer.stop()))
 
+    subs = None
+    if (n_cell > 1) and refine:
+        refine_cells = nm.zeros(domain.mesh.n_el, dtype=nm.uint8)
+        refine_cells[n_cell // 2] = 1
+        domain, subs = rh.refine(domain, refine_cells, subs=subs)
+
     timer.start()
     omega = domain.create_region('omega', 'all')
     output('create omega: {} s'.format(timer.stop()))
 
-    return mesh, domain, omega
+    return mesh, domain, subs, omega
 
 def get_v_sol(coors):
     x0 = coors.min(axis=0)
@@ -685,13 +692,13 @@ def create_terms(_create_term, timer):
     return term, eterm
 
 def setup_data(order, quad_order, n_cell, term_name='dw_convect',
-               eval_mode='weak', variant=None):
+               eval_mode='weak', variant=None, refine=False):
 
     integral = Integral('i', order=quad_order)
 
     timer = Timer('')
 
-    mesh, domain, omega = create_domain(n_cell, timer)
+    mesh, domain, subs, omega = create_domain(n_cell, refine, timer)
 
     if (term_name in ('dw_convect', 'dw_div', 'dw_lin_elastic')
         or ('vector' in variant)):
@@ -703,6 +710,8 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect',
     timer.start()
     field = Field.from_args('fu', nm.float64, n_c, omega,
                             approx_order=order)
+    if subs is not None:
+        field.substitute_dofs(subs)
     output('create field: {} s'.format(timer.stop()))
 
     timer.start()
@@ -790,13 +799,13 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect',
     return uvec, term, eterm
 
 def setup_data_mixed(order1, order2, quad_order, n_cell, term_name='dw_stokes',
-                     eval_mode='weak', variant='div'):
+                     eval_mode='weak', variant='div', refine=False):
 
     integral = Integral('i', order=quad_order)
 
     timer = Timer('')
 
-    mesh, domain, omega = create_domain(n_cell, timer)
+    mesh, domain, subs, omega = create_domain(n_cell, refine, timer)
 
     if term_name in ('dw_stokes',):
         n_c1 = mesh.dim
@@ -810,6 +819,9 @@ def setup_data_mixed(order1, order2, quad_order, n_cell, term_name='dw_stokes',
                              approx_order=order1)
     field2 = Field.from_args('f2', nm.float64, n_c2, omega,
                              approx_order=order2)
+    if subs is not None:
+        field1.substitute_dofs(subs)
+        field2.substitute_dofs(subs)
     output('create fields: {} s'.format(timer.stop()))
 
     timer.start()
@@ -1636,6 +1648,8 @@ helps = {
     : 'output directory',
     'n_cell'
     : 'the number of cells [default: %(default)s]',
+    'refine'
+    : 'refine a single cell to test hanging nodes',
     'order'
     : 'displacement field approximation order [default: %(default)s]',
     'quad_order'
@@ -1669,6 +1683,9 @@ def main():
     parser.add_argument('--n-cell', metavar='int', type=int,
                         action='store', dest='n_cell',
                         default=100, help=helps['n_cell'])
+    parser.add_argument('--refine',
+                        action='store_true', dest='refine',
+                        default=False, help=helps['refine'])
     parser.add_argument('--order', metavar='int', type=int,
                         action='store', dest='order',
                         default=1, help=helps['order'])
@@ -1757,6 +1774,7 @@ def main():
             term_name=options.term_name,
             eval_mode=options.eval_mode,
             variant=options.variant,
+            refine=options.refine,
         )
 
     else:
@@ -1767,6 +1785,7 @@ def main():
             term_name=options.term_name,
             eval_mode=options.eval_mode,
             variant=options.variant,
+            refine=options.refine,
         )
 
     eterm.verbosity = options.verbosity_eterm
