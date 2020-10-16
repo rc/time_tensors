@@ -1656,6 +1656,8 @@ helps = {
     : 'the number of term implementation evaluations [default: %(default)s]',
     'mprof'
     : 'indicates a run under memory_profiler',
+    'verbosity_eterm'
+    : ' ETermBase verbosity level [default: %(default)s]',
     'silent'
     : 'do not print messages to screen',
 }
@@ -1706,6 +1708,10 @@ def main():
     parser.add_argument('--mprof',
                         action='store_true', dest='mprof',
                         default=False, help=helps['mprof'])
+    parser.add_argument('--verbosity-eterm', type=int,
+                        action='store', dest='verbosity_eterm',
+                        choices=[0, 1, 2, 3],
+                        default=0, help=helps['verbosity_eterm'])
     parser.add_argument('--silent',
                         action='store_true', dest='silent',
                         default=False, help=helps['silent'])
@@ -1762,6 +1768,8 @@ def main():
             eval_mode=options.eval_mode,
             variant=options.variant,
         )
+
+    eterm.verbosity = options.verbosity_eterm
 
     timer = Timer('')
     timer.start()
