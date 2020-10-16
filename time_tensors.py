@@ -400,7 +400,8 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
 
     styles = sps.setup_plot_styles(select, styles)
     tcolors = styles['tn_cell']['color']
-    mcolors = styles['mn_cell']['color']
+    if mdf is not None:
+        mcolors = styles['mn_cell']['color']
 
     fig, axs = plt.subplots(len(data.orders) * len(data.term_names),
                             figsize=(12, 8), squeeze=False)
@@ -529,7 +530,8 @@ def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
 
     styles = sps.setup_plot_styles(select, styles)
     tcolors = styles['tfunction']['color']
-    mcolors = styles['mfunction']['color']
+    if mdf is not None:
+        mcolors = styles['mfunction']['color']
 
     fig, axs = plt.subplots(len(data.term_names) * len(data.n_cell),
                             figsize=(12, 8), squeeze=False)
