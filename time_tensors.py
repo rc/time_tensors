@@ -39,6 +39,12 @@ try:
 except ImportError:
     oe = None
 
+try:
+    from numba import jit as njit
+
+except ImportError:
+    njit = None
+
 from mprof import read_mprofile_file
 
 import pandas as pd
@@ -1626,6 +1632,27 @@ def get_evals_dw_laplace(options, term, eterm,
 
             return out, 0
 
+    @njit('(float64[:,:], float64[:,:,:,:], intc)', nopython=True)
+    def _eval_numba_loops(det, bg, diff):
+        if diff:
+            out = nm.zeros((n_cell, n_en, n_en), dtype=nm.float64)
+            for icell in range(n_cell):
+                for iqp in range(n_qp):
+                    for ir in range(n_en):
+                        for ic in range(n_en):
+                            aux = 0.0
+                            for ii in range(dim):
+                                aux += bg[icell,iqp,ii,ir] * bg[icell,iqp,ii,ic]
+                            out[icell, ir, ic] += aux * det[icell, iqp]
+            return out, 0
+
+        else:
+            raise NotImplementedError
+
+    @profile
+    def eval_numba_loops():
+        return _eval_numba_loops(dets[..., 0, 0], qsbg, options.diff=='u')
+
     @profile
     def eval_opt_einsum_dask(coef=1000):
         n_cell, n_qp, dim, n_en = qsbg.shape
@@ -1670,6 +1697,7 @@ def get_evals_dw_laplace(options, term, eterm,
         'dask_einsum1' : (eval_dask_einsum1, 0, da),
         'dask_einsum2' : (eval_dask_einsum2, 0, da),
         'opt_einsum_loop' : (eval_opt_einsum_loop, 0, oe),
+        'numba_loops' : (eval_numba_loops, 0, njit),
         'opt_einsum_dask' : (eval_opt_einsum_dask, 0, oe and da),
         # 'jax_einsum1' : (eval_jax_einsum1, 0, jnp), # meddles with memory profiler
     }
