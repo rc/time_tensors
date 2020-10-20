@@ -310,13 +310,14 @@ def plot_times(df, data=None, xscale='log', yscale='log',
                 times = sdf['t'].to_list()
 
                 means = nm.nanmean(times, axis=1)
-                stds = nm.nanstd(times, axis=1)
+                emins = means - nm.nanmin(times, axis=1)
+                emaxs = nm.nanmax(times, axis=1) - means
                 style_kwargs, indices = sps.get_row_style(
                     sdf.iloc[0], select, {}, styles
                 )
                 used = sps.update_used(used, indices)
 
-                plt.errorbar(vx, means, yerr=stds,
+                plt.errorbar(vx, means, yerr=[emins, emaxs],
                              ecolor=style_kwargs['color'],
                              elinewidth=1, capsize=2,
                              **style_kwargs)
@@ -358,13 +359,14 @@ def plot_mem_usages(df, data=None, xscale='log', yscale='symlog',
                 mems = sdf['mems'].to_list()
 
                 means = nm.nanmean(mems, axis=1)
-                stds = nm.nanstd(mems, axis=1)
+                emins = means - nm.nanmin(mems, axis=1)
+                emaxs = nm.nanmax(mems, axis=1) - means
                 style_kwargs, indices = sps.get_row_style(
                     sdf.iloc[0], select, {}, styles
                 )
                 used = sps.update_used(used, indices)
 
-                plt.errorbar(vx, means, yerr=stds,
+                plt.errorbar(vx, means, yerr=[emins, emaxs],
                              ecolor=style_kwargs['color'],
                              elinewidth=1, capsize=2,
                              **style_kwargs)
