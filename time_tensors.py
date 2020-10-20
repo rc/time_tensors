@@ -379,6 +379,24 @@ def plot_mem_usages(df, data=None, xscale='log', yscale='symlog',
     fig.savefig(os.path.join(data.output_dir, prefix + 'mem_usages' + suffix),
                 bbox_inches='tight')
 
+def set_ylim(ax, mi, ma, yscale):
+    if yscale == 'linear':
+        ax.set_ylim(0, 1.2 * ma)
+
+    else:
+        mi = max(mi, 1e-3)
+        ax.set_ylim(0.8 * mi, 1.2 * ma)
+
+def get_yticks(mi, ma, yscale):
+    if yscale == 'linear':
+        yticks = nm.linspace(mi, ma, 5)
+
+    else:
+        mi = max(mi, 1e-3)
+        yticks = nm.logspace(nm.log10(mi), nm.log10(ma), 3)
+
+    return yticks
+
 def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
                      mcolormap_name='plasma', yscale='log',
                      prefix='', suffix='.pdf'):
@@ -394,7 +412,7 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
 
     mit = nm.nanmin(tdf['t'].to_list())
     mat = nm.nanmax(tdf['t'].to_list())
-    tyticks = nm.logspace(nm.log10(mit), nm.log10(mat), 3)
+    tyticks = get_yticks(mit, mat, yscale)
     tyticks_labels = [format_float_latex(ii, 1) for ii in tyticks]
 
     styles = {}
@@ -404,9 +422,9 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
         select['mn_cell'] = mdf['n_cell'].unique()
         styles['mn_cell'] = {'color' : mcolormap_name}
 
-        mim = max(nm.nanmin(mdf['mems'].to_list()), 1e-3)
+        mim = nm.nanmin(mdf['mems'].to_list())
         mam = nm.nanmax(mdf['mems'].to_list())
-        myticks = nm.logspace(nm.log10(mim), nm.log10(mam), 3)
+        myticks = get_yticks(mim, mam, yscale)
         myticks_labels = [format_float_latex(ii, 1) for ii in myticks]
 
     styles = sps.setup_plot_styles(select, styles)
@@ -420,7 +438,7 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
     axs2 = []
     for ax in axs:
         ax.grid(which='both', axis='y')
-        ax.set_ylim(0.8 * mit, 1.2 * mat)
+        set_ylim(ax, mit, mat, yscale)
         ax.set_yscale(yscale)
         ax.set_yticks(tyticks)
         ax.set_yticklabels(tyticks_labels)
@@ -429,7 +447,8 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
 
         if mdf is not None:
             ax2 = ax.twinx()
-            ax2.set_ylim(0.8 * mim, 1.2 * mam)
+            ax2.grid(which='both', axis='y')
+            set_ylim(ax2, mim, mam, yscale)
             ax2.set_yscale(yscale)
             ax2.set_yticks(myticks)
             ax2.set_yticklabels(myticks_labels)
@@ -460,10 +479,12 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
                 vx = tsdf.n_cell.values
                 times = tsdf['t'].to_list()
                 tmeans = nm.nanmean(times, axis=1)
-                tstds = nm.nanstd(times, axis=1)
+                temins = tmeans - nm.nanmin(times, axis=1)
+                temaxs = nm.nanmax(times, axis=1) - tmeans
 
                 xs = bx + nm.arange(len(vx))
-                ax.bar(xs, tmeans, width=0.8, align='edge', yerr=tstds,
+                ax.bar(xs, tmeans, width=0.8, align='edge',
+                       yerr=[temins, temaxs], bottom=ax.get_ylim()[0],
                        color=tcolors, capsize=2)
 
                 xts.append(xs[-1])
@@ -476,10 +497,12 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
                     mems = msdf['mems'].to_list()
 
                     mmeans = nm.nanmean(mems, axis=1)
-                    mstds = nm.nanstd(mems, axis=1)
+                    memins = mmeans - nm.nanmin(mems, axis=1)
+                    memaxs = nm.nanmax(mems, axis=1) - mmeans
 
                     xs = xs[-1] + sx + nm.arange(len(vx))
-                    ax2.bar(xs, mmeans, width=0.8, align='edge', yerr=mstds,
+                    ax2.bar(xs, mmeans, width=0.8, align='edge',
+                            yerr=[memins, memaxs], bottom=ax2.get_ylim()[0],
                             color=mcolors, capsize=2)
 
                 bx = xs[-1] + 2 * sx
@@ -524,7 +547,7 @@ def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
 
     mit = nm.nanmin(tdf['t'].to_list())
     mat = nm.nanmax(tdf['t'].to_list())
-    tyticks = nm.logspace(nm.log10(mit), nm.log10(mat), 3)
+    tyticks = get_yticks(mit, mat, yscale)
     tyticks_labels = [format_float_latex(ii, 1) for ii in tyticks]
 
     styles = {}
@@ -534,9 +557,9 @@ def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
         select['mfunction'] = mdf['function'].unique()
         styles['mfunction'] = {'color' : mcolormap_name}
 
-        mim = max(nm.nanmin(mdf['mems'].to_list()), 1e-3)
+        mim = nm.nanmin(mdf['mems'].to_list())
         mam = nm.nanmax(mdf['mems'].to_list())
-        myticks = nm.logspace(nm.log10(mim), nm.log10(mam), 3)
+        myticks = get_yticks(mim, mam, yscale)
         myticks_labels = [format_float_latex(ii, 1) for ii in myticks]
 
     styles = sps.setup_plot_styles(select, styles)
@@ -550,7 +573,7 @@ def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
     axs2 = []
     for ax in axs:
         ax.grid(which='both', axis='y')
-        ax.set_ylim(0.8 * mit, 1.2 * mat)
+        set_ylim(ax, mit, mat, yscale)
         ax.set_yscale(yscale)
         ax.set_yticks(tyticks)
         ax.set_yticklabels(tyticks_labels)
@@ -559,7 +582,8 @@ def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
 
         if mdf is not None:
             ax2 = ax.twinx()
-            ax2.set_ylim(0.8 * mim, 1.2 * mam)
+            ax2.grid(which='both', axis='y')
+            set_ylim(ax2, mim, mam, yscale)
             ax2.set_yscale(yscale)
             ax2.set_yticks(myticks)
             ax2.set_yticklabels(myticks_labels)
@@ -592,10 +616,12 @@ def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
                 times = tsdf['t'].to_list()
 
                 tmeans = nm.nanmean(times, axis=1)
-                tstds = nm.nanstd(times, axis=1)
+                temins = tmeans - nm.nanmin(times, axis=1)
+                temaxs = nm.nanmax(times, axis=1) - tmeans
 
                 xs = bx + nm.arange(len(vx))
-                ax.bar(xs, tmeans, width=0.8, align='edge', yerr=tstds,
+                ax.bar(xs, tmeans, width=0.8, align='edge',
+                       yerr=[temins, temaxs], bottom=ax.get_ylim()[0],
                        color=tcolors, capsize=2)
 
                 xts.append(xs[-1])
@@ -607,10 +633,12 @@ def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
                     mems = msdf['mems'].to_list()
 
                     mmeans = nm.nanmean(mems, axis=1)
-                    mstds = nm.nanstd(mems, axis=1)
+                    memins = mmeans - nm.nanmin(mems, axis=1)
+                    memaxs = nm.nanmax(mems, axis=1) - mmeans
 
                     xs = xs[-1] + sx + nm.arange(len(vx))
-                    ax2.bar(xs, mmeans, width=0.8, align='edge', yerr=mstds,
+                    ax2.bar(xs, mmeans, width=0.8, align='edge',
+                            yerr=[memins, memaxs], bottom=ax2.get_ylim()[0],
                             color=mcolors, capsize=2)
 
                 bx = xs[-1] + 2 * sx
