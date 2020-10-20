@@ -235,7 +235,12 @@ def collect_mem_usages(df, data=None):
                     else:
                         mems.extend([nm.nan] * repeat)
 
-                mems = nm.array(mems).reshape((-1, repeat))
+                try:
+                    mems = nm.array(mems).reshape((-1, repeat))
+
+                except ValueError:
+                    raise ValueError('wrong memory profiling data!')
+
                 # This is to force a column with several values.
                 mm = [pd.Series({'mems' : row.tolist()}) for row in mems]
                 mdf.loc[indexer, 'mems'] = pd.DataFrame(mm, index=sdf.index)
