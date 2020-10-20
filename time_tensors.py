@@ -1951,6 +1951,8 @@ helps = {
     : 'the number of term implementation evaluations [default: %(default)s]',
     'mprof'
     : 'indicates a run under memory_profiler',
+    'affinity'
+    : ' CPU affinity [default: %(default)s]',
     'verbosity_eterm'
     : ' ETermBase verbosity level [default: %(default)s]',
     'silent'
@@ -2006,6 +2008,9 @@ def main():
     parser.add_argument('--mprof',
                         action='store_true', dest='mprof',
                         default=False, help=helps['mprof'])
+    parser.add_argument('--affinity',
+                        action='store', dest='affinity',
+                        default='', help=helps['affinity'])
     parser.add_argument('--verbosity-eterm', type=int,
                         action='store', dest='verbosity_eterm',
                         choices=[0, 1, 2, 3],
@@ -2022,6 +2027,7 @@ def main():
         options.variant = ''
 
     options.select = so.parse_as_list(options.select)
+    options.affinity = so.parse_as_list(options.affinity)
 
     output_dir = options.output_dir
     output.prefix = 'time_tensors:'
@@ -2123,6 +2129,7 @@ def main():
 
     pid = os.getpid()
     this = psutil.Process(pid)
+    this.cpu_affinity(options.affinity)
     mem_this = this.memory_info()
     memory_use = mem_this.rss
     output('memory use [MB]: {:.2f}'.format(memory_use / 1000**2))
