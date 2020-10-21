@@ -1221,17 +1221,16 @@ def get_evals_dw_convect(options, term, eterm,
         n_cell, n_ed = uc.shape
         ucc = uc.reshape((dets.shape[0], -1, qsb.shape[-1]))
         ee = nm.eye(ucc.shape[-2])
-        print(11)
         if options.diff == 'u':
             val1 = jnp.einsum('cqab,qzy,jx,cqkY,jX,qzn,ckn->cxyXY',
                               dets, qsb[0], ee, qsbg, ee, qsb[0], ucc,
                               optimize='greedy')
             v1 = val1.reshape((n_cell, n_ed, n_ed))
             val2 = jnp.einsum('cqab,qzy,jx,cqkl,cjl,qzY,kX->cxyXY',
-                               dets, qsb[0], ee, qsbg, ucc, qsb[0], ee,
-                               optimize='greedy')
+                              dets, qsb[0], ee, qsbg, ucc, qsb[0], ee,
+                              optimize='greedy')
             v2 = val2.reshape((n_cell, n_ed, n_ed))
-            return v1 + v2, 0
+            return v1 + v2
 
         else:
             val = jnp.einsum('cqab,qzy,jx,cqkl,cjl,qzn,ckn->cxy',
@@ -1239,13 +1238,44 @@ def get_evals_dw_convect(options, term, eterm,
                              optimize='greedy')
             v = val.reshape((n_cell, n_ed))
 
-            return v, 0
+            return v
 
     #_eval_jax_einsum2_qsb(dets, qsb, qsbg, state(), adc)
 
     @profile
     def eval_jax_einsum2_qsb():
-        return _eval_jax_einsum2_qsb(dets, qsb, qsbg, state(), adc)
+        val = _eval_jax_einsum2_qsb(dets, qsb, qsbg, state(), adc)
+        return nm.asarray(val), 0
+
+    _dets = dets[..., 0, 0]
+    bf = qsb[0, :, 0]
+    dofs = state()
+    uc = dofs[adc]
+    n_cell, n_ed = uc.shape
+    ucc = uc.reshape((dets.shape[0], -1, qsb.shape[-1]))
+    ee = nm.eye(ucc.shape[-2])
+
+    @jax.jit
+    def _eval_jax_einsum2_qsb2(dets, qsb, qsbg, ucc, ee):
+        if options.diff == 'u':
+            val1 = jnp.einsum('cq,qy,jx,cqkY,jX,qn,ckn->cxyXY',
+                              dets, qsb, ee, qsbg, ee, qsb, ucc,
+                              optimize='greedy')
+            val2 = jnp.einsum('cq,qy,jx,cqkl,cjl,qY,kX->cxyXY',
+                              dets, qsb, ee, qsbg, ucc, qsb, ee,
+                              optimize='greedy')
+            return (val1 + val2).reshape((n_cell, n_ed, n_ed))
+
+        else:
+            val = jnp.einsum('cq,qy,jx,cqkl,cjl,qn,ckn->cxy',
+                             dets, qsb, ee, qsbg, ucc, qsb, ucc,
+                             optimize='greedy')
+            return val.reshape((n_cell, n_ed))
+
+    @profile
+    def eval_jax_einsum2_qsb2():
+        val = _eval_jax_einsum2_qsb2(_dets, bf, qsbg, ucc, ee)
+        return nm.asarray(val), 0
 
     @profile
     def eval_dask_einsum1():
@@ -1281,6 +1311,7 @@ def get_evals_dw_convect(options, term, eterm,
         'dask_einsum1' : (eval_dask_einsum1, 0, da),
         # 'jax_einsum1' : (eval_jax_einsum1, 0, jnp), # meddles with memory profiler
          'jax_einsum2_qsb' : (eval_jax_einsum2_qsb, 0, jnp),
+         'jax_einsum2_qsb2' : (eval_jax_einsum2_qsb2, 0, jnp),
     }
 
     return evaluators
