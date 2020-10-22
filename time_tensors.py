@@ -1856,8 +1856,22 @@ def get_evals_sfepy(options, term, eterm,
                               standalone=False, ret_status=True)
 
     @profile
+    def eval_eterm_oe_optimal_loop():
+        eterm.set_backend(backend='opt_einsum_loop', optimize='optimal')
+        return eterm.evaluate(mode=options.eval_mode,
+                              diff_var=options.diff,
+                              standalone=False, ret_status=True)
+
+    @profile
     def eval_eterm_oe_greedy():
         eterm.set_backend(backend='opt_einsum', optimize='greedy')
+        return eterm.evaluate(mode=options.eval_mode,
+                              diff_var=options.diff,
+                              standalone=False, ret_status=True)
+
+    @profile
+    def eval_eterm_oe_greedy_loop():
+        eterm.set_backend(backend='opt_einsum_loop', optimize='greedy')
         return eterm.evaluate(mode=options.eval_mode,
                               diff_var=options.diff,
                               standalone=False, ret_status=True)
@@ -1934,8 +1948,10 @@ def get_evals_sfepy(options, term, eterm,
         'eterm_np_optimal' : (eval_eterm_np_optimal, 0, True),
         'eterm_np_greedy_loop' : (eval_eterm_np_greedy_loop, 0, True),
         'eterm_oe_optimal' : (eval_eterm_oe_optimal, 0, True),
+        'eterm_oe_optimal_loop' : (eval_eterm_oe_optimal_loop, 0, True),
         'eterm_oe_auto' : (eval_eterm_oe_auto, 0, True),
         'eterm_oe_greedy' : (eval_eterm_oe_greedy, 0, True),
+        'eterm_oe_greedy_loop' : (eval_eterm_oe_greedy_loop, 0, True),
         'eterm_oe_dp' : (eval_eterm_oe_dp, 0, True),
         'eterm_oe_dp_loop' : (eval_eterm_oe_dp_loop, 0, True),
         'eterm_jax_greedy' : (eval_eterm_jax_greedy, 0, True),
