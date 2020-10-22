@@ -948,13 +948,6 @@ def get_evals_dw_convect(options, term, eterm,
         profile = globals()['profile']
 
     @profile
-    def eval_numpy_einsum1():
-        # Unusably slow - not using optimize arg of einsum().
-        uc = state()[adc]
-        return nm.einsum('cqab,qji,cqjkl,cl,qkn,cn->ci',
-                         dets, qvb[0], qvbg, uc, qvb[0], uc), 0
-
-    @profile
     def eval_numpy_einsum2():
         uc = state()[adc]
 
@@ -979,38 +972,28 @@ def get_evals_dw_convect(options, term, eterm,
         ucc = uc.reshape((dets.shape[0], -1, qsb.shape[-1]))
         ee = nm.eye(ucc.shape[-2])
         if options.diff == 'u':
-            # v1 = nm.einsum('cqab,qji,cqjkl,qkn,cn->cil',
-            #                dets, qvb[0], qvbg, qvb[0], uc,
-            #                optimize='greedy')
             val1 = nm.einsum('cqab,qzy,jx,cqkY,jX,qzn,ckn->cxyXY',
                              dets, qsb[0], ee, qsbg, ee, qsb[0], ucc,
                              optimize='greedy')
             v1 = val1.reshape((n_cell, n_ed, n_ed))
-            # print(nm.abs(_v1 - v1).max())
-
-            # v2 = nm.einsum('cqab,qji,cqjkl,cl,qkn->cin',
-            #                dets, qvb[0], qvbg, uc, qvb[0],
-            #                optimize='greedy')
             val2 = nm.einsum('cqab,qzy,jx,cqkl,cjl,qzY,kX->cxyXY',
                              dets, qsb[0], ee, qsbg, ucc, qsb[0], ee,
                              optimize='greedy')
             v2 = val2.reshape((n_cell, n_ed, n_ed))
-            # print(nm.abs(_v2 - v2).max())
-            # from sfepy.base.base import debug; debug()
             return v1 + v2, 0
 
         else:
-            # print(qsb.shape)
-            # print(qsbg.shape)
-            # val1 = nm.einsum('cqab,qji,cqjkl,cl,qkn,cn->ci',
-            #                  dets, qvb[0], qvbg, uc, qvb[0], uc,
-            #                  optimize='greedy')
             val2 = nm.einsum('cqab,qzy,jx,cqkl,cjl,qzn,ckn->cxy',
                              dets, qsb[0], ee, qsbg, ucc, qsb[0], ucc,
                              optimize='greedy')
-            # print(val2.flags)
             v2 = val2.reshape((n_cell, n_ed))
-            # print(nm.abs(v2 - val1).max())
+            # no time difference with the above
+            # out = nm.empty((n_cell, n_ed), dtype=nm.float64)
+            # vout = out.reshape(ucc.shape)
+            # v2 = nm.einsum('cqab,qzy,jx,cqkl,cjl,qzn,ckn->cxy',
+            #                dets, qsb[0], ee, qsbg, ucc, qsb[0], ucc,
+            #                out=vout,
+            #                optimize='greedy')
 
             return v2, 0
 
@@ -1047,11 +1030,6 @@ def get_evals_dw_convect(options, term, eterm,
             v2 = oe.contract('cqab,qji,cqjkl,cl,qkn->cin',
                              dets, qvb[0], qvbg, uc, qvb[0],
                              optimize='auto')
-            # aa = oe.contract_path('cqab,qji,cqjkl,qkn,cn->cil',
-            #                       dets, qvb[0], qvbg, qvb[0], uc)
-            # bb = oe.contract_path('cqab,qji,cqjkl,cl,qkn->cin',
-            #                       dets, qvb[0], qvbg, uc, qvb[0])
-            # from sfepy.base.base import debug; debug()
             return v1 + v2, 0
 
         else:
@@ -1103,18 +1081,10 @@ def get_evals_dw_convect(options, term, eterm,
         ee = nm.eye(ucc.shape[-2])
 
         if options.diff == 'u':
-            # v1 = oe.contract('cqab,qji,cqjkl,qkn,cn->cil',
-            #                  dets, qvb[0], qvbg, qvb[0], uc,
-            #                  optimize='greedy')
             val1 = oe.contract('cqab,qzy,jx,cqkY,jX,qzn,ckn->cxyXY',
                                dets, qsb[0], ee, qsbg, ee, qsb[0], ucc,
                                optimize='greedy')
             v1 = val1.reshape((n_cell, n_ed, n_ed))
-            # print(nm.abs(_v1 - v1).max())
-
-            # v2 = oe.contract('cqab,qji,cqjkl,cl,qkn->cin',
-            #                  dets, qvb[0], qvbg, uc, qvb[0],
-            #                  optimize='greedy')
             val2 = oe.contract('cqab,qzy,jx,cqkl,cjl,qzY,kX->cxyXY',
                                dets, qsb[0], ee, qsbg, ucc, qsb[0], ee,
                                optimize='greedy')
@@ -1124,18 +1094,10 @@ def get_evals_dw_convect(options, term, eterm,
             return v1 + v2, 0
 
         else:
-            # val1 = oe.contract('cqab,qji,cqjkl,cl,qkn,cn->ci',
-            #                  dets, qvb[0], qvbg, uc, qvb[0], uc,
-            #                  optimize='greedy')
             # val2 = oe.contract('cqab,qrd,is,cqie,cje,qvf,cjf->csd',
             #                    #'cqab,qzy,jx,cqkl,cjl,qzn,ckn->cxy',
             #                    dets, qsb[0], ee, qsbg, ucc, qsb[0], ucc,
             #                    optimize='greedy')
-            # # print(val2.flags)
-            # v2 = val2.reshape((n_cell, n_ed))
-            # print(nm.abs(v2 - val1).max())
-            # from sfepy.base.base import debug; debug()
-
             # no time difference with the above
             v2 = nm.empty((n_cell, n_ed), dtype=nm.float64)
             vout = v2.reshape(ucc.shape)
@@ -1143,16 +1105,6 @@ def get_evals_dw_convect(options, term, eterm,
                         dets, qsb[0], ee, qsbg, ucc, qsb[0], ucc,
                         out=vout,
                         optimize='greedy')
-            # time differences below! (size 1 qsb axis)
-            # check values!!!
-            # oe.contract('cqab,qzy,jx,cqkl,cjl,qwn,ckn->cxy',
-            #             dets, qsb[0], ee, qsbg, ucc, qsb[0], ucc,
-            #             out=vout,
-            #             optimize='greedy')
-            # oe.contract('cqab,qy,jx,cqkl,cjl,qwn,ckn->cxy',
-            #             dets, qsb[0, :, 0], ee, qsbg, ucc, qsb[0, :, 0], ucc,
-            #             out=vout,
-            #             optimize='greedy')
 
             return v2, 0
 
@@ -1239,8 +1191,6 @@ def get_evals_dw_convect(options, term, eterm,
             v = val.reshape((n_cell, n_ed))
 
             return v
-
-    #_eval_jax_einsum2_qsb(dets, qsb, qsbg, state(), adc)
 
     @profile
     def eval_jax_einsum2_qsb():
