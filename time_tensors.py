@@ -1983,10 +1983,15 @@ def get_evals_sfepy(options, term, eterm,
 
     @profile
     def eval_eterm_da_t_greedy():
+        this = psutil.Process()
+        affinity = this.cpu_affinity()
+        this.cpu_affinity([])
         eterm.set_backend(backend='dask_threads', optimize='greedy')
-        return eterm.evaluate(mode=options.eval_mode,
-                              diff_var=options.diff,
-                              standalone=False, ret_status=True)
+        out = eterm.evaluate(mode=options.eval_mode,
+                             diff_var=options.diff,
+                             standalone=False, ret_status=True)
+        this.cpu_affinity(affinity)
+        return out
 
     @profile
     def eval_eterm_oe_dp_da_s(c_chunk_size=10):
@@ -2001,15 +2006,20 @@ def get_evals_sfepy(options, term, eterm,
 
     @profile
     def eval_eterm_oe_dp_da_t(c_chunk_size=10):
+        this = psutil.Process()
+        affinity = this.cpu_affinity()
+        this.cpu_affinity([])
         eterm.set_backend(
             backend='opt_einsum_dask_threads',
             optimize='dynamic-programming',
             c_chunk_size=c_chunk_size,
             memory_limit='max_input',
         )
-        return eterm.evaluate(mode=options.eval_mode,
-                              diff_var=options.diff,
-                              standalone=False, ret_status=True)
+        out = eterm.evaluate(mode=options.eval_mode,
+                             diff_var=options.diff,
+                             standalone=False, ret_status=True)
+        this.cpu_affinity(affinity)
+        return out
 
     evaluators = {
         'sfepy_term' : (eval_sfepy_term, 0, True),
