@@ -1277,6 +1277,9 @@ def get_evals_dw_laplace(options, term, eterm,
                          dets, qsb, qsbg, qvb, qvbg, state, adc):
     n_cell, n_qp, dim, n_en = qsbg.shape
 
+    detsf = dets.copy(order='F')
+    qsbgf = qsbg.copy(order='F')
+
     dets2 = dets[..., 0, 0]
     qsbg2 = qsbg.transpose((2, 3, 0, 1)).copy(order='C')
     qsbg4 = qsbg.transpose((3, 2, 0, 1)).copy(order='C')
@@ -1301,9 +1304,6 @@ def get_evals_dw_laplace(options, term, eterm,
               for ir in range(n_en)]
     qbgs3c = [qsbg[..., ir].transpose(1, 0, 2).copy(order='C')
               for ir in range(n_en)]
-
-    dets = dets.copy(order='F')
-    qsbg = qsbg.copy(order='F')
 
     if not options.mprof:
         def profile(fun):
@@ -1400,7 +1400,23 @@ def get_evals_dw_laplace(options, term, eterm,
             return out, 0
 
         else:
-            raise NotImplementedError
+            uc = state()[adc]
+            uq = oe.contract('cqjn,cqn->cqj', qsbgf, uc[:, None, :],
+                             optimize='dynamic-programming')
+
+            out = nm.empty((n_cell, n_en), dtype=nm.float64)
+            path, path_info = oe.contract_path('cq,cqj,cqj->c',
+                                               det, qbgs[0], uq,
+                                               optimize='dynamic-programming')
+            #print(path_info)
+            for ir in range(n_en):
+                rqbg = qbgs[ir]
+                aux = oe.contract('cq,cqj,cqj->c',
+                                  det, rqbg, uq,
+                                  optimize=path)
+                out[:, ir] = aux
+
+            return out, 0
 
     @profile
     def eval_opt_einsum1dp2_nl1c():
@@ -1424,8 +1440,23 @@ def get_evals_dw_laplace(options, term, eterm,
             return out, 0
 
         else:
-            raise NotImplementedError
+            uc = state()[adc]
+            uq = oe.contract('cqjn,cqn->cqj', qsbg, uc[:, None, :],
+                             optimize='dynamic-programming')
 
+            out = nm.empty((n_cell, n_en), dtype=nm.float64)
+            path, path_info = oe.contract_path('cq,cqj,cqj->c',
+                                               det, qbgs[0], uq,
+                                               optimize='dynamic-programming')
+            #print(path_info)
+            for ir in range(n_en):
+                rqbg = qbgs[ir]
+                aux = oe.contract('cq,cqj,cqj->c',
+                                  det, rqbg, uq,
+                                  optimize=path)
+                out[:, ir] = aux
+
+            return out, 0
 
     @profile
     def eval_opt_einsum1dp2_nl2f():
@@ -1449,8 +1480,23 @@ def get_evals_dw_laplace(options, term, eterm,
             return out, 0
 
         else:
-            raise NotImplementedError
+            uc = state()[adc]
+            uq = oe.contract('cqjn,cqn->qjc', qsbgf, uc[:, None, :],
+                             optimize='dynamic-programming')
 
+            out = nm.empty((n_cell, n_en), dtype=nm.float64)
+            path, path_info = oe.contract_path('qc,qjc,qjc->c',
+                                               det, qbgs[0], uq,
+                                               optimize='dynamic-programming')
+            #print(path_info)
+            for ir in range(n_en):
+                rqbg = qbgs[ir]
+                aux = oe.contract('qc,qjc,qjc->c',
+                                  det, rqbg, uq,
+                                  optimize=path)
+                out[:, ir] = aux
+
+            return out, 0
 
     @profile
     def eval_opt_einsum1dp2_nl2c():
@@ -1474,8 +1520,23 @@ def get_evals_dw_laplace(options, term, eterm,
             return out, 0
 
         else:
-            raise NotImplementedError
+            uc = state()[adc]
+            uq = oe.contract('cqjn,cqn->qjc', qsbg, uc[:, None, :],
+                             optimize='dynamic-programming')
 
+            out = nm.empty((n_cell, n_en), dtype=nm.float64)
+            path, path_info = oe.contract_path('qc,qjc,qjc->c',
+                                               det, qbgs[0], uq,
+                                               optimize='dynamic-programming')
+            #print(path_info)
+            for ir in range(n_en):
+                rqbg = qbgs[ir]
+                aux = oe.contract('qc,qjc,qjc->c',
+                                  det, rqbg, uq,
+                                  optimize=path)
+                out[:, ir] = aux
+
+            return out, 0
 
     @profile
     def eval_opt_einsum1dp2_nl3f():
@@ -1499,8 +1560,23 @@ def get_evals_dw_laplace(options, term, eterm,
             return out, 0
 
         else:
-            raise NotImplementedError
+            uc = state()[adc]
+            uq = oe.contract('cqjn,cqn->qcj', qsbgf, uc[:, None, :],
+                             optimize='dynamic-programming')
 
+            out = nm.empty((n_cell, n_en), dtype=nm.float64)
+            path, path_info = oe.contract_path('qc,qcj,qcj->c',
+                                               det, qbgs[0], uq,
+                                               optimize='dynamic-programming')
+            #print(path_info)
+            for ir in range(n_en):
+                rqbg = qbgs[ir]
+                aux = oe.contract('qc,qcj,qcj->c',
+                                  det, rqbg, uq,
+                                  optimize=path)
+                out[:, ir] = aux
+
+            return out, 0
 
     @profile
     def eval_opt_einsum1dp2_nl3c():
@@ -1524,7 +1600,23 @@ def get_evals_dw_laplace(options, term, eterm,
             return out, 0
 
         else:
-            raise NotImplementedError
+            uc = state()[adc]
+            uq = oe.contract('cqjn,cqn->qcj', qsbg, uc[:, None, :],
+                             optimize='dynamic-programming')
+
+            out = nm.empty((n_cell, n_en), dtype=nm.float64)
+            path, path_info = oe.contract_path('qc,qcj,qcj->c',
+                                               det, qbgs[0], uq,
+                                               optimize='dynamic-programming')
+            #print(path_info)
+            for ir in range(n_en):
+                rqbg = qbgs[ir]
+                aux = oe.contract('qc,qcj,qcj->c',
+                                  det, rqbg, uq,
+                                  optimize=path)
+                out[:, ir] = aux
+
+            return out, 0
 
     @profile
     def eval_opt_einsum1dp3():
