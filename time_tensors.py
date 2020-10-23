@@ -63,7 +63,8 @@ from sfepy.base.timing import Timer
 from sfepy.discrete.variables import expand_basis
 from sfepy.discrete.fem import FEDomain, Field
 import sfepy.discrete.fem.refine_hanging as rh
-from sfepy.discrete import (FieldVariable, Material, Integral)
+from sfepy.discrete.fem.geometry_element import GeometryElement
+from sfepy.discrete import (FieldVariable, Material, Integral, PolySpace)
 from sfepy.terms import Term
 from sfepy.mesh.mesh_generators import gen_block_mesh
 from sfepy.mechanics.matcoefs import stiffness_from_lame
@@ -2199,14 +2200,40 @@ def main():
     output('dask:', dask.__version__ if da is not None else 'not available')
     output('jax:', jax.__version__ if jnp is not None else 'not available')
 
-    coef = 3 if options.diff is None else 4
-    if options.term_name != 'dw_convect':
-        coef *= 0.4
+    to_mb = lambda x: x / 1000**2
 
     mem = psutil.virtual_memory()
-    output('total system memory [MB]: {:.2f}'.format(mem.total / 1000**2))
+    output('total system memory [MB]: {:.2f}'.format(to_mb(mem.total)))
     output('available system memory [MB]: {:.2f}'
            .format(mem.available / 1000**2))
+
+    # Estimate qsbg size.
+    ps = PolySpace.any_from_args('ps', GeometryElement('3_8'), options.order)
+    integral = Integral('i', order=options.quad_order)
+    _, weights = integral.get_qp('3_8')
+
+    n_cell = options.n_cell
+    n_qp = len(weights)
+    n_en = ps.n_nod
+    dim = 3
+
+    qsbg_shape = (n_cell, n_qp, dim, n_en)
+    qsbg_size = nm.prod(qsbg_shape) * 8
+    output('qsbg assumed size [MB]: {:.2f}'.format(to_mb(qsbg_size)))
+
+    coef0 = 12
+    coef = coef0 if options.diff is None else 1.5 * coef0
+    if options.term_name == 'dw_convect':
+        coef *= 2
+    output('memory coefficient:', coef)
+
+    mem_est = coef * qsbg_size
+    output('memory estimate [MB]: {:.2f}'.format(mem_est / 1000**2))
+
+    if mem_est > mem.total:
+        raise MemoryError('insufficient memory for timing!'
+                          ' ({:.2f} [MB] > {:.2f} [MB])'
+                          .format(to_mb(mem_est), to_mb(mem.total)))
 
     if options.term_name not in ['dw_stokes']:
         uvec, term, eterm = setup_data(
@@ -2250,8 +2277,8 @@ def main():
 
     output('u shape:', uvec.shape)
     output('adc shape:', adc.shape)
-    output('u size [MB]:', uvec.nbytes / 1000**2)
-    output('adc size [MB]:', adc.nbytes / 1000**2)
+    output('u size [MB]:', to_mb(uvec.nbytes))
+    output('adc size [MB]:', to_mb(adc.nbytes))
 
     qsb = vg.bf
     qsbg = vg.bfg
@@ -2260,9 +2287,7 @@ def main():
     output('qvbg shape:', (n_cell, n_qp, n_c, dim, dim * n_en))
 
     size = (n_cell * n_qp * n_c * dim * dim * n_en) * 8
-    output('qvbg assumed size [MB]:', size / 1000**2)
-    if (1.5 * coef * size) > mem.total:
-        raise MemoryError('insufficient memory for timing!')
+    output('qvbg assumed size [MB]:', to_mb(size))
 
     if options.term_name == 'dw_convect':
         qvb = expand_basis(qsb, dim)
@@ -2272,25 +2297,23 @@ def main():
         qvb = nm.zeros(0)
         qvbg = nm.zeros(0)
 
-    output('qsbg size [MB]:', qsbg.nbytes / 1000**2)
-    output('qvbg size [MB]:', qvbg.nbytes / 1000**2)
+    output('qsbg size [MB]:', to_mb(qsbg.nbytes))
+    output('qvbg size [MB]:', to_mb(qvbg.nbytes))
 
     vec_shape = (n_cell, n_cdof)
     mtx_shape = (n_cell, n_cdof, n_cdof)
     output('c vec shape:', vec_shape)
     output('c mtx shape:', mtx_shape)
-    output('c vec size [MB]:', (n_cell * n_cdof * 8) / 1000**2)
-    output('c mtx size [MB]:', (n_cell * n_cdof**2 * 8) / 1000**2)
+    output('c vec size [MB]:', to_mb(n_cell * n_cdof * 8))
+    output('c mtx size [MB]:', to_mb(n_cell * n_cdof**2 * 8))
 
     pid = os.getpid()
     this = psutil.Process(pid)
     this.cpu_affinity(options.affinity)
     mem_this = this.memory_info()
     memory_use = mem_this.rss
-    output('memory use [MB]: {:.2f}'.format(memory_use / 1000**2))
-
-    if (coef * memory_use) > mem.total:
-        raise MemoryError('insufficient memory for timing!')
+    output('memory use [MB]: {:.2f}'.format(to_mb(memory_use)))
+    output('memory use [qsbg size]: {:.2f}'.format(memory_use / qsbg_size))
 
     evaluators = get_evals_sfepy(
         options, term, eterm, dets, qsb, qsbg, qvb, qvbg, state, adc
