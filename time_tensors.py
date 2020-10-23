@@ -69,18 +69,25 @@ def get_run_info():
     # script_dir is added by soops-run, it is the normalized path to
     # this script.
     run_cmd = """
-    rm {output_dir}/mprofile.dat; mprof run -T {sampling} -o {output_dir}/mprofile.dat time_tensors.py --mprof {output_dir}
+    rm {output_dir}/mprofile.dat; mprof run -T {sampling} -C -o {output_dir}/mprofile.dat time_tensors.py --mprof {output_dir}
     """
     run_cmd = ' '.join(run_cmd.split())
 
     # Arguments allowed to be missing in soops-run calls.
     opt_args = {
         '--n-cell' : '--n-cell={--n-cell}',
+        '--refine' : '--refine',
         '--order' : '--order={--order}',
         '--quad-order' : '--quad-order={--quad-order}',
         '--term-name' : '--term-name={--term-name}',
+        '--eval-mode' : '--eval-mode={--eval-mode}',
+        '--variant' : '--variant={--variant}',
+        '--layout' : '--layout={--layout}',
         '--diff' : '--diff={--diff}',
+        '--select' : '--select={--select}',
         '--repeat' : '--repeat={--repeat}',
+        '--affinity' : '--affinity={--affinity}',
+        '--verbosity-eterm' : '--verbosity-eterm={--verbosity-eterm}',
         '--silent' : '--silent',
     }
 
