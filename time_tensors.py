@@ -42,10 +42,15 @@ except ImportError:
     oe = None
 
 try:
+    import numba as nb
     from numba import jit as njit
 
 except ImportError:
-    njit = None
+    nb = None
+    def njit(*args, **kwargs):
+        def _njit(fun):
+            return fun
+        return _njit
 
 from mprof import read_mprofile_file
 
@@ -1868,7 +1873,7 @@ def get_evals_dw_laplace(options, term, eterm,
         'dask_einsum1' : (eval_dask_einsum1, 0, da),
         'dask_einsum2' : (eval_dask_einsum2, 0, da),
         'opt_einsum_loop' : (eval_opt_einsum_loop, 0, oe),
-        'numba_loops' : (eval_numba_loops, 0, njit),
+        'numba_loops' : (eval_numba_loops, 0, nb),
         'opt_einsum_dask' : (eval_opt_einsum_dask, 0, oe and da),
         # 'jax_einsum1' : (eval_jax_einsum1, 0, jnp), # meddles with memory profiler
     }
