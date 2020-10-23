@@ -1782,26 +1782,46 @@ def get_evals_dw_laplace(options, term, eterm,
 
             return out, 0
 
-    @njit('(float64[:,:], float64[:,:,:,:], intc)', nopython=True)
-    def _eval_numba_loops(det, bg, diff):
-        if diff:
-            out = nm.zeros((n_cell, n_en, n_en), dtype=nm.float64)
-            for icell in range(n_cell):
-                for iqp in range(n_qp):
-                    for ir in range(n_en):
-                        for ic in range(n_en):
-                            aux = 0.0
-                            for ii in range(dim):
-                                aux += bg[icell,iqp,ii,ir] * bg[icell,iqp,ii,ic]
-                            out[icell, ir, ic] += aux * det[icell, iqp]
-            return out, 0
+    @njit('(float64[:,:], float64[:,:,:,:])',
+          nopython=True)
+    def _eval_numba_loops_m(det, bg):
+        out = nm.zeros((n_cell, n_en, n_en), dtype=nm.float64)
+        for icell in range(n_cell):
+            for iqp in range(n_qp):
+                for ir in range(n_en):
+                    for ic in range(n_en):
+                        aux = 0.0
+                        for ii in range(dim):
+                            aux += bg[icell,iqp,ii,ir] * bg[icell,iqp,ii,ic]
+                        out[icell, ir, ic] += aux * det[icell, iqp]
+        return out, 0
 
-        else:
-            raise NotImplementedError
+    @njit('(float64[:,:], float64[:,:,:,:], float64[:], int32[:,:])',
+          nopython=True)
+    def _eval_numba_loops_r(det, bg, dofs, adc):
+        out = nm.zeros((n_cell, n_en), dtype=nm.float64)
+        for icell in range(n_cell):
+            for iqp in range(n_qp):
+                ug = nm.zeros(dim, dtype=nm.float64)
+                for ir in range(n_en):
+                    dd = dofs[adc[icell, ir]]
+                    for ii in range(dim):
+                        ug[ii] += bg[icell,iqp,ii,ir] * dd
+
+                for ir in range(n_en):
+                    aux = 0.0
+                    for ii in range(dim):
+                        aux += bg[icell,iqp,ii,ir] * ug[ii]
+                    out[icell, ir] += aux * det[icell, iqp]
+        return out, 0
 
     @profile
     def eval_numba_loops():
-        return _eval_numba_loops(dets[..., 0, 0], qsbg, options.diff=='u')
+        if options.diff == 'u':
+            return _eval_numba_loops_m(dets[..., 0, 0], qsbg)
+
+        else:
+            return _eval_numba_loops_r(dets[..., 0, 0], qsbg, state(), adc)
 
     @profile
     def eval_opt_einsum_dask(coef=1000):
