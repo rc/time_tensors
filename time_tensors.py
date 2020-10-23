@@ -1977,6 +1977,8 @@ helps = {
     : ' ETermBase verbosity level [default: %(default)s]',
     'silent'
     : 'do not print messages to screen',
+    'debug'
+    : 'automatically start debugger when an exception is raised',
 }
 
 def main():
@@ -2038,7 +2040,13 @@ def main():
     parser.add_argument('--silent',
                         action='store_true', dest='silent',
                         default=False, help=helps['silent'])
+    parser.add_argument('--debug',
+                        action='store_true', dest='debug',
+                        default=False, help=helps['debug'])
     options = parser.parse_args()
+
+    if options.debug:
+        from sfepy.base.base import debug_on_error; debug_on_error()
 
     if options.quad_order is None:
         options.quad_order = 2 * options.order
