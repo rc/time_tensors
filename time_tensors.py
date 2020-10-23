@@ -2013,7 +2013,6 @@ def get_evals_sfepy(options, term, eterm,
             backend='opt_einsum_dask_threads',
             optimize='dynamic-programming',
             c_chunk_size=c_chunk_size,
-            memory_limit='max_input',
         )
         out = eterm.evaluate(mode=options.eval_mode,
                              diff_var=options.diff,
