@@ -1753,31 +1753,32 @@ def get_evals_dw_laplace(options, term, eterm,
 
     @profile
     def eval_opt_einsum_loop():
+        _dets = dets[..., 0, 0]
         if options.diff == 'u':
-            sizes, out_shape = _get_shape('cqab,cqjk,cqjn->ckn',
-                                          dets, qsbg, qsbg)
+            sizes, out_shape = _get_shape('cq,cqjk,cqjn->ckn',
+                                          _dets, qsbg, qsbg)
             out = nm.empty(out_shape, dtype=nm.float64)
-            path, path_info =  oe.contract_path('qab,qjk,qjn->kn',
-                                                dets[0], qsbg[0], qsbg[0],
+            path, path_info =  oe.contract_path('q,qjk,qjn->kn',
+                                                _dets[0], qsbg[0], qsbg[0],
                                                 optimize='auto')
             for c in range(sizes['c']):
                 sbg = qsbg[c]
-                out[c] = oe.contract('qab,qjk,qjn->kn', dets[c], sbg, sbg,
+                out[c] = oe.contract('q,qjk,qjn->kn', _dets[c], sbg, sbg,
                                      optimize=path)
 
             return out, 0
 
         else:
             uc = state()[adc]
-            sizes, out_shape = _get_shape('cqab,cqjk,cqjn,cn->ck',
-                                          dets, qsbg, qsbg, uc)
+            sizes, out_shape = _get_shape('cq,cqjk,cqjn,cn->ck',
+                                          _dets, qsbg, qsbg, uc)
             out = nm.empty(out_shape, dtype=nm.float64)
-            path, path_info =  oe.contract_path('qab,qjk,qjn,n->k',
-                                                dets[0], qsbg[0], qsbg[0],
+            path, path_info =  oe.contract_path('q,qjk,qjn,n->k',
+                                                _dets[0], qsbg[0], qsbg[0],
                                                 uc[0], optimize='auto')
             for c in range(sizes['c']):
                 sbg = qsbg[c]
-                out[c] = oe.contract('qab,qjk,qjn,n->k', dets[c], sbg, sbg,
+                out[c] = oe.contract('q,qjk,qjn,n->k', _dets[c], sbg, sbg,
                                      uc[c], optimize=path)
 
             return out, 0
