@@ -2356,8 +2356,16 @@ def main():
         if not can_use: continue
         if key not in options.select: continue
 
-        run_evaluator(results, key, fun, arg_no, can_use, options, timer,
-                      ref_res=ref_res)
+        try:
+            run_evaluator(results, key, fun, arg_no, can_use, options, timer,
+                          ref_res=ref_res)
+
+        except KeyboardInterrupt:
+            raise
+
+        except Exception as exc:
+            output('{} failed with:'.format(key))
+            output(exc)
 
     df = pd.DataFrame(results)
     df.index.rename('evaluation', inplace=True)
