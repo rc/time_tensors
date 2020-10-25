@@ -623,11 +623,15 @@ def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
             bx = 0
 
             xts = []
+            orders = []
             for io, order in enumerate(data.par_uniques['order']):
                 if order not in data.orders: continue
                 tsdf = tdf[(tdf['term_name'] == term_name) &
                            (tdf['n_cell'] == n_cell) &
                            (tdf['order'] == order)]
+                if not len(tsdf): continue
+
+                orders.append(order)
 
                 vx = tsdf.function.values
                 times = tsdf['t'].to_list()
@@ -670,7 +674,7 @@ def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
 
             else:
                 ax.set_xticks(xts)
-                ax.set_xticklabels(data.orders)
+                ax.set_xticklabels(orders)
 
             ia += 1
 
