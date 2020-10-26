@@ -2341,6 +2341,7 @@ def main():
     key = 'sfepy_term'
     fun, arg_no, can_use = evaluators.pop(key)
     stats, ref_res = run_evaluator(key, fun, arg_no, can_use, options, timer)
+    all_stats.update(stats)
 
     if options.layout == 'F':
         for iv, arg in enumerate(eterm.args):
