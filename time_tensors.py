@@ -2039,12 +2039,12 @@ def get_evals_sfepy(options, term, eterm,
         'eterm_oe_optimal' : (eval_eterm_oe_optimal, 0, oe),
         'eterm_oe_optimal_loop' : (eval_eterm_oe_optimal_loop, 0, oe),
         'eterm_oe_auto' : (eval_eterm_oe_auto, 0, oe),
-        'eterm_oe_greedy' : (eval_eterm_oe_greedy, 0, oe),
+        'eterm_oe_greedy' : (eval_eterm_oe_greedy, 0, oe, 4),
         'eterm_oe_greedy_loop' : (eval_eterm_oe_greedy_loop, 0, oe),
         'eterm_oe_dp' : (eval_eterm_oe_dp, 0, oe),
         'eterm_oe_dp_loop' : (eval_eterm_oe_dp_loop, 0, oe),
-        'eterm_jax_greedy' : (eval_eterm_jax_greedy, 0, jnp),
-        'eterm_jax_vmap_greedy' : (eval_eterm_jax_vmap_greedy, 0, jnp),
+        'eterm_jax_greedy' : (eval_eterm_jax_greedy, 0, jnp, 4),
+        'eterm_jax_vmap_greedy' : (eval_eterm_jax_vmap_greedy, 0, jnp, 4),
         'eterm_da_s_greedy' : (eval_eterm_da_s_greedy, 0, da),
         'eterm_da_t_greedy' : (eval_eterm_da_t_greedy, 0, da),
         'eterm_oe_dp_da_s' : (eval_eterm_oe_dp_da_s, 0, oe and da),
@@ -2356,9 +2356,17 @@ def main():
                     arg[0].datas[key][arg[1]] = nm.require(mat,
                                                            requirements='F')
 
-    for key, (fun, arg_no, can_use) in evaluators.items():
+    for key, (fun, arg_no, can_use, *rest) in evaluators.items():
         if not can_use: continue
         if key not in options.select: continue
+        if rest:
+            fun_coef = rest[0]
+            fun_mem_est = fun_coef * coef * qsbg_size
+            output('{} memory estimate [MB]: {:.2f}'
+                   .format(key, fun_mem_est / 1000**2))
+            if fun_mem_est > mem.total:
+                output('-> skipping!')
+                continue
 
         try:
             stats, _ = run_evaluator(key, fun, arg_no, can_use, options, timer,
