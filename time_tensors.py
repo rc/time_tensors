@@ -2053,12 +2053,13 @@ def get_evals_sfepy(options, term, eterm,
 
     return evaluators
 
-def run_evaluator(results, key, fun, arg_no, can_use, options, timer,
+def run_evaluator(key, fun, arg_no, can_use, options, timer,
                   ref_res=None):
     output(key)
-    times = results.setdefault('t_' + key, [])
-    norms = results.setdefault('norm_' + key, [])
-    rnorms = results.setdefault('rnorm_' + key, [])
+    stats = {}
+    times = stats.setdefault('t_' + key, [])
+    norms = stats.setdefault('norm_' + key, [])
+    rnorms = stats.setdefault('rnorm_' + key, [])
     for ir in range(options.repeat):
         timer.start()
         res = fun()[arg_no]
@@ -2072,9 +2073,8 @@ def run_evaluator(results, key, fun, arg_no, can_use, options, timer,
                .format(norms[-1], rnorms[-1], times[-1]))
         del res
         gc.collect()
-        #results['res_' + key] = res
 
-    return ref_res
+    return stats, ref_res
 
 helps = {
     'output_dir'
@@ -2336,11 +2336,11 @@ def main():
     if options.select[0] == 'all':
         options.select = list(evaluators.keys())
 
-    results = {}
+    all_stats = {}
 
     key = 'sfepy_term'
     fun, arg_no, can_use = evaluators.pop(key)
-    ref_res = run_evaluator(results, key, fun, arg_no, can_use, options, timer)
+    stats, ref_res = run_evaluator(key, fun, arg_no, can_use, options, timer)
 
     if options.layout == 'F':
         for iv, arg in enumerate(eterm.args):
@@ -2361,8 +2361,8 @@ def main():
         if key not in options.select: continue
 
         try:
-            run_evaluator(results, key, fun, arg_no, can_use, options, timer,
-                          ref_res=ref_res)
+            stats, _ = run_evaluator(key, fun, arg_no, can_use, options, timer,
+                                     ref_res=ref_res)
 
         except KeyboardInterrupt:
             raise
@@ -2371,7 +2371,10 @@ def main():
             output('{} failed with:'.format(key))
             output(exc)
 
-    df = pd.DataFrame(results)
+        else:
+            all_stats.update(stats)
+
+    df = pd.DataFrame(all_stats)
     df.index.rename('evaluation', inplace=True)
 
     filename = os.path.join(options.output_dir, 'stats.csv')
