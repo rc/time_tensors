@@ -93,6 +93,7 @@ def get_run_info():
         '--select' : '--select={--select}',
         '--repeat' : '--repeat={--repeat}',
         '--affinity' : '--affinity={--affinity}',
+        '--max-mem' : '--max-mem={--max-mem}',
         '--verbosity-eterm' : '--verbosity-eterm={--verbosity-eterm}',
         '--silent' : '--silent',
     }
@@ -184,7 +185,7 @@ def collect_times(df, data=None):
     tkeys = [key for key in df.keys() if key.startswith('t_')]
 
     uniques = {key : val for key, val in data.par_uniques.items()
-               if key not in ['output_dir']}
+               if key not in ['output_dir', 'max_mem']}
     output('parameterization:')
     for key, val in uniques.items():
         output(key, val)
@@ -2039,12 +2040,12 @@ def get_evals_sfepy(options, term, eterm,
         'eterm_oe_optimal' : (eval_eterm_oe_optimal, 0, oe),
         'eterm_oe_optimal_loop' : (eval_eterm_oe_optimal_loop, 0, oe),
         'eterm_oe_auto' : (eval_eterm_oe_auto, 0, oe),
-        'eterm_oe_greedy' : (eval_eterm_oe_greedy, 0, oe, 4),
+        'eterm_oe_greedy' : (eval_eterm_oe_greedy, 0, oe),
         'eterm_oe_greedy_loop' : (eval_eterm_oe_greedy_loop, 0, oe),
         'eterm_oe_dp' : (eval_eterm_oe_dp, 0, oe),
         'eterm_oe_dp_loop' : (eval_eterm_oe_dp_loop, 0, oe),
-        'eterm_jax_greedy' : (eval_eterm_jax_greedy, 0, jnp, 4),
-        'eterm_jax_vmap_greedy' : (eval_eterm_jax_vmap_greedy, 0, jnp, 4),
+        'eterm_jax_greedy' : (eval_eterm_jax_greedy, 0, jnp),
+        'eterm_jax_vmap_greedy' : (eval_eterm_jax_vmap_greedy, 0, jnp),
         'eterm_da_s_greedy' : (eval_eterm_da_s_greedy, 0, da),
         'eterm_da_t_greedy' : (eval_eterm_da_t_greedy, 0, da),
         'eterm_oe_dp_da_s' : (eval_eterm_oe_dp_da_s, 0, oe and da),
@@ -2105,6 +2106,8 @@ helps = {
     : 'indicates a run under memory_profiler',
     'affinity'
     : ' CPU affinity [default: %(default)s]',
+    'max_mem'
+    : ' max. memory estimate in qsbg size units [default: %(default)s]',
     'verbosity_eterm'
     : ' ETermBase verbosity level [default: %(default)s]',
     'silent'
@@ -2165,6 +2168,9 @@ def main():
     parser.add_argument('--affinity',
                         action='store', dest='affinity',
                         default='', help=helps['affinity'])
+    parser.add_argument('--max-mem',
+                        action='store', dest='max_mem',
+                        default='total=20', help=helps['max_mem'])
     parser.add_argument('--verbosity-eterm', type=int,
                         action='store', dest='verbosity_eterm',
                         choices=[0, 1, 2, 3],
@@ -2188,6 +2194,7 @@ def main():
 
     options.select = so.parse_as_list(options.select)
     options.affinity = so.parse_as_list(options.affinity)
+    options.max_mem = so.parse_as_dict(options.max_mem)
 
     output_dir = options.output_dir
     output.prefix = 'time_tensors:'
@@ -2225,13 +2232,9 @@ def main():
     qsbg_size = nm.prod(qsbg_shape) * 8
     output('qsbg assumed size [MB]: {:.2f}'.format(to_mb(qsbg_size)))
 
-    coef0 = 12
-    coef = coef0 if options.diff is None else 1.5 * coef0
-    if options.term_name == 'dw_convect':
-        coef *= 2
-    output('memory coefficient:', coef)
-
-    mem_est = coef * qsbg_size
+    max_mem = options.max_mem['total']
+    output('memory estimate [qsbg size]:', max_mem)
+    mem_est = max_mem * qsbg_size
     output('memory estimate [MB]: {:.2f}'.format(mem_est / 1000**2))
 
     if mem_est > mem.total:
@@ -2357,12 +2360,12 @@ def main():
                     arg[0].datas[key][arg[1]] = nm.require(mat,
                                                            requirements='F')
 
-    for key, (fun, arg_no, can_use, *rest) in evaluators.items():
+    for key, (fun, arg_no, can_use) in evaluators.items():
         if not can_use: continue
         if key not in options.select: continue
-        if rest:
-            fun_coef = rest[0]
-            fun_mem_est = fun_coef * coef * qsbg_size
+        max_mem = options.max_mem.get(key)
+        if max_mem is not None:
+            fun_mem_est = max_mem * qsbg_size
             output('{} memory estimate [MB]: {:.2f}'
                    .format(key, fun_mem_est / 1000**2))
             if fun_mem_est > mem.total:
