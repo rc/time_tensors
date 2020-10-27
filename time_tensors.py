@@ -489,11 +489,16 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
             bx = 0
 
             xts = []
+            functions = []
             for it, tkey in enumerate(data.tkeys):
                 if tkey not in data.t_funs: continue
                 tsdf = tdf[(tdf['term_name'] == term_name) &
                            (tdf['order'] == order) &
                            (tdf['function'] == tkey)]
+                if not len(tsdf): continue
+
+                functions.append(tkey)
+
                 vx = tsdf.n_cell.values
                 times = tsdf['t'].to_list()
                 tmeans = nm.nanmean(times, axis=1)
@@ -535,7 +540,7 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
 
             else:
                 ax.set_xticks(xts)
-                ax.set_xticklabels(data.t_funs)
+                ax.set_xticklabels(functions)
 
             ia += 1
 
