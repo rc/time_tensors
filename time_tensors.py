@@ -313,6 +313,10 @@ def setup_styles(df, data=None, colormap_name='viridis', markers=None):
     data.styles = styles
     return data
 
+def _onpick_line(event, lines):
+    line = event.artist
+    output(lines[line])
+
 def plot_times(df, data=None, xscale='log', yscale='log',
                prefix='', suffix='.pdf'):
     import soops.plot_selected as sps
@@ -326,6 +330,7 @@ def plot_times(df, data=None, xscale='log', yscale='log',
 
     fig, ax = plt.subplots()
     used = None
+    lines = {}
     for term_name in data.par_uniques['term_name']:
         if term_name not in data.term_names: continue
         for order in data.par_uniques['order']:
@@ -346,11 +351,13 @@ def plot_times(df, data=None, xscale='log', yscale='log',
                     sdf.iloc[0], select, {}, styles
                 )
                 used = sps.update_used(used, indices)
+                line = plt.errorbar(vx, means, yerr=[emins, emaxs],
+                                    ecolor=style_kwargs['color'],
+                                    elinewidth=1, capsize=2,
+                                    **style_kwargs)[0]
+                line.set_picker(True)
+                lines[line] = (tkey, order)
 
-                plt.errorbar(vx, means, yerr=[emins, emaxs],
-                             ecolor=style_kwargs['color'],
-                             elinewidth=1, capsize=2,
-                             **style_kwargs)
 
     sps.add_legend(ax, select, styles, used)
     ax.set_xscale(xscale)
@@ -361,6 +368,8 @@ def plot_times(df, data=None, xscale='log', yscale='log',
 
     fig.savefig(os.path.join(data.output_dir, prefix + 'times' + suffix),
                 bbox_inches='tight')
+
+    fig.canvas.mpl_connect('pick_event', partial(_onpick_line, lines=lines))
 
 def plot_mem_usages(df, data=None, xscale='log', yscale='symlog',
                     prefix='', suffix='.pdf'):
@@ -375,6 +384,7 @@ def plot_mem_usages(df, data=None, xscale='log', yscale='symlog',
 
     fig, ax = plt.subplots()
     used = None
+    lines = {}
     for term_name in data.par_uniques['term_name']:
         if term_name not in data.term_names: continue
         for order in data.par_uniques['order']:
@@ -396,10 +406,12 @@ def plot_mem_usages(df, data=None, xscale='log', yscale='symlog',
                 )
                 used = sps.update_used(used, indices)
 
-                plt.errorbar(vx, means, yerr=[emins, emaxs],
-                             ecolor=style_kwargs['color'],
-                             elinewidth=1, capsize=2,
-                             **style_kwargs)
+                line = plt.errorbar(vx, means, yerr=[emins, emaxs],
+                                    ecolor=style_kwargs['color'],
+                                    elinewidth=1, capsize=2,
+                                    **style_kwargs)[0]
+                line.set_picker(True)
+                lines[line] = (mkey, order)
 
     sps.add_legend(ax, select, styles, used)
     ax.set_xscale(xscale)
@@ -410,6 +422,8 @@ def plot_mem_usages(df, data=None, xscale='log', yscale='symlog',
 
     fig.savefig(os.path.join(data.output_dir, prefix + 'mem_usages' + suffix),
                 bbox_inches='tight')
+
+    fig.canvas.mpl_connect('pick_event', partial(_onpick_line, lines=lines))
 
 def set_ylim(ax, mi, ma, yscale):
     if yscale == 'linear':
