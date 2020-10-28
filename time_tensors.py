@@ -136,6 +136,15 @@ def scrape_output(filename, rdata=None):
         line = io.skip_lines_to(fd, 'available system memory')
         out['mem_available_mb'] = literal_eval(line.split(':')[2].strip())
 
+        line = io.skip_lines_to(fd, 'qsbg assumed size')
+        out['qsbg_size_mb'] = literal_eval(line.split(':')[2].strip())
+
+        line = io.skip_lines_to(fd, 'memory estimate [qsbg size]')
+        out['mem_est_qsbg'] = literal_eval(line.split(':')[2].strip())
+
+        line = io.skip_lines_to(fd, 'memory estimate [MB]')
+        out['mem_est_mb'] = literal_eval(line.split(':')[2].strip())
+
         line = io.skip_lines_to(fd, 'u shape')
         aux = literal_eval(line.split(':')[2].strip())
         out['n_dof'] = aux[0]
@@ -159,8 +168,11 @@ def scrape_output(filename, rdata=None):
         line = io.skip_lines_to(fd, 'c mtx size')
         out['c_mtx_size_mb'] = literal_eval(line.split(':')[2].strip())
 
-        line = io.skip_lines_to(fd, 'memory use')
+        line = io.skip_lines_to(fd, 'memory use [MB]')
         out['pre_mem_use_mb'] = literal_eval(line.split(':')[2].strip())
+
+        line = io.skip_lines_to(fd, 'memory use [qsbg size]')
+        out['pre_mem_use_qsbg'] = literal_eval(line.split(':')[2].strip())
 
     return out
 
