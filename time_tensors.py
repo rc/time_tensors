@@ -236,7 +236,7 @@ def collect_mem_usages(df, data=None):
                     mu = nm.array(mem_usage.loc[ii])
                     tss = nm.array(mem_tss.loc[ii])
                     _ts = sdf[sdf['index'] == ii].iloc[0]['ts']
-                    if _ts is not nm.nan:
+                    if (_ts is not nm.nan) and (len(_ts) == repeat):
                         for ts in _ts:
                             i0, i1 = nm.searchsorted(tss, ts[:2])
 
@@ -249,13 +249,15 @@ def collect_mem_usages(df, data=None):
                             mems.append(mem)
 
                     else:
+                        if (_ts is not nm.nan) and len(_ts):
+                            output('wrong memory profiling data for'
+                                   ' {}/{} order: {} n_cell: {}!'
+                                   .format(mkey, term_name, order,
+                                           sdf[sdf['index'] == ii]
+                                           .iloc[0]['n_cell']))
                         mems.extend([nm.nan] * repeat)
 
-                try:
-                    mems = nm.array(mems).reshape((-1, repeat))
-
-                except ValueError:
-                    raise ValueError('wrong memory profiling data!')
+                mems = nm.array(mems).reshape((-1, repeat))
 
                 # This is to force a column with several values.
                 mm = [pd.Series({'mems' : row.tolist()}) for row in mems]
