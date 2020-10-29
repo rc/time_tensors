@@ -443,6 +443,14 @@ def get_yticks(mi, ma, yscale):
 
     return yticks
 
+def get_stats(sdf, key):
+    vals = sdf[key].to_list()
+    means = nm.nanmean(vals, axis=1)
+    emins = means - nm.nanmin(vals, axis=1)
+    emaxs = nm.nanmax(vals, axis=1) - means
+
+    return means, emins, emaxs
+
 def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
                      mcolormap_name='plasma', yscale='log',
                      prefix='', suffix='.pdf'):
@@ -528,10 +536,7 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
                 functions.append(tkey)
 
                 vx = tsdf.n_cell.values
-                times = tsdf['t'].to_list()
-                tmeans = nm.nanmean(times, axis=1)
-                temins = tmeans - nm.nanmin(times, axis=1)
-                temaxs = nm.nanmax(times, axis=1) - tmeans
+                tmeans, temins, temaxs = get_stats(tsdf, 't')
 
                 xs = bx + nm.arange(len(vx))
                 ax.bar(xs, tmeans, width=0.8, align='edge',
@@ -545,11 +550,7 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
                     msdf = mdf[(mdf['term_name'] == term_name) &
                                (mdf['order'] == order) &
                                (mdf['function'] == mkey)]
-                    mems = msdf['mems'].to_list()
-
-                    mmeans = nm.nanmean(mems, axis=1)
-                    memins = mmeans - nm.nanmin(mems, axis=1)
-                    memaxs = nm.nanmax(mems, axis=1) - mmeans
+                    mmeans, memins, memaxs = get_stats(msdf, 'mems')
 
                     xs = xs[-1] + sx + nm.arange(len(vx))
                     ax2.bar(xs, mmeans, width=0.8, align='edge',
@@ -668,11 +669,7 @@ def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
                 orders.append(order)
 
                 vx = tsdf.function.values
-                times = tsdf['t'].to_list()
-
-                tmeans = nm.nanmean(times, axis=1)
-                temins = tmeans - nm.nanmin(times, axis=1)
-                temaxs = nm.nanmax(times, axis=1) - tmeans
+                tmeans, temins, temaxs = get_stats(tsdf, 't')
 
                 xs = bx + nm.arange(len(vx))
                 ax.bar(xs, tmeans, width=0.8, align='edge',
@@ -685,11 +682,7 @@ def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
                     msdf = mdf[(mdf['term_name'] == term_name) &
                                (mdf['n_cell'] == n_cell) &
                                (mdf['order'] == order)]
-                    mems = msdf['mems'].to_list()
-
-                    mmeans = nm.nanmean(mems, axis=1)
-                    memins = mmeans - nm.nanmin(mems, axis=1)
-                    memaxs = nm.nanmax(mems, axis=1) - mmeans
+                    mmeans, memins, memaxs = get_stats(msdf, 'mems')
 
                     xs = xs[-1] + sx + nm.arange(len(vx))
                     ax2.bar(xs, mmeans, width=0.8, align='edge',
