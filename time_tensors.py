@@ -1999,118 +1999,79 @@ def get_evals_sfepy(options, term, eterm,
     else:
         profile = globals()['profile']
 
+
+    backends = {
+        'numpy' : ['greedy', 'optimal'],
+        'numpy_loop' : ['greedy', 'optimal'],
+        'opt_einsum'
+        : ['dp:flops', 'dp:size', 'greedy', 'branch-2', 'auto', 'optimal'],
+        'opt_einsum_loop'
+        : ['dp:flops', 'dp:size', 'greedy', 'branch-2', 'auto', 'optimal'],
+        'jax' : ['greedy', 'optimal'],
+        'jax_vmap' : ['greedy', 'optimal'],
+        'dask_single' : ['greedy', 'optimal'],
+        'dask_threads' : ['greedy', 'optimal'],
+    }
+    abbrevs = {
+        'numpy' : 'np',
+        'numpy_loop' : 'npl',
+        'opt_einsum' : 'oe',
+        'opt_einsum_loop' : 'oel',
+        'jax' : 'jx',
+        'jax_vmap' : 'jxv',
+        'dask_single' : 'das',
+        'dask_threads' : 'dat',
+        'greedy' : 'gre',
+        'optimal' : 'opt',
+        'dp:flops' : 'dpf',
+        'dp:size' : 'dps',
+        'branch-2' : 'br2',
+        'auto' : 'aut',
+    }
+
+    evaluators = {
+    }
+
     @profile
     def eval_sfepy_term():
         return term.evaluate(mode=options.eval_mode,
                              diff_var=options.diff,
                              standalone=False, ret_status=True)
 
-    @profile
-    def eval_eterm_np_greedy():
-        eterm.set_backend(backend='numpy', optimize='greedy')
-        return eterm.evaluate(mode=options.eval_mode,
-                              diff_var=options.diff,
-                              standalone=False, ret_status=True)
+    evaluators['sfepy_term'] =  (eval_sfepy_term, 0, True)
+
+    def _make_evaluator(backend, optimize, name):
+        def _eval_eterm():
+            if 'threads' in backend:
+                this = psutil.Process()
+                affinity = this.cpu_affinity()
+                this.cpu_affinity([])
+            eterm.set_backend(backend=backend, optimize=optimize)
+            out = eterm.evaluate(mode=options.eval_mode,
+                                 diff_var=options.diff,
+                                 standalone=False, ret_status=True)
+            return out
+            if 'threads' in backend:
+                this.cpu_affinity(affinity)
+        _eval_eterm.__name__ = name
+        _eval_eterm = profile(_eval_eterm)
+
+        return _eval_eterm
+
+    can = terms_multilinear.ETermBase.can_backend
+    for backend, optimizes in backends.items():
+        for optimize in optimizes:
+            name = 'eval_eterm_{}_{}'.format(abbrevs[backend],
+                                             abbrevs[optimize])
+            if ':' in optimize:
+                _, minimize = optimize.split(':')
+                optimize = oe.DynamicProgramming(minimize=minimize)
+
+            fun = _make_evaluator(backend, optimize, name)
+            evaluators[name[5:]] = (fun, 0, can[backend])
 
     @profile
-    def eval_eterm_np_optimal():
-        eterm.set_backend(backend='numpy', optimize='optimal')
-        return eterm.evaluate(mode=options.eval_mode,
-                              diff_var=options.diff,
-                              standalone=False, ret_status=True)
-
-    @profile
-    def eval_eterm_np_greedy_loop():
-        eterm.set_backend(backend='numpy_loop', optimize='greedy')
-        return eterm.evaluate(mode=options.eval_mode,
-                              diff_var=options.diff,
-                              standalone=False, ret_status=True)
-
-    @profile
-    def eval_eterm_oe_auto():
-        eterm.set_backend(backend='opt_einsum', optimize='auto')
-        return eterm.evaluate(mode=options.eval_mode,
-                              diff_var=options.diff,
-                              standalone=False, ret_status=True)
-
-    @profile
-    def eval_eterm_oe_optimal():
-        eterm.set_backend(backend='opt_einsum', optimize='optimal')
-        return eterm.evaluate(mode=options.eval_mode,
-                              diff_var=options.diff,
-                              standalone=False, ret_status=True)
-
-    @profile
-    def eval_eterm_oe_optimal_loop():
-        eterm.set_backend(backend='opt_einsum_loop', optimize='optimal')
-        return eterm.evaluate(mode=options.eval_mode,
-                              diff_var=options.diff,
-                              standalone=False, ret_status=True)
-
-    @profile
-    def eval_eterm_oe_greedy():
-        eterm.set_backend(backend='opt_einsum', optimize='greedy')
-        return eterm.evaluate(mode=options.eval_mode,
-                              diff_var=options.diff,
-                              standalone=False, ret_status=True)
-
-    @profile
-    def eval_eterm_oe_greedy_loop():
-        eterm.set_backend(backend='opt_einsum_loop', optimize='greedy')
-        return eterm.evaluate(mode=options.eval_mode,
-                              diff_var=options.diff,
-                              standalone=False, ret_status=True)
-
-    @profile
-    def eval_eterm_oe_dp():
-        eterm.set_backend(backend='opt_einsum', optimize='dynamic-programming')
-        return eterm.evaluate(mode=options.eval_mode,
-                              diff_var=options.diff,
-                              standalone=False, ret_status=True)
-
-    @profile
-    def eval_eterm_oe_dp_loop():
-        eterm.set_backend(backend='opt_einsum_loop',
-                          optimize='dynamic-programming')
-        return eterm.evaluate(mode=options.eval_mode,
-                              diff_var=options.diff,
-                              standalone=False, ret_status=True)
-
-    @profile
-    def eval_eterm_jax_greedy():
-        eterm.set_backend(backend='jax', optimize='greedy')
-        return eterm.evaluate(mode=options.eval_mode,
-                              diff_var=options.diff,
-                              standalone=False, ret_status=True)
-
-    @profile
-    def eval_eterm_jax_vmap_greedy():
-        eterm.set_backend(backend='jax_vmap', optimize='greedy')
-        return eterm.evaluate(mode=options.eval_mode,
-                              diff_var=options.diff,
-                              standalone=False, ret_status=True)
-
-    @profile
-    def eval_eterm_da_s_greedy():
-        eterm.set_backend(backend='dask_single', optimize='greedy')
-        return eterm.evaluate(mode=options.eval_mode,
-                              diff_var=options.diff,
-                              standalone=False, ret_status=True)
-
-    @profile
-    def eval_eterm_da_t_greedy():
-        this = psutil.Process()
-        affinity = this.cpu_affinity()
-        this.cpu_affinity([])
-        eterm.set_backend(backend='dask_threads', optimize='greedy')
-        out = eterm.evaluate(mode=options.eval_mode,
-                             diff_var=options.diff,
-                             standalone=False, ret_status=True)
-        this.cpu_affinity(affinity)
-        return out
-
-    @profile
-    def eval_eterm_oe_dp_da_s(c_chunk_size=10):
+    def eval_eterm_oe_dpf_das(c_chunk_size=10):
         eterm.set_backend(
             backend='opt_einsum_dask_single',
             optimize='dynamic-programming',
@@ -2121,7 +2082,7 @@ def get_evals_sfepy(options, term, eterm,
                               standalone=False, ret_status=True)
 
     @profile
-    def eval_eterm_oe_dp_da_t(c_chunk_size=10):
+    def eval_eterm_oe_dpf_dat(c_chunk_size=10):
         this = psutil.Process()
         affinity = this.cpu_affinity()
         this.cpu_affinity([])
@@ -2136,25 +2097,10 @@ def get_evals_sfepy(options, term, eterm,
         this.cpu_affinity(affinity)
         return out
 
-    evaluators = {
-        'sfepy_term' : (eval_sfepy_term, 0, True),
-        'eterm_np_greedy' : (eval_eterm_np_greedy, 0, nm),
-        'eterm_np_optimal' : (eval_eterm_np_optimal, 0, nm),
-        'eterm_np_greedy_loop' : (eval_eterm_np_greedy_loop, 0, nm),
-        'eterm_oe_optimal' : (eval_eterm_oe_optimal, 0, oe),
-        'eterm_oe_optimal_loop' : (eval_eterm_oe_optimal_loop, 0, oe),
-        'eterm_oe_auto' : (eval_eterm_oe_auto, 0, oe),
-        'eterm_oe_greedy' : (eval_eterm_oe_greedy, 0, oe),
-        'eterm_oe_greedy_loop' : (eval_eterm_oe_greedy_loop, 0, oe),
-        'eterm_oe_dp' : (eval_eterm_oe_dp, 0, oe),
-        'eterm_oe_dp_loop' : (eval_eterm_oe_dp_loop, 0, oe),
-        'eterm_jax_greedy' : (eval_eterm_jax_greedy, 0, jnp),
-        'eterm_jax_vmap_greedy' : (eval_eterm_jax_vmap_greedy, 0, jnp),
-        'eterm_da_s_greedy' : (eval_eterm_da_s_greedy, 0, da),
-        'eterm_da_t_greedy' : (eval_eterm_da_t_greedy, 0, da),
-        'eterm_oe_dp_da_s' : (eval_eterm_oe_dp_da_s, 0, oe and da),
-        'eterm_oe_dp_da_t' : (eval_eterm_oe_dp_da_t, 0, oe and da),
-    }
+    evaluators.update({
+        'eterm_oe_dpf_das' : (eval_eterm_oe_dpf_das, 0, oe and da),
+        'eterm_oe_dpf_dat' : (eval_eterm_oe_dpf_dat, 0, oe and da),
+    })
 
     return evaluators
 
