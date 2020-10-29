@@ -202,7 +202,8 @@ def collect_times(df, data=None):
     for key, val in uniques.items():
         output(key, val)
 
-    tdf = pd.melt(df, uniques.keys(), tkeys,
+    df['index'] = df.index
+    tdf = pd.melt(df, list(uniques.keys()) + ['index'], tkeys,
                   var_name='function', value_name='t')
 
     def fun(x):
@@ -225,10 +226,10 @@ def collect_mem_usages(df, data=None):
     )
     del df['func_timestamp']
     df = pd.concat([df, aux], axis=1)
-    df['index'] = df.index
 
     mkeys = [key for key in df.keys() if key.startswith('m_')]
 
+    df['index'] = df.index
     mdf =  pd.melt(df, list(data.uniques.keys()) + ['index'], mkeys,
                    var_name='function', value_name='ts')
     for term_name in data.par_uniques['term_name']:
