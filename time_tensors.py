@@ -16,6 +16,7 @@ os.environ['XLA_FLAGS'] = ('--xla_cpu_multi_thread_eigen=false '
 import psutil
 
 from functools import partial
+from itertools import product
 import gc
 
 import numpy as nm
@@ -189,6 +190,7 @@ def get_plugin_info():
         plot_all_as_bars,
         plot_all_as_bars2,
         show_figures,
+        plot_comparisons,
     ]
 
     return info
@@ -716,6 +718,81 @@ def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
 
     fig.savefig(os.path.join(data.output_dir, prefix + 'all_bars2' + suffix),
                 bbox_inches='tight')
+
+def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
+                     yscale='linear', figsize=(8, 6), prefix='', suffix='.png'):
+    import soops.plot_selected as sps
+    import matplotlib.pyplot as plt
+
+    tdf = data.tdf
+    mdf = data.mdf
+
+    select = {}
+    select['function'] = tdf['function'].unique()
+    styles = {}
+    styles['function'] = {'color' : colormap_name}
+
+    styles = sps.setup_plot_styles(select, styles)
+    colors = styles['function']['color']
+
+    fig, axs = plt.subplots(1 + (mdf is not None), figsize=figsize,
+                            sharex=True, squeeze=False)
+    for ifig, (term_name, n_cell, order) in enumerate(
+            product(data.term_names, data.n_cell, data.orders)
+    ):
+        output(term_name, n_cell, order)
+
+        tsdf = tdf[(tdf['term_name'] == term_name) &
+                   (tdf['n_cell'] == n_cell) &
+                   (tdf['order'] == order)]
+        if not len(tsdf): continue
+
+        n_dof = df.loc[tsdf['index'].values[0], 'n_dof']
+        if nm.isfinite(n_dof):
+            n_dof = int(n_dof)
+
+        vx = [val[2:] for val in tsdf['function']]
+        xs = nm.arange(len(vx))
+        tmeans, temins, temaxs = get_stats(tsdf, 't')
+
+        ax = axs[0, 0]
+        ax.cla()
+        ax.set_title('{}, #cells: {}, order: {}, #DOFs: {}'
+                     .format(term_name, n_cell, order, n_dof))
+        ax.grid(which='both', axis='y')
+        ax.bar(xs, tmeans, width=0.8, align='center',
+               yerr=[temins, temaxs], bottom=ax.get_ylim()[0],
+               color=colors, capsize=2)
+        ax.set_yscale(yscale)
+        ax.set_ylabel('time [s]')
+
+        if mdf is not None:
+            ax.xaxis.set_visible(False)
+            msdf = mdf[(mdf['term_name'] == term_name) &
+                       (mdf['n_cell'] == n_cell) &
+                       (mdf['order'] == order)]
+            mmeans, memins, memaxs = get_stats(msdf, 'mems')
+
+            ax = axs[1, 0]
+            ax.cla()
+            ax.grid(which='both', axis='y')
+            ax.bar(xs, mmeans, width=0.8, align='center',
+                   yerr=[memins, memaxs], bottom=ax.get_ylim()[0],
+                   color=colors, capsize=2)
+            ax.set_yscale(yscale)
+            ax.set_ylabel('memory [MB]')
+
+        ax = axs[-1, 0]
+        ax.set_xticks(xs)
+        ax.set_xticklabels(vx, rotation='vertical')
+
+        plt.tight_layout()
+        filename = (prefix
+                    + '{:03d}-{}-{}-{}-{}'
+                    .format(ifig, term_name, n_cell, order, yscale)
+                    + suffix)
+        fig.savefig(os.path.join(data.output_dir, filename),
+                    bbox_inches='tight')
 
 def create_domain(n_cell, refine, timer):
     timer.start()
