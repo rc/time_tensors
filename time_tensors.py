@@ -1230,6 +1230,110 @@ def get_evals_dw_convect(options, term, eterm,
 
             return v2, 0
 
+    n_cell, n_qp, dim, n_en = qsbg.shape
+    n_c = dim
+
+    qbs = [qsb[0, :, 0, ir].copy(order='F') for ir in range(n_en)]
+    qbgs = [qsbg[..., ir].copy(order='F') for ir in range(n_en)]
+    det = dets[..., 0, 0].copy(order='F')
+
+    @profile
+    def eval_opt_einsum_nl1f():
+        uc = state()[adc]
+        n_cell, n_ed = uc.shape
+        ucc = uc.reshape((dets.shape[0], -1, qsb.shape[-1]))
+        ee = nm.eye(ucc.shape[-2])
+
+        opt = 'dynamic-programming'
+        tt = Timer(start=True)
+        qgu = oe.contract('cqkl,cjl->cqkj', qsbg, ucc, optimize=opt)
+        qu = oe.contract('qzn,ckn->cqk', qsb[0], ucc, optimize=opt)
+        print(tt.stop())
+        if options.diff == 'u':
+            out = nm.empty((n_cell, n_c * n_en, n_c * n_en), dtype=nm.float64)
+            path1, info1 = oe.contract_path('cq,q,jx,cqk,jX,cqk->cxX',
+                                            det, qbs[0], ee,
+                                            qbgs[0], ee, qu,
+                                            optimize=opt)
+            print(path1)
+            print(info1)
+            path2, info2 = oe.contract_path('cq,q,jx,cqkj,q,kX->cxX',
+                                             det, qbs[0], ee,
+                                             qgu, qbs[0], ee,
+                                             optimize=opt)
+            print(path2)
+            print(info2)
+            for ir in range(n_en): # y
+                rqb = qbs[ir]
+                for ic in range(n_en): # Y
+                    cqbg = qbgs[ic]
+                    cqb = qbs[ic]
+                    v1 = oe.contract('cq,q,jx,cqk,jX,cqk->cxX',
+                                     det, rqb, ee,
+                                     cqbg, ee, qu,
+                                     optimize=path1)
+                    v2 = oe.contract('cq,q,jx,cqkj,q,kX->cxX',
+                                     det, rqb, ee,
+                                     qgu, cqb, ee,
+                                     optimize=path2)
+                    out[:, ir::n_en, ic::n_en] = v1 + v2
+
+            return out, 0
+
+        else:
+            raise NotImplementedError
+
+    qbs2 = [qsb[0, :, 0, ir].copy(order='C') for ir in range(n_en)]
+    qbgs2 = [qsbg[..., ir].transpose(2, 0, 1).copy(order='C')
+             for ir in range(n_en)]
+    det2 = dets[..., 0, 0].copy(order='C')
+
+    @profile
+    def eval_opt_einsum_nl2c():
+        uc = state()[adc]
+        n_cell, n_ed = uc.shape
+        ucc = uc.reshape((dets.shape[0], -1, qsb.shape[-1]))
+        ee = nm.eye(ucc.shape[-2])
+
+        opt = 'dynamic-programming'
+        tt = Timer(start=True)
+        qgu = oe.contract('cqkl,cjl->kjcq', qsbg, ucc, optimize=opt)
+        qu = oe.contract('qzn,ckn->kcq', qsb[0], ucc, optimize=opt)
+        print(tt.stop())
+        if options.diff == 'u':
+            out = nm.empty((n_cell, n_c * n_en, n_c * n_en), dtype=nm.float64)
+            path1, info1 = oe.contract_path('cq,q,jx,kcq,jX,kcq->cxX',
+                                            det2, qbs2[0], ee,
+                                            qbgs2[0], ee, qu,
+                                            optimize=opt)
+            print(path1)
+            print(info1)
+            path2, info2 = oe.contract_path('cq,q,jx,kjcq,q,kX->cxX',
+                                             det2, qbs2[0], ee,
+                                             qgu, qbs2[0], ee,
+                                             optimize=opt)
+            print(path2)
+            print(info2)
+            for ir in range(n_en): # y
+                rqb = qbs2[ir]
+                for ic in range(n_en): # Y
+                    cqbg = qbgs2[ic]
+                    cqb = qbs2[ic]
+                    v1 = oe.contract('cq,q,jx,kcq,jX,kcq->cxX',
+                                     det2, rqb, ee,
+                                     cqbg, ee, qu,
+                                     optimize=path1)
+                    v2 = oe.contract('cq,q,jx,kjcq,q,kX->cxX',
+                                     det2, rqb, ee,
+                                     qgu, cqb, ee,
+                                     optimize=path2)
+                    out[:, ir::n_en, ic::n_en] = v1 + v2
+
+            return out, 0
+
+        else:
+            raise NotImplementedError
+
     @profile
     def eval_opt_einsum2a():
         uc = state()[adc]
@@ -1378,6 +1482,8 @@ def get_evals_dw_convect(options, term, eterm,
         'opt_einsum1g' : (eval_opt_einsum1g, 0, oe),
         'opt_einsum1dp' : (eval_opt_einsum1dp, 0, oe),
         'opt_einsum_qsb' : (eval_opt_einsum_qsb, 0, oe),
+        'opt_einsum_nl1f' : (eval_opt_einsum_nl1f, 0, oe),
+        'opt_einsum_nl2c' : (eval_opt_einsum_nl2c, 0, oe),
         #'opt_einsum2a' : (eval_opt_einsum2a, 0, oe), # more memory than opt_einsum1*
         'opt_einsum2dp' : (eval_opt_einsum2dp, 0, oe), # more memory than opt_einsum1*
         'dask_einsum1' : (eval_dask_einsum1, 0, da),
