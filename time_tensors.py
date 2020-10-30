@@ -2096,6 +2096,90 @@ def get_evals_dw_laplace(options, term, eterm,
 
     return evaluators
 
+def get_evals_micro(options, term, eterm,
+                    dets, qsb, qsbg, qvb, qvbg, state, adc):
+    if not options.mprof:
+        def profile(fun):
+            return fun
+
+    else:
+        profile = globals()['profile']
+
+    qsb = qsb[0, :, 0]
+
+    conn = state.field.get_econn(eterm.get_dof_conn_type(), eterm.region)
+    dofs_vec = state().reshape((-1, state.n_components))
+    # axis 0: cells, axis 1: node, axis 2: component
+    dofs1 = dofs_vec[conn]
+    # axis 0: cells, axis 1: component, axis 2: node
+    dofs2 = dofs_vec[conn].transpose((0, 2, 1))
+
+    """
+    eval_u_*() -> GEMM
+    eval_gu_*() -> no BLAS
+    """
+
+    @profile
+    def eval_u_1():
+        out = oe.contract('qn,cnk->cqk', qsb, dofs1,
+                          optimize='dynamic-programming')
+        return out, 0
+
+    @profile
+    def eval_u_2():
+        out = oe.contract('qn,ckn->cqk', qsb, dofs2,
+                          optimize='dynamic-programming')
+        return out, 0
+
+    @profile
+    def eval_u_1q():
+        out = oe.contract('qn,cnk->ckq', qsb, dofs1,
+                          optimize='dynamic-programming')
+        return out, 0
+
+    @profile
+    def eval_u_2q():
+        out = oe.contract('qn,ckn->ckq', qsb, dofs2,
+                          optimize='dynamic-programming')
+        return out, 0
+
+    @profile
+    def eval_gu_1():
+        out = oe.contract('cqjn,cnk->cqjk', qsbg, dofs1,
+                          optimize='dynamic-programming')
+        return out, 0
+
+    @profile
+    def eval_gu_2():
+        out = oe.contract('cqjn,ckn->cqjk', qsbg, dofs2,
+                          optimize='dynamic-programming')
+        return out, 0
+
+    @profile
+    def eval_gu_1q():
+        out = oe.contract('cqjn,cnk->cjkq', qsbg, dofs1,
+                          optimize='dynamic-programming')
+        return out, 0
+
+    @profile
+    def eval_gu_2q():
+        out = oe.contract('cqjn,ckn->cjkq', qsbg, dofs2,
+                          optimize='dynamic-programming')
+        return out, 0
+
+    evaluators = {
+        'u_1' : (eval_u_1, 0, oe),
+        'u_2' : (eval_u_2, 0, oe),
+        'u_1q' : (eval_u_1q, 0, oe),
+        'u_2q' : (eval_u_2q, 0, oe),
+        'gu_1' : (eval_gu_1, 0, oe),
+        'gu_2' : (eval_gu_2, 0, oe),
+        'gu_1q' : (eval_gu_1q, 0, oe),
+        'gu_2q' : (eval_gu_2q, 0, oe),
+    }
+
+    return evaluators
+
 def get_evals_sfepy(options, term, eterm,
                     dets, qsb, qsbg, qvb, qvbg, state, adc):
     if not options.mprof:
@@ -2221,6 +2305,7 @@ def run_evaluator(key, fun, arg_no, can_use, options, timer,
         timer.start()
         res = fun()[arg_no]
         times.append(timer.stop())
+        output('result shape:', res.shape)
         res = res.reshape(-1)
         if ref_res is None:
             ref_res = res
@@ -2258,6 +2343,8 @@ helps = {
     : ' evaluation functions selection [default: %(default)s]',
     'repeat'
     : 'the number of term implementation evaluations [default: %(default)s]',
+    'micro'
+    : 'evaluate micro-functions instead of terms',
     'mprof'
     : 'indicates a run under memory_profiler',
     'affinity'
@@ -2318,6 +2405,9 @@ def main():
     parser.add_argument('--repeat', metavar='int', type=int,
                         action='store', dest='repeat',
                         default=1, help=helps['repeat'])
+    parser.add_argument('--micro',
+                        action='store_true', dest='micro',
+                        default=False, help=helps['micro'])
     parser.add_argument('--mprof',
                         action='store_true', dest='mprof',
                         default=False, help=helps['mprof'])
@@ -2478,43 +2568,53 @@ def main():
     output('memory use [MB]: {:.2f}'.format(to_mb(memory_use)))
     output('memory use [qsbg size]: {:.2f}'.format(memory_use / qsbg_size))
 
-    evaluators = get_evals_sfepy(
-        options, term, eterm, dets, qsb, qsbg, qvb, qvbg, state, adc
-    )
-
-    if options.term_name == 'dw_convect':
-        evaluators.update(get_evals_dw_convect(
+    if options.micro:
+        evaluators = get_evals_micro(
             options, term, eterm, dets, qsb, qsbg, qvb, qvbg, state, adc
-        ))
+        )
 
-    elif options.term_name == 'dw_laplace':
-        evaluators.update(get_evals_dw_laplace(
+    else:
+        evaluators = get_evals_sfepy(
             options, term, eterm, dets, qsb, qsbg, qvb, qvbg, state, adc
-        ))
+        )
+
+        if options.term_name == 'dw_convect':
+            evaluators.update(get_evals_dw_convect(
+                options, term, eterm, dets, qsb, qsbg, qvb, qvbg, state, adc
+            ))
+
+        elif options.term_name == 'dw_laplace':
+            evaluators.update(get_evals_dw_laplace(
+                options, term, eterm, dets, qsb, qsbg, qvb, qvbg, state, adc
+            ))
 
     if options.select[0] == 'all':
         options.select = list(evaluators.keys())
 
     all_stats = {}
 
-    key = 'sfepy_term'
-    fun, arg_no, can_use = evaluators.pop(key)
-    stats, ref_res = run_evaluator(key, fun, arg_no, can_use, options, timer)
-    all_stats.update(stats)
+    if not options.micro:
+        key = 'sfepy_term'
+        fun, arg_no, can_use = evaluators.pop(key)
+        stats, ref_res = run_evaluator(key, fun, arg_no, can_use, options,
+                                       timer)
+        all_stats.update(stats)
 
-    if options.layout == 'F':
-        for iv, arg in enumerate(eterm.args):
-            if isinstance(arg, FieldVariable):
-                ag, _ = eterm.get_mapping(arg)
-                ag.det = nm.require(ag.det, requirements='F')
-                ag.bfg = nm.require(ag.bfg, requirements='F')
+        if options.layout == 'F':
+            for iv, arg in enumerate(eterm.args):
+                if isinstance(arg, FieldVariable):
+                    ag, _ = eterm.get_mapping(arg)
+                    ag.det = nm.require(ag.det, requirements='F')
+                    ag.bfg = nm.require(ag.bfg, requirements='F')
 
-            else:
-                if arg[0] is not None:
-                    key = (eterm.region.name, eterm.integral.order)
-                    mat = arg[0].get_data(key, arg[1])
-                    arg[0].datas[key][arg[1]] = nm.require(mat,
-                                                           requirements='F')
+                else:
+                    if arg[0] is not None:
+                        key = (eterm.region.name, eterm.integral.order)
+                        mat = arg[0].get_data(key, arg[1])
+                        arg[0].datas[key][arg[1]] = nm.require(mat,
+                                                               requirements='F')
+    else:
+        ref_res = 0
 
     for key, (fun, arg_no, can_use) in evaluators.items():
         if not can_use: continue
