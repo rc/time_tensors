@@ -754,11 +754,13 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
         vx = [val[2:] for val in tsdf['function']]
         xs = nm.arange(len(vx))
         tmeans, temins, temaxs = get_stats(tsdf, 't')
+        diff = tsdf['diff'][0]
+        if diff is None: diff = '-'
 
         ax = axs[0, 0]
         ax.cla()
-        ax.set_title('{}, #cells: {}, order: {}, #DOFs: {}'
-                     .format(term_name, n_cell, order, n_dof))
+        ax.set_title('{}, diff: {}, #cells: {}, order: {}, #DOFs: {}'
+                     .format(term_name, diff, n_cell, order, n_dof))
         ax.grid(which='both', axis='y')
         ax.bar(xs, tmeans, width=0.8, align='center',
                yerr=[temins, temaxs], bottom=ax.get_ylim()[0],
@@ -788,8 +790,8 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
 
         plt.tight_layout()
         filename = (prefix
-                    + '{:03d}-{}-{}-{}-{}'
-                    .format(ifig, term_name, n_cell, order, yscale)
+                    + '{:03d}-{}-{}-{}-{}-{}'
+                    .format(ifig, term_name, diff, n_cell, order, yscale)
                     + suffix)
         fig.savefig(os.path.join(data.output_dir, filename),
                     bbox_inches='tight')
