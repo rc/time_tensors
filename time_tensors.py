@@ -2204,6 +2204,8 @@ def get_evals_sfepy(options, term, eterm,
         'dask_single' : ['greedy', 'optimal'],
         'dask_threads' : ['greedy', 'optimal'],
     }
+    layouts = ['cqijd0', 'cqdij0', 'ijd0cq', 'dji0cq', 'ijd0qc', 'dji0qc']
+
     abbrevs = {
         'numpy' : 'np',
         'numpy_loop' : 'npl',
@@ -2232,13 +2234,13 @@ def get_evals_sfepy(options, term, eterm,
 
     evaluators['sfepy_term'] =  (eval_sfepy_term, 0, True)
 
-    def _make_evaluator(backend, optimize, name):
+    def _make_evaluator(backend, optimize, layout, name):
         def _eval_eterm():
             if 'threads' in backend:
                 this = psutil.Process()
                 affinity = this.cpu_affinity()
                 this.cpu_affinity([])
-            eterm.set_backend(backend=backend, optimize=optimize)
+            eterm.set_backend(backend=backend, optimize=optimize, layout=layout)
             out = eterm.evaluate(mode=options.eval_mode,
                                  diff_var=options.diff,
                                  standalone=False, ret_status=True)
@@ -2252,14 +2254,15 @@ def get_evals_sfepy(options, term, eterm,
 
     can = terms_multilinear.ETermBase.can_backend
     for backend, optimizes in backends.items():
-        for optimize in optimizes:
-            name = 'eval_eterm_{}_{}'.format(abbrevs[backend],
-                                             abbrevs[optimize])
+        for optimize, layout in product(optimizes, layouts):
+            name = 'eval_eterm_{}_{}_{}'.format(abbrevs[backend],
+                                                abbrevs[optimize],
+                                                layout)
             if ':' in optimize:
                 _, minimize = optimize.split(':')
                 optimize = oe.DynamicProgramming(minimize=minimize)
 
-            fun = _make_evaluator(backend, optimize, name)
+            fun = _make_evaluator(backend, optimize, layout, name)
             evaluators[name[5:]] = (fun, 0, can[backend])
 
     @profile
