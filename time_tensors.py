@@ -2641,8 +2641,12 @@ def main():
             raise
 
         except Exception as exc:
-            output('{} failed with:'.format(key))
-            output(exc)
+            if options.debug:
+                raise
+
+            else:
+                output('{} failed with:'.format(key))
+                output(exc)
 
         else:
             all_stats.update(stats)
