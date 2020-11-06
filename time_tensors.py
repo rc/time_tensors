@@ -220,16 +220,21 @@ def collect_times(df, data=None):
 
 def collect_mem_usages(df, data=None):
     if 'func_timestamp' not in df:
+        output('no memory profiling data!')
         data.mdf = None
         return data
 
     aux = pd.json_normalize(df['func_timestamp']).rename(
         lambda x: 'm_' + x.split('.')[-1].replace('eval_', ''), axis=1
     )
+    mkeys = ['m_' + fun_name for fun_name in data._fun_names]
+    if set(mkeys) != set(aux.keys()):
+        output('wrong memory profiling data, ignoring!')
+        data.mdf = None
+        return data
+
     del df['func_timestamp']
     df = pd.concat([df, aux], axis=1)
-
-    mkeys = ['m_' + fun_name for fun_name in data._fun_names]
 
     df['index'] = df.index
     mdf =  pd.melt(df, list(data.uniques.keys()) + ['index'], mkeys,
