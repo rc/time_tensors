@@ -2454,9 +2454,9 @@ def main():
     if options.variant is None:
         options.variant = ''
 
-    options.select = so.parse_as_list(options.select)
+    options.select = so.parse_as_list(options.select, free_word=True)
     options.affinity = so.parse_as_list(options.affinity)
-    options.max_mem = so.parse_as_dict(options.max_mem)
+    options.max_mem = so.parse_as_dict(options.max_mem, free_word=True)
 
     output_dir = options.output_dir
     output.prefix = 'time_tensors:'
@@ -2632,17 +2632,27 @@ def main():
     else:
         ref_res = 0
 
+    select_match = re.compile('|'.join(options.select)).match
+    mem_matches = [re.compile(key).match for key in options.max_mem.keys()]
+    max_mems = list(options.max_mem.values())
     for key, (fun, arg_no, can_use) in evaluators.items():
         if not can_use: continue
-        if key not in options.select: continue
-        max_mem = options.max_mem.get(key)
-        if max_mem is not None:
-            fun_mem_est = max_mem * qsbg_size
-            output('{} memory estimate [MB]: {:.2f}'
-                   .format(key, fun_mem_est / 1000**2))
-            if fun_mem_est > mem.total:
-                output('-> skipping!')
-                continue
+        if select_match(key) is None: continue
+
+        skip = False
+        for im, match in enumerate(mem_matches):
+            if match(key):
+                max_mem = max_mems[im]
+
+                fun_mem_est = max_mem * qsbg_size
+                output('{} memory estimate [MB]: {:.2f}'
+                       .format(key, fun_mem_est / 1000**2))
+                if fun_mem_est > mem.total:
+                    output('-> skipping!')
+                    skip = True
+                    break
+
+        if skip: continue
 
         try:
             stats, _ = run_evaluator(key, fun, arg_no, can_use, options, timer,
