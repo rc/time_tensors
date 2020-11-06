@@ -2488,10 +2488,10 @@ def main():
     mem_est = max_mem * qsbg_size
     output('memory estimate [MB]: {:.2f}'.format(mem_est / 1000**2))
 
-    if mem_est > mem.total:
+    if mem_est > mem.available:
         raise MemoryError('insufficient memory for timing!'
                           ' ({:.2f} [MB] > {:.2f} [MB])'
-                          .format(to_mb(mem_est), to_mb(mem.total)))
+                          .format(to_mb(mem_est), to_mb(mem.available)))
 
     if options.term_name not in ['dw_stokes']:
         uvec, term, eterm = setup_data(
