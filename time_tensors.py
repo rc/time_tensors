@@ -754,7 +754,7 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
         vx = [val[2:] for val in tsdf['function']]
         xs = nm.arange(len(vx))
         tmeans, temins, temaxs = get_stats(tsdf, 't')
-        diff = tsdf['diff'][0]
+        diff = tsdf['diff'].values[0]
         if diff is None: diff = '-'
 
         ax = axs[0, 0]
