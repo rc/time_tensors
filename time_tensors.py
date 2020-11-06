@@ -206,20 +206,20 @@ def collect_times(df, data=None):
 
     df['index'] = df.index
     tdf = pd.melt(df, list(uniques.keys()) + ['index'], tkeys,
-                  var_name='function', value_name='t')
+                  var_name='fun_name', value_name='t')
+    tdf['fun_name'] = tdf['fun_name'].str[2:] # Strip 't_'.
 
     def fun(x):
         return x['t'] if nm.isfinite(x['t']).all() else [nm.nan] * x['repeat']
     tdf['t'] = tdf.apply(fun, axis=1)
 
-    data.tkeys = tkeys
+    data._fun_names = [tkey[2:] for tkey in tkeys]
     data.uniques = uniques
     data.tdf = tdf
     return data
 
 def collect_mem_usages(df, data=None):
     if 'func_timestamp' not in df:
-        data.mkeys = []
         data.mdf = None
         return data
 
@@ -229,21 +229,23 @@ def collect_mem_usages(df, data=None):
     del df['func_timestamp']
     df = pd.concat([df, aux], axis=1)
 
-    mkeys = [key for key in df.keys() if key.startswith('m_')]
+    mkeys = ['m_' + fun_name for fun_name in data._fun_names]
 
     df['index'] = df.index
     mdf =  pd.melt(df, list(data.uniques.keys()) + ['index'], mkeys,
-                   var_name='function', value_name='ts')
+                   var_name='fun_name', value_name='ts')
+    mdf['fun_name'] = mdf['fun_name'].str[2:] # Strip 'm_'.
+
     for term_name in data.par_uniques['term_name']:
         for order in data.par_uniques['order']:
             dfto = df[(df['term_name'] == term_name) &
                      (df['order'] == order)]
             mem_usage = dfto['mem_usage']
             mem_tss = dfto['timestamp']
-            for mkey in mkeys:
+            for fun_name in data._fun_names:
                 indexer = ((mdf['term_name'] == term_name) &
                            (mdf['order'] == order) &
-                           (mdf['function'] == mkey))
+                           (mdf['fun_name'] == fun_name))
                 sdf = mdf.loc[indexer]
                 repeat = sdf.iloc[0]['repeat']
                 mems = []
@@ -267,7 +269,7 @@ def collect_mem_usages(df, data=None):
                         if (_ts is not nm.nan) and len(_ts):
                             output('wrong memory profiling data for'
                                    ' {}/{} order: {} n_cell: {}!'
-                                   .format(mkey, term_name, order,
+                                   .format(fun_name, term_name, order,
                                            sdf[sdf['index'] == ii]
                                            .iloc[0]['n_cell']))
                         mems.extend([nm.nan] * repeat)
@@ -278,7 +280,6 @@ def collect_mem_usages(df, data=None):
                 mm = [pd.Series({'mems' : row.tolist()}) for row in mems]
                 mdf.loc[indexer, 'mems'] = pd.DataFrame(mm, index=sdf.index)
 
-    data.mkeys = mkeys
     data.mdf = mdf
     return data
 
@@ -288,10 +289,7 @@ def select_data(df, data=None, term_names=None, n_cell=None, orders=None,
                        if term_names is None else term_names)
     data.n_cell = data.par_uniques['n_cell'] if n_cell is None else n_cell
     data.orders = data.par_uniques['order'] if orders is None else orders
-    data.t_funs = (data.tkeys
-                   if functions is None else ['t_' + fun for fun in functions])
-    data.m_funs = (data.mkeys
-                   if functions is None else ['m_' + fun for fun in functions])
+    data.fun_names = data._fun_names if functions is None else functions
 
     return data
 
@@ -303,18 +301,28 @@ def setup_styles(df, data=None, colormap_name='viridis', markers=None):
         markers = list(Line2D.filled_markers)
 
     select = sps.normalize_selected(data.uniques)
-    select['function'] = data.tkeys
+    select['fun_name'] = data.fun_names
 
     styles = {key : {} for key in select.keys()}
     styles['term_name'] = {'ls' : ['-', '--', '-.'], 'lw' : 2, 'alpha' : 0.8}
     styles['order'] = {'color' : colormap_name}
-    styles['function'] = {'marker' : markers,
+    styles['fun_name'] = {'marker' : markers,
                           'mfc' : 'None', 'ms' : 8}
     styles = sps.setup_plot_styles(select, styles)
 
     data.select = select
     data.styles = styles
     return data
+
+def format_labels(key, iv, val):
+    if key == 'term_name':
+        return 'term: {}'.format(val)
+
+    elif key == 'fun_name':
+        return '{}'.format(val)
+
+    else:
+        return '{}: {}'.format(key, val)
 
 def _onpick_line(event, lines):
     line = event.artist
@@ -326,7 +334,7 @@ def plot_times(df, data=None, xscale='log', yscale='log',
     import matplotlib.pyplot as plt
 
     select = data.select.copy()
-    select['function'] = data.tkeys
+    select['fun_name'] = data.fun_names
     styles = data.styles
 
     tdf = data.tdf
@@ -338,12 +346,12 @@ def plot_times(df, data=None, xscale='log', yscale='log',
         if term_name not in data.term_names: continue
         for order in data.par_uniques['order']:
             if order not in data.orders: continue
-            for tkey in data.tkeys:
-                if tkey not in data.t_funs: continue
-                print(term_name, order, tkey)
+            for fun_name in data.fun_names:
+                if fun_name not in data._fun_names: continue
+                print(term_name, order, fun_name)
                 sdf = tdf[(tdf['term_name'] == term_name) &
                           (tdf['order'] == order) &
-                          (tdf['function'] == tkey)]
+                          (tdf['fun_name'] == fun_name)]
                 vx = sdf.n_cell.values
                 times = sdf['t'].to_list()
 
@@ -359,10 +367,9 @@ def plot_times(df, data=None, xscale='log', yscale='log',
                                     elinewidth=1, capsize=2,
                                     **style_kwargs)[0]
                 line.set_picker(True)
-                lines[line] = (tkey, order)
+                lines[line] = (fun_name, order)
 
-
-    sps.add_legend(ax, select, styles, used)
+    sps.add_legend(ax, select, styles, used, format_labels)
     ax.set_xscale(xscale)
     ax.set_yscale(yscale)
     ax.set_xlabel('n_cell')
@@ -380,7 +387,7 @@ def plot_mem_usages(df, data=None, xscale='log', yscale='symlog',
     import matplotlib.pyplot as plt
 
     select = data.select.copy()
-    select['function'] = data.mkeys
+    select['fun_name'] = data.fun_names
     styles = data.styles
 
     mdf = data.mdf
@@ -392,12 +399,12 @@ def plot_mem_usages(df, data=None, xscale='log', yscale='symlog',
         if term_name not in data.term_names: continue
         for order in data.par_uniques['order']:
             if order not in data.orders: continue
-            for mkey in data.mkeys:
-                if mkey not in data.m_funs: continue
-                print(term_name, order, mkey)
+            for fun_name in data.fun_names:
+                if fun_name not in data._fun_names: continue
+                print(term_name, order, fun_name)
                 sdf = mdf[(mdf['term_name'] == term_name) &
                           (mdf['order'] == order) &
-                          (mdf['function'] == mkey)]
+                          (mdf['fun_name'] == fun_name)]
                 vx = sdf.n_cell.values
                 mems = sdf['mems'].to_list()
 
@@ -414,9 +421,9 @@ def plot_mem_usages(df, data=None, xscale='log', yscale='symlog',
                                     elinewidth=1, capsize=2,
                                     **style_kwargs)[0]
                 line.set_picker(True)
-                lines[line] = (mkey, order)
+                lines[line] = (fun_name, order)
 
-    sps.add_legend(ax, select, styles, used)
+    sps.add_legend(ax, select, styles, used, format_labels)
     ax.set_xscale(xscale)
     ax.set_yscale(yscale)
     ax.set_xlabel('n_cell')
@@ -529,14 +536,14 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
 
             xts = []
             functions = []
-            for it, tkey in enumerate(data.tkeys):
-                if tkey not in data.t_funs: continue
+            for it, fun_name in enumerate(data.fun_names):
+                if fun_name not in data._fun_names: continue
                 tsdf = tdf[(tdf['term_name'] == term_name) &
                            (tdf['order'] == order) &
-                           (tdf['function'] == tkey)]
+                           (tdf['fun_name'] == fun_name)]
                 if not len(tsdf): continue
 
-                functions.append(tkey)
+                functions.append(fun_name)
 
                 vx = tsdf.n_cell.values
                 tmeans, temins, temaxs = get_stats(tsdf, 't')
@@ -549,10 +556,9 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
                 xts.append(xs[-1])
 
                 if mdf is not None:
-                    mkey = data.mkeys[it]
                     msdf = mdf[(mdf['term_name'] == term_name) &
                                (mdf['order'] == order) &
-                               (mdf['function'] == mkey)]
+                               (mdf['fun_name'] == fun_name)]
                     mmeans, memins, memaxs = get_stats(msdf, 'mems')
 
                     xs = xs[-1] + sx + nm.arange(len(vx))
@@ -562,7 +568,7 @@ def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
 
                 bx = xs[-1] + 2 * sx
 
-                if it < len(data.tkeys):
+                if it < len(data.fun_names):
                     ax.axvline(bx - sx, color='k', lw=0.5)
 
             ax.set_title('{}/order {}'.format(term_name, order))
@@ -598,7 +604,7 @@ def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
     mdf = data.mdf
 
     select = {}
-    select['tfunction'] = tdf['function'].unique()
+    select['tfunction'] = tdf['fun_name'].unique()
 
     mit = nm.nanmin(tdf['t'].to_list())
     mat = nm.nanmax(tdf['t'].to_list())
@@ -609,7 +615,7 @@ def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
     styles['tfunction'] = {'color' : tcolormap_name}
 
     if mdf is not None:
-        select['mfunction'] = mdf['function'].unique()
+        select['mfunction'] = mdf['fun_name'].unique()
         styles['mfunction'] = {'color' : mcolormap_name}
 
         mim = nm.nanmin(mdf['mems'].to_list())
@@ -671,7 +677,7 @@ def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
 
                 orders.append(order)
 
-                vx = tsdf.function.values
+                vx = tsdf['fun_name'].values
                 tmeans, temins, temaxs = get_stats(tsdf, 't')
 
                 xs = bx + nm.arange(len(vx))
@@ -728,12 +734,12 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
     mdf = data.mdf
 
     select = {}
-    select['function'] = tdf['function'].unique()
+    select['fun_name'] = tdf['fun_name'].unique()
     styles = {}
-    styles['function'] = {'color' : colormap_name}
+    styles['fun_name'] = {'color' : colormap_name}
 
     styles = sps.setup_plot_styles(select, styles)
-    colors = styles['function']['color']
+    colors = styles['fun_name']['color']
 
     fig, axs = plt.subplots(1 + (mdf is not None), figsize=figsize,
                             sharex=True, squeeze=False)
@@ -751,7 +757,7 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
         if nm.isfinite(n_dof):
             n_dof = int(n_dof)
 
-        vx = [val[2:] for val in tsdf['function']]
+        vx = tsdf['fun_name']
         xs = nm.arange(len(vx))
         tmeans, temins, temaxs = get_stats(tsdf, 't')
         diff = tsdf['diff'].values[0]
