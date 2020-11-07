@@ -18,6 +18,8 @@ import psutil
 from functools import partial
 from itertools import product
 import gc
+import re
+import hashlib
 
 import numpy as nm
 try:
