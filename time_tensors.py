@@ -230,10 +230,17 @@ def collect_mem_usages(df, data=None):
         lambda x: 'm_' + x.split('.')[-1].replace('eval_', ''), axis=1
     )
     mkeys = ['m_' + fun_name for fun_name in data._fun_names]
-    if set(mkeys) != set(aux.keys()):
-        output('wrong memory profiling data, ignoring!')
-        data._mdf = None
-        return data
+    smkeys = set(mkeys)
+    saux = set(aux.keys())
+    if smkeys != saux:
+        if saux.intersection(smkeys) == smkeys:
+            output('skipping memory data for: {}'
+                   .format(saux.difference(smkeys)))
+
+        else:
+            output('wrong memory profiling data, ignoring!')
+            data._mdf = None
+            return data
 
     del df['func_timestamp']
     df = pd.concat([df, aux], axis=1)
