@@ -295,6 +295,8 @@ def select_data(df, data=None, term_names=None, n_cell=None, orders=None,
     data.n_cell = data.par_uniques['n_cell'] if n_cell is None else n_cell
     data.orders = data.par_uniques['order'] if orders is None else orders
     data.fun_names = data._fun_names if functions is None else functions
+    data.fun_hash = hashlib.sha256(''.join(data.fun_names)
+                                   .encode('utf-8')).hexdigest()
 
     return data
 
@@ -731,7 +733,8 @@ def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
                 bbox_inches='tight')
 
 def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
-                     yscale='linear', figsize=(8, 6), prefix='', suffix='.png'):
+                     yscale='linear', figsize=(8, 6), prefix='', suffix='.png',
+                     sort='time', number=None):
     import soops.plot_selected as sps
     import matplotlib.pyplot as plt
 
@@ -763,8 +766,35 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
             n_dof = int(n_dof)
 
         vx = tsdf['fun_name']
-        xs = nm.arange(len(vx))
         tmeans, temins, temaxs = get_stats(tsdf, 't')
+
+        if mdf is not None:
+            msdf = mdf[(mdf['term_name'] == term_name) &
+                       (mdf['n_cell'] == n_cell) &
+                       (mdf['order'] == order)]
+            mmeans, memins, memaxs = get_stats(msdf, 'mems')
+
+        if sort == 'time':
+            ii = nm.argsort(tmeans)
+
+        elif (sort == 'memory') and mdf is not None:
+            ii = nm.argsort(mmeans)
+
+        if sort != 'none':
+            if number is not None:
+                ii = ii[:number]
+
+            vx = vx.iloc[ii]
+            tmeans = tmeans[ii]
+            temins = temins[ii]
+            temaxs = temaxs[ii]
+            if mdf is not None:
+                mmeans = mmeans[ii]
+                memins = memins[ii]
+                memaxs = memaxs[ii]
+
+        xs = nm.arange(len(vx))
+
         diff = tsdf['diff'].values[0]
         if diff is None: diff = '-'
 
@@ -781,10 +811,6 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
 
         if mdf is not None:
             ax.xaxis.set_visible(False)
-            msdf = mdf[(mdf['term_name'] == term_name) &
-                       (mdf['n_cell'] == n_cell) &
-                       (mdf['order'] == order)]
-            mmeans, memins, memaxs = get_stats(msdf, 'mems')
 
             ax = axs[1, 0]
             ax.cla()
@@ -801,8 +827,9 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
 
         plt.tight_layout()
         filename = (prefix
-                    + '{:03d}-{}-{}-{}-{}-{}'
-                    .format(ifig, term_name, diff, n_cell, order, yscale)
+                    + '{}-{:03d}-{:03d}-{}-{}-{}-{}-{}'
+                    .format(data.fun_hash[:8], len(vx), ifig,
+                            term_name, diff, n_cell, order, yscale)
                     + suffix)
         fig.savefig(os.path.join(data.output_dir, filename),
                     bbox_inches='tight')
