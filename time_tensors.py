@@ -217,13 +217,13 @@ def collect_times(df, data=None):
 
     data._fun_names = [tkey[2:] for tkey in tkeys]
     data.uniques = uniques
-    data.tdf = tdf
+    data._tdf = tdf
     return data
 
 def collect_mem_usages(df, data=None):
     if 'func_timestamp' not in df:
         output('no memory profiling data!')
-        data.mdf = None
+        data._mdf = None
         return data
 
     aux = pd.json_normalize(df['func_timestamp']).rename(
@@ -232,7 +232,7 @@ def collect_mem_usages(df, data=None):
     mkeys = ['m_' + fun_name for fun_name in data._fun_names]
     if set(mkeys) != set(aux.keys()):
         output('wrong memory profiling data, ignoring!')
-        data.mdf = None
+        data._mdf = None
         return data
 
     del df['func_timestamp']
@@ -287,7 +287,7 @@ def collect_mem_usages(df, data=None):
                 mm = [pd.Series({'mems' : row.tolist()}) for row in mems]
                 mdf.loc[indexer, 'mems'] = pd.DataFrame(mm, index=sdf.index)
 
-    data.mdf = mdf
+    data._mdf = mdf
     return data
 
 def select_data(df, data=None, term_names=None, n_cell=None, orders=None,
@@ -296,7 +296,19 @@ def select_data(df, data=None, term_names=None, n_cell=None, orders=None,
                        if term_names is None else term_names)
     data.n_cell = data.par_uniques['n_cell'] if n_cell is None else n_cell
     data.orders = data.par_uniques['order'] if orders is None else orders
-    data.fun_names = data._fun_names if functions is None else functions
+    if functions is None:
+        data.fun_names = data._fun_names
+        data.tdf = data._tdf
+        data.mdf = data._mdf
+
+    else:
+        fun_match = re.compile('|'.join(functions)).match
+        data.fun_names = [fun for fun in data._fun_names if fun_match(fun)]
+
+        indexer = data._tdf['fun_name'].isin(data.fun_names)
+        data.tdf = data._tdf[indexer]
+        data.mdf = data._mdf[indexer] if data._mdf is not None else None
+
     data.fun_hash = hashlib.sha256(''.join(data.fun_names)
                                    .encode('utf-8')).hexdigest()
 
