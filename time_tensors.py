@@ -407,6 +407,10 @@ def plot_mem_usages(df, data=None, xscale='log', yscale='symlog',
     import soops.plot_selected as sps
     import matplotlib.pyplot as plt
 
+    if data.mdf is None:
+        output('no memory data!')
+        return
+
     select = data.select.copy()
     select['fun_name'] = data.fun_names
     styles = data.styles
