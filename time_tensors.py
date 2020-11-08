@@ -198,6 +198,8 @@ def get_plugin_info():
     return info
 
 def collect_times(df, data=None):
+    import soops.ioutils as io
+
     tkeys = [key for key in df.keys() if key.startswith('t_')]
 
     uniques = {key : val for key, val in data.par_uniques.items()
@@ -205,6 +207,14 @@ def collect_times(df, data=None):
     output('parameterization:')
     for key, val in uniques.items():
         output(key, val)
+
+    data._fun_names = [tkey[2:] for tkey in tkeys]
+    data.uniques = uniques
+
+    tdf = io.get_from_store(data.store_filename, 'tdf')
+    if tdf is not None:
+        data._tdf = tdf
+        return data
 
     df['index'] = df.index
     tdf = pd.melt(df, list(uniques.keys()) + ['index'], tkeys,
@@ -215,12 +225,19 @@ def collect_times(df, data=None):
         return x['t'] if nm.isfinite(x['t']).all() else [nm.nan] * x['repeat']
     tdf['t'] = tdf.apply(fun, axis=1)
 
-    data._fun_names = [tkey[2:] for tkey in tkeys]
-    data.uniques = uniques
+    io.put_to_store(data.store_filename, 'tdf', tdf)
+
     data._tdf = tdf
     return data
 
 def collect_mem_usages(df, data=None):
+    import soops.ioutils as io
+
+    mdf = io.get_from_store(data.store_filename, 'mdf')
+    if mdf is not None:
+        data._mdf = mdf
+        return data
+
     if 'func_timestamp' not in df:
         output('no memory profiling data!')
         data._mdf = None
@@ -293,6 +310,8 @@ def collect_mem_usages(df, data=None):
                 # This is to force a column with several values.
                 mm = [pd.Series({'mems' : row.tolist()}) for row in mems]
                 mdf.loc[indexer, 'mems'] = pd.DataFrame(mm, index=sdf.index)
+
+    io.put_to_store(data.store_filename, 'mdf', mdf)
 
     data._mdf = mdf
     return data
