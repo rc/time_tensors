@@ -211,7 +211,7 @@ def collect_times(df, data=None):
     data._fun_names = [tkey[2:] for tkey in tkeys]
     data.uniques = uniques
 
-    tdf = io.get_from_store(data.store_filename, 'tdf')
+    tdf = io.get_from_store(data.store_filename, 'plugin_tdf')
     if tdf is not None:
         data._tdf = tdf
         return data
@@ -225,7 +225,7 @@ def collect_times(df, data=None):
         return x['t'] if nm.isfinite(x['t']).all() else [nm.nan] * x['repeat']
     tdf['t'] = tdf.apply(fun, axis=1)
 
-    io.put_to_store(data.store_filename, 'tdf', tdf)
+    io.put_to_store(data.store_filename, 'plugin_tdf', tdf)
 
     data._tdf = tdf
     return data
@@ -233,7 +233,7 @@ def collect_times(df, data=None):
 def collect_mem_usages(df, data=None):
     import soops.ioutils as io
 
-    mdf = io.get_from_store(data.store_filename, 'mdf')
+    mdf = io.get_from_store(data.store_filename, 'plugin_mdf')
     if mdf is not None:
         data._mdf = mdf
         return data
@@ -311,7 +311,7 @@ def collect_mem_usages(df, data=None):
                 mm = [pd.Series({'mems' : row.tolist()}) for row in mems]
                 mdf.loc[indexer, 'mems'] = pd.DataFrame(mm, index=sdf.index)
 
-    io.put_to_store(data.store_filename, 'mdf', mdf)
+    io.put_to_store(data.store_filename, 'plugin_mdf', mdf)
 
     data._mdf = mdf
     return data
