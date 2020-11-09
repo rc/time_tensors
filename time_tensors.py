@@ -177,6 +177,18 @@ def scrape_output(filename, rdata=None):
         line = io.skip_lines_to(fd, 'memory use [qsbg size]')
         out['pre_mem_use_qsbg'] = literal_eval(line.split(':')[2].strip())
 
+        out['expressions'] = exprs = {}
+        while 1:
+            line = io.skip_lines_to(fd, 'term evaluation function:')
+            if not len(line): break
+            key = line.split(':')[2].strip()
+
+            line = io.skip_lines_to(fd, 'parsed expressions:')
+            if not len(line): break
+            val = line.split(':')[2].strip()
+
+            exprs[key] = literal_eval(val)
+
     return out
 
 def get_plugin_info():
