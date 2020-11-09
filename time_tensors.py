@@ -2383,7 +2383,7 @@ def get_evals_sfepy(options, term, eterm,
 
 def run_evaluator(key, fun, arg_no, can_use, options, timer,
                   ref_res=None):
-    output(key)
+    output('term evaluation function:', key)
     stats = {}
     times = stats.setdefault('t_' + key, [])
     norms = stats.setdefault('norm_' + key, [])
