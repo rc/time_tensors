@@ -195,8 +195,7 @@ def get_plugin_info():
     from soops.plugins import show_figures
 
     info = [
-        collect_times,
-        collect_mem_usages,
+        collect_stats,
         select_data,
         setup_styles,
         plot_times,
@@ -209,7 +208,7 @@ def get_plugin_info():
 
     return info
 
-def collect_times(df, data=None):
+def collect_stats(df, data=None):
     import soops.ioutils as io
 
     tkeys = [key for key in df.keys() if key.startswith('t_')]
@@ -225,6 +224,7 @@ def collect_times(df, data=None):
 
     tdf = io.get_from_store(data.store_filename, 'plugin_tdf')
     if tdf is not None:
+        output('using stored data')
         data._tdf = tdf
         return data
 
@@ -237,96 +237,84 @@ def collect_times(df, data=None):
         return x['t'] if nm.isfinite(x['t']).all() else [nm.nan] * x['repeat']
     tdf['t'] = tdf.apply(fun, axis=1)
 
+    tdf['ts'], tdf['mems'], fts = _collect_mem_usages(df, tdf, data)
+    if fts is not None:
+        df = pd.concat([df, fts], axis=1)
+
+    mmeans, memins, memaxs = get_stats(tdf, 'mems')
+    for key, val in zip(('tmeans', 'temins', 'temaxs'), get_stats(tdf, 't')):
+        tdf[key] = val
+    if fts is not None:
+        for key, val in zip(('mmeans', 'memins', 'memaxs'),
+                            get_stats(tdf, 'mems')):
+            tdf[key] = val
+
     io.put_to_store(data.store_filename, 'plugin_tdf', tdf)
 
     data._tdf = tdf
     return data
 
-def collect_mem_usages(df, data=None):
-    import soops.ioutils as io
-
-    mdf = io.get_from_store(data.store_filename, 'plugin_mdf')
-    if mdf is not None:
-        data._mdf = mdf
-        return data
-
+def _collect_mem_usages(df, tdf, data):
     if 'func_timestamp' not in df:
         output('no memory profiling data!')
-        data._mdf = None
-        return data
+        return nm.nan, nm.nan, None
 
-    aux = pd.json_normalize(df['func_timestamp']).rename(
+    fts = pd.json_normalize(df['func_timestamp']).rename(
         lambda x: 'm_' + x.split('.')[-1].replace('eval_', ''), axis=1
     )
     mkeys = ['m_' + fun_name for fun_name in data._fun_names]
     smkeys = set(mkeys)
-    saux = set(aux.keys())
-    if smkeys != saux:
-        if saux.intersection(smkeys) == smkeys:
+    sfts = set(fts.keys())
+    if smkeys != sfts:
+        if sfts.intersection(smkeys) == smkeys:
             output('skipping memory data for: {}'
-                   .format(saux.difference(smkeys)))
+                   .format(sfts.difference(smkeys)))
 
         else:
             output('wrong memory profiling data, ignoring!')
-            data._mdf = None
-            return data
+            return nm.nan, nm.nan, None
 
-    del df['func_timestamp']
-    df = pd.concat([df, aux], axis=1)
-
-    df['index'] = df.index
-    mdf =  pd.melt(df, list(data.uniques.keys()) + ['index'], mkeys,
-                   var_name='fun_name', value_name='ts')
+    fts['index'] = df.index
+    mdf = pd.melt(fts, ['index'], mkeys, var_name='fun_name', value_name='ts')
     mdf['fun_name'] = mdf['fun_name'].str[2:] # Strip 'm_'.
+    if (tdf[['index', 'fun_name']] != mdf[['index', 'fun_name']]).any().any():
+        raise RuntimeError('pd.melt() failed!')
 
-    for term_name in data.par_uniques['term_name']:
-        for order in data.par_uniques['order']:
-            dfto = df[(df['term_name'] == term_name) &
-                     (df['order'] == order)]
-            mem_usage = dfto['mem_usage']
-            mem_tss = dfto['timestamp']
-            for fun_name in data._fun_names:
-                indexer = ((mdf['term_name'] == term_name) &
-                           (mdf['order'] == order) &
-                           (mdf['fun_name'] == fun_name))
-                sdf = mdf.loc[indexer]
-                repeat = sdf.iloc[0]['repeat']
-                mems = []
-                for ii in dfto.index:
-                    mu = nm.array(mem_usage.loc[ii])
-                    tss = nm.array(mem_tss.loc[ii])
-                    _ts = sdf[sdf['index'] == ii].iloc[0]['ts']
-                    if (_ts is not nm.nan) and (len(_ts) == repeat):
-                        for ts in _ts:
-                            i0, i1 = nm.searchsorted(tss, ts[:2])
+    ts = mdf['ts']
 
-                            mmax = max(mu[i0:i1].max() if i1 > i0 else ts[3],
-                                       ts[3])
-                            mmin = min(mu[i0:i1].min() if i1 > i0 else ts[2],
-                                       ts[2])
-                            mem = mmax - mmin
+    df = df.set_index(['term_name', 'n_cell', 'order'])
 
-                            mems.append(mem)
+    tdfcols = tdf[['term_name', 'n_cell', 'order', 'fun_name']]
 
-                    else:
-                        if (_ts is not nm.nan) and len(_ts):
-                            output('wrong memory profiling data for'
-                                   ' {}/{} order: {} n_cell: {}!'
-                                   .format(fun_name, term_name, order,
-                                           sdf[sdf['index'] == ii]
-                                           .iloc[0]['n_cell']))
-                        mems.extend([nm.nan] * repeat)
+    mems = []
+    for irow, (term_name, n_cell, order, fun_name) in enumerate(tdfcols.values):
+        drow = df.loc[term_name, n_cell, order]
+        repeat = drow['repeat']
+        mu = nm.array(drow['mem_usage'])
+        tss = nm.array(drow['timestamp'])
+        tsis = ts[irow]
+        if (tsis is not nm.nan) and (len(tsis) == repeat):
+            _mems = []
+            for tsi in tsis:
+                i0, i1 = nm.searchsorted(tss, tsi[:2])
 
-                mems = nm.array(mems).reshape((-1, repeat))
+                mmax = max(mu[i0:i1].max() if i1 > i0 else tsi[3],
+                           tsi[3])
+                mmin = min(mu[i0:i1].min() if i1 > i0 else tsi[2],
+                           tsi[2])
+                mem = mmax - mmin
+                _mems.append(mem)
 
-                # This is to force a column with several values.
-                mm = [pd.Series({'mems' : row.tolist()}) for row in mems]
-                mdf.loc[indexer, 'mems'] = pd.DataFrame(mm, index=sdf.index)
+        else:
+            if (tsis is not nm.nan) and len(tsis):
+                output('wrong memory profiling data for'
+                       ' {}/{} order: {} n_cell: {}!'
+                       .format(fun_name, term_name, order, n_cell))
+            _mems = [nm.nan] * repeat
 
-    io.put_to_store(data.store_filename, 'plugin_mdf', mdf)
+        mems.append(_mems)
 
-    data._mdf = mdf
-    return data
+    return ts, mems, fts
 
 def select_data(df, data=None, term_names=None, n_cell=None, orders=None,
                 functions=None):
@@ -337,7 +325,6 @@ def select_data(df, data=None, term_names=None, n_cell=None, orders=None,
     if functions is None:
         data.fun_names = data._fun_names
         data.tdf = data._tdf
-        data.mdf = data._mdf
 
     else:
         fun_match = re.compile('|'.join(functions)).match
@@ -345,7 +332,6 @@ def select_data(df, data=None, term_names=None, n_cell=None, orders=None,
 
         indexer = data._tdf['fun_name'].isin(data.fun_names)
         data.tdf = data._tdf[indexer]
-        data.mdf = data._mdf[indexer] if data._mdf is not None else None
 
     data.fun_hash = hashlib.sha256(''.join(data.fun_names)
                                    .encode('utf-8')).hexdigest()
@@ -795,7 +781,6 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
     import matplotlib.pyplot as plt
 
     tdf = data.tdf
-    mdf = data.mdf
 
     select = {}
     select['fun_name'] = tdf['fun_name'].unique()
@@ -805,49 +790,40 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
     styles = sps.setup_plot_styles(select, styles)
     colors = styles['fun_name']['color']
 
-    fig, axs = plt.subplots(1 + (mdf is not None), figsize=figsize,
+    is_mems = 'mmeans' in tdf
+    fig, axs = plt.subplots(1 + is_mems, figsize=figsize,
                             sharex=True, squeeze=False)
     for ifig, (term_name, n_cell, order) in enumerate(
             product(data.term_names, data.n_cell, data.orders)
     ):
         output(term_name, n_cell, order)
 
-        tsdf = tdf[(tdf['term_name'] == term_name) &
-                   (tdf['n_cell'] == n_cell) &
-                   (tdf['order'] == order)]
+        tsdf = tdf[(tdf['index'] == ifig)]
         if not len(tsdf): continue
 
-        n_dof = df.loc[tsdf['index'].values[0], 'n_dof']
+        n_dof = df.loc[ifig, 'n_dof']
         if nm.isfinite(n_dof):
             n_dof = int(n_dof)
 
         vx = tsdf['fun_name']
-        tmeans, temins, temaxs = get_stats(tsdf, 't')
-
-        if mdf is not None:
-            msdf = mdf[(mdf['term_name'] == term_name) &
-                       (mdf['n_cell'] == n_cell) &
-                       (mdf['order'] == order)]
-            mmeans, memins, memaxs = get_stats(msdf, 'mems')
+        tstats = tsdf[['tmeans', 'temins', 'temaxs']].values.T
+        if is_mems:
+            mstats = tsdf[['mmeans', 'memins', 'memaxs']].values.T
 
         if sort == 'time':
-            ii = nm.argsort(tmeans)
+            ii = nm.argsort(tstats[0])
 
-        elif (sort == 'memory') and mdf is not None:
-            ii = nm.argsort(mmeans)
+        elif (sort == 'memory') and is_mems:
+            ii = nm.argsort(mstats[0])
 
         if sort != 'none':
             if number is not None:
                 ii = ii[:number]
 
             vx = vx.iloc[ii]
-            tmeans = tmeans[ii]
-            temins = temins[ii]
-            temaxs = temaxs[ii]
-            if mdf is not None:
-                mmeans = mmeans[ii]
-                memins = memins[ii]
-                memaxs = memaxs[ii]
+            tstats = tstats[:, ii]
+            if is_mems:
+                mstats = mstats[:, ii]
 
         xs = nm.arange(len(vx))
 
@@ -859,18 +835,20 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
         ax.set_title('{}, diff: {}, #cells: {}, order: {}, #DOFs: {}'
                      .format(term_name, diff, n_cell, order, n_dof))
         ax.grid(which='both', axis='y')
+        tmeans, temins, temaxs = tstats
         ax.bar(xs, tmeans, width=0.8, align='center',
                yerr=[temins, temaxs], bottom=ax.get_ylim()[0],
                color=colors, capsize=2)
         ax.set_yscale(yscale)
         ax.set_ylabel('time [s]')
 
-        if mdf is not None:
+        if is_mems:
             ax.xaxis.set_visible(False)
 
             ax = axs[1, 0]
             ax.cla()
             ax.grid(which='both', axis='y')
+            mmeans, memins, memaxs = mstats
             ax.bar(xs, mmeans, width=0.8, align='center',
                    yerr=[memins, memaxs], bottom=ax.get_ylim()[0],
                    color=colors, capsize=2)
