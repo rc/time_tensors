@@ -242,6 +242,14 @@ def _create_ldf(df, tkeys, data):
                   var_name='fun_name', value_name='t')
     ldf['fun_name'] = ldf['fun_name'].str[2:] # Strip 't_'.
 
+    aux = pd.json_normalize(df['expressions'])
+    aux['index'] = df.index
+    exprs = pd.melt(aux, ['index'],
+                    var_name='fun_name', value_name='expressions')
+    exprs['expressions'] = exprs['expressions'].str.join(' + ')
+    ldf = ldf.join(exprs.set_index(['index', 'fun_name']),
+                   on=['index', 'fun_name'])
+
     def fun(x):
         return x['t'] if nm.isfinite(x['t']).all() else [nm.nan] * x['repeat']
     ldf['t'] = ldf.apply(fun, axis=1)
@@ -351,9 +359,10 @@ def _collect_mem_usages(df, ldf, data):
 
 def _create_fdf(ldf):
     gbf = ldf.groupby('fun_name')
-    fdf = get_groupby_stats(gbf, 'trank')
-    _fdf = get_groupby_stats(gbf, 'rtmean')
-    fdf = pd.concat((fdf, _fdf), axis=1)
+    fdf = gbf['expressions'].apply(lambda x: x.iloc[0])
+    _fdf1 = get_groupby_stats(gbf, 'trank')
+    _fdf2 = get_groupby_stats(gbf, 'rtmean')
+    fdf = pd.concat((fdf, _fdf1, _fdf2), axis=1)
     is_mem = 'mmean' in ldf
     if is_mem:
         _fdf1 = get_groupby_stats(gbf, 'mrank')
