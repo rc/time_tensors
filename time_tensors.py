@@ -782,6 +782,8 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
 
     tdf = data.tdf
 
+    df = df.set_index(['term_name', 'n_cell', 'order'])
+
     select = {}
     select['fun_name'] = tdf['fun_name'].unique()
     styles = {}
@@ -793,15 +795,19 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
     is_mems = 'mmeans' in tdf
     fig, axs = plt.subplots(1 + is_mems, figsize=figsize,
                             sharex=True, squeeze=False)
-    for ifig, (term_name, n_cell, order) in enumerate(
+    for ifig, selection in enumerate(
             product(data.term_names, data.n_cell, data.orders)
     ):
+        if not selection in df.index: continue
+
+        term_name, n_cell, order = selection
         output(term_name, n_cell, order)
 
-        tsdf = tdf[(tdf['index'] == ifig)]
+        ig = df.index.get_loc(selection)
+        tsdf = tdf[(tdf['index'] == ig)]
         if not len(tsdf): continue
 
-        n_dof = df.loc[ifig, 'n_dof']
+        n_dof = df.loc[selection, 'n_dof']
         if nm.isfinite(n_dof):
             n_dof = int(n_dof)
 
@@ -862,7 +868,7 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
         plt.tight_layout()
         filename = (prefix
                     + '{}-{:03d}-{:03d}-{}-{}-{}-{}-{}'
-                    .format(data.fun_hash[:8], len(vx), ifig,
+                    .format(data.fun_hash[:8], len(vx), ig,
                             term_name, diff, n_cell, order, yscale)
                     + suffix)
         fig.savefig(os.path.join(data.output_dir, filename),
