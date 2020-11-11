@@ -195,6 +195,7 @@ def get_plugin_info():
     from soops.plugins import show_figures
 
     info = [
+        setup_uniques,
         collect_stats,
         select_data,
         setup_styles,
@@ -217,28 +218,27 @@ def get_stats(sdf, key, min_val=0.0):
 
     return means, emins, emaxs
 
-def collect_stats(df, data=None):
-    import soops.ioutils as io
+def get_groupby_stats(gb, key):
+    vals = gb[key]
+    prefix = key
+    ckeys = ['min', 'max', 'mean', 'std', 'vals']
+    gdf = pd.concat((vals.min(), vals.max(), vals.mean(), vals.std(),
+                     vals.apply(lambda x: sorted(x))), axis=1,
+                    keys=[prefix + '_' + ckey for ckey in ckeys])
+    return gdf
 
-    tkeys = [key for key in df.keys() if key.startswith('t_')]
-
-    uniques = {key : val for key, val in data.par_uniques.items()
-               if key not in ['output_dir', 'max_mem']}
+def setup_uniques(df, data=None):
+    data.uniques = {key : val for key, val in data.par_uniques.items()
+                    if key not in ['output_dir', 'max_mem']}
     output('parameterization:')
-    for key, val in uniques.items():
+    for key, val in data.uniques.items():
         output(key, val)
 
-    data._fun_names = [tkey[2:] for tkey in tkeys]
-    data.uniques = uniques
+    return data
 
-    tdf = io.get_from_store(data.store_filename, 'plugin_tdf')
-    if tdf is not None:
-        output('using stored data')
-        data._tdf = tdf
-        return data
-
+def _create_tdf(df, tkeys, data):
     df['index'] = df.index
-    tdf = pd.melt(df, list(uniques.keys()) + ['index'], tkeys,
+    tdf = pd.melt(df, list(data.uniques.keys()) + ['index'], tkeys,
                   var_name='fun_name', value_name='t')
     tdf['fun_name'] = tdf['fun_name'].str[2:] # Strip 't_'.
 
@@ -250,19 +250,25 @@ def collect_stats(df, data=None):
     if fts is not None:
         df = pd.concat([df, fts], axis=1)
 
-    mmeans, memins, memaxs = get_stats(tdf, 'mem')
     for key, val in zip(('tmean', 'temin', 'temax'), get_stats(tdf, 't')):
         tdf[key] = val
     tdf['trank'] = len(tdf)
+    tdf['rtmean'] = nm.nan
     if fts is not None:
         for key, val in zip(('mmean', 'memin', 'memax'),
-                            get_stats(tdf, 'mem')):
+                            get_stats(tdf, 'mem', min_val=0.1)):
             tdf[key] = val
         tdf['mrank'] = len(tdf)
+        tdf['rmmean'] = nm.nan
 
     is_mem = 'mmean' in tdf
 
     df = df.set_index(['term_name', 'n_cell', 'order'])
+    gbf = tdf.groupby('fun_name')
+    ref_tmeans = gbf.get_group('sfepy_term')['tmean']
+    if is_mem:
+        ref_mmeans = gbf.get_group('sfepy_term')['mmean']
+
     for ig in range(len(df)):
         mask = tdf['index'] == ig
         tmeans = tdf.loc[mask, 'tmean'].values
@@ -270,29 +276,16 @@ def collect_stats(df, data=None):
         rank = nm.empty_like(ii)
         rank[ii] = nm.arange(len(ii))
         tdf.loc[mask, 'trank'] = rank
+        tdf.loc[mask, 'rtmean'] = tmeans / ref_tmeans[ig]
         if is_mem:
             mmeans = tdf.loc[mask, 'mmean'].values
             ii = nm.argsort(mmeans)
             rank = nm.empty_like(ii)
             rank[ii] = nm.arange(len(ii))
             tdf.loc[mask, 'mrank'] = rank
+            tdf.loc[mask, 'rmmean'] = mmeans / ref_mmeans[ig]
 
-    gbf = tdf.groupby('fun_name')
-    rs = gbf.trank
-    frdf = pd.concat((rs.min(), rs.max(), rs.mean(), rs.std(),
-                      rs.apply(lambda x: sorted(x))), axis=1,
-                     keys=['tmin', 'tmax', 'tmean', 'tstd', 'tranks'])
-        rs = gbf.mrank
-        _frdf = pd.concat((rs.min(), rs.max(), rs.mean(), rs.std(),
-                           rs.apply(lambda x: sorted(x))), axis=1,
-                          keys=['mmin', 'mmax', 'mmean', 'mstd', 'mranks'])
-        frdf = pd.concat((frdf, _frdf), axis=1)
-    if is_mem:
-
-    io.put_to_store(data.store_filename, 'plugin_tdf', tdf)
-
-    data._tdf = tdf
-    return data
+    return tdf
 
 def _collect_mem_usages(df, tdf, data):
     if 'func_timestamp' not in df:
@@ -355,6 +348,45 @@ def _collect_mem_usages(df, tdf, data):
         mems.append(_mems)
 
     return ts, mems, fts
+
+def _create_fdf(tdf):
+    gbf = tdf.groupby('fun_name')
+    fdf = get_groupby_stats(gbf, 'trank')
+    _fdf = get_groupby_stats(gbf, 'rtmean')
+    fdf = pd.concat((fdf, _fdf), axis=1)
+    is_mem = 'mmean' in tdf
+    if is_mem:
+        _fdf1 = get_groupby_stats(gbf, 'mrank')
+        _fdf2 = get_groupby_stats(gbf, 'rmmean')
+        fdf = pd.concat((fdf, _fdf1, _fdf2), axis=1)
+
+    return fdf
+
+def collect_stats(df, data=None):
+    import soops.ioutils as io
+
+    tkeys = [key for key in df.keys() if key.startswith('t_')]
+    data._fun_names = [tkey[2:] for tkey in tkeys]
+
+    tdf = io.get_from_store(data.store_filename, 'plugin_tdf')
+    if tdf is not None:
+        output('using stored tdf')
+        data._tdf = tdf
+
+    else:
+        data._tdf = _create_tdf(df, tkeys, data)
+        io.put_to_store(data.store_filename, 'plugin_tdf', data._tdf)
+
+    fdf = io.get_from_store(data.store_filename, 'plugin_fdf')
+    if fdf is not None:
+        output('using stored fdf')
+        data._fdf = fdf
+
+    else:
+        data._fdf = _create_fdf(data._tdf)
+        io.put_to_store(data.store_filename, 'plugin_fdf', data._fdf)
+
+    return data
 
 def select_data(df, data=None, term_names=None, n_cell=None, orders=None,
                 functions=None):
