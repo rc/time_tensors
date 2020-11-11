@@ -397,6 +397,7 @@ def select_data(df, data=None, term_names=None, n_cell=None, orders=None,
     if functions is None:
         data.fun_names = data._fun_names
         data.ldf = data._ldf
+        data.fdf = data._fdf
 
     else:
         fun_match = re.compile('|'.join(functions)).match
@@ -404,6 +405,9 @@ def select_data(df, data=None, term_names=None, n_cell=None, orders=None,
 
         indexer = data._ldf['fun_name'].isin(data.fun_names)
         data.ldf = data._ldf[indexer]
+
+        indexer = data._fdf.index.isin(data.fun_names)
+        data.fdf = data._fdf[indexer]
 
     data.fun_hash = hashlib.sha256(''.join(data.fun_names)
                                    .encode('utf-8')).hexdigest()
