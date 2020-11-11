@@ -236,58 +236,58 @@ def setup_uniques(df, data=None):
 
     return data
 
-def _create_tdf(df, tkeys, data):
+def _create_ldf(df, tkeys, data):
     df['index'] = df.index
-    tdf = pd.melt(df, list(data.uniques.keys()) + ['index'], tkeys,
+    ldf = pd.melt(df, list(data.uniques.keys()) + ['index'], tkeys,
                   var_name='fun_name', value_name='t')
-    tdf['fun_name'] = tdf['fun_name'].str[2:] # Strip 't_'.
+    ldf['fun_name'] = ldf['fun_name'].str[2:] # Strip 't_'.
 
     def fun(x):
         return x['t'] if nm.isfinite(x['t']).all() else [nm.nan] * x['repeat']
-    tdf['t'] = tdf.apply(fun, axis=1)
+    ldf['t'] = ldf.apply(fun, axis=1)
 
-    tdf['ts'], tdf['mem'], fts = _collect_mem_usages(df, tdf, data)
+    ldf['ts'], ldf['mem'], fts = _collect_mem_usages(df, ldf, data)
     if fts is not None:
         df = pd.concat([df, fts], axis=1)
 
-    for key, val in zip(('tmean', 'temin', 'temax'), get_stats(tdf, 't')):
-        tdf[key] = val
-    tdf['trank'] = len(tdf)
-    tdf['rtmean'] = nm.nan
+    for key, val in zip(('tmean', 'temin', 'temax'), get_stats(ldf, 't')):
+        ldf[key] = val
+    ldf['trank'] = len(ldf)
+    ldf['rtmean'] = nm.nan
     if fts is not None:
         for key, val in zip(('mmean', 'memin', 'memax'),
-                            get_stats(tdf, 'mem', min_val=0.1)):
-            tdf[key] = val
-        tdf['mrank'] = len(tdf)
-        tdf['rmmean'] = nm.nan
+                            get_stats(ldf, 'mem', min_val=0.1)):
+            ldf[key] = val
+        ldf['mrank'] = len(ldf)
+        ldf['rmmean'] = nm.nan
 
-    is_mem = 'mmean' in tdf
+    is_mem = 'mmean' in ldf
 
     df = df.set_index(['term_name', 'n_cell', 'order'])
-    gbf = tdf.groupby('fun_name')
+    gbf = ldf.groupby('fun_name')
     ref_tmeans = gbf.get_group('sfepy_term')['tmean']
     if is_mem:
         ref_mmeans = gbf.get_group('sfepy_term')['mmean']
 
     for ig in range(len(df)):
-        mask = tdf['index'] == ig
-        tmeans = tdf.loc[mask, 'tmean'].values
+        mask = ldf['index'] == ig
+        tmeans = ldf.loc[mask, 'tmean'].values
         ii = nm.argsort(tmeans)
         rank = nm.empty_like(ii)
         rank[ii] = nm.arange(len(ii))
-        tdf.loc[mask, 'trank'] = rank
-        tdf.loc[mask, 'rtmean'] = tmeans / ref_tmeans[ig]
+        ldf.loc[mask, 'trank'] = rank
+        ldf.loc[mask, 'rtmean'] = tmeans / ref_tmeans[ig]
         if is_mem:
-            mmeans = tdf.loc[mask, 'mmean'].values
+            mmeans = ldf.loc[mask, 'mmean'].values
             ii = nm.argsort(mmeans)
             rank = nm.empty_like(ii)
             rank[ii] = nm.arange(len(ii))
-            tdf.loc[mask, 'mrank'] = rank
-            tdf.loc[mask, 'rmmean'] = mmeans / ref_mmeans[ig]
+            ldf.loc[mask, 'mrank'] = rank
+            ldf.loc[mask, 'rmmean'] = mmeans / ref_mmeans[ig]
 
-    return tdf
+    return ldf
 
-def _collect_mem_usages(df, tdf, data):
+def _collect_mem_usages(df, ldf, data):
     if 'func_timestamp' not in df:
         output('no memory profiling data!')
         return nm.nan, nm.nan, None
@@ -310,17 +310,17 @@ def _collect_mem_usages(df, tdf, data):
     fts['index'] = df.index
     mdf = pd.melt(fts, ['index'], mkeys, var_name='fun_name', value_name='ts')
     mdf['fun_name'] = mdf['fun_name'].str[2:] # Strip 'm_'.
-    if (tdf[['index', 'fun_name']] != mdf[['index', 'fun_name']]).any().any():
+    if (ldf[['index', 'fun_name']] != mdf[['index', 'fun_name']]).any().any():
         raise RuntimeError('pd.melt() failed!')
 
     ts = mdf['ts']
 
     df = df.set_index(['term_name', 'n_cell', 'order'])
 
-    tdfcols = tdf[['term_name', 'n_cell', 'order', 'fun_name']]
+    ldfcols = ldf[['term_name', 'n_cell', 'order', 'fun_name']]
 
     mems = []
-    for irow, (term_name, n_cell, order, fun_name) in enumerate(tdfcols.values):
+    for irow, (term_name, n_cell, order, fun_name) in enumerate(ldfcols.values):
         drow = df.loc[term_name, n_cell, order]
         repeat = drow['repeat']
         mu = nm.array(drow['mem_usage'])
@@ -349,12 +349,12 @@ def _collect_mem_usages(df, tdf, data):
 
     return ts, mems, fts
 
-def _create_fdf(tdf):
-    gbf = tdf.groupby('fun_name')
+def _create_fdf(ldf):
+    gbf = ldf.groupby('fun_name')
     fdf = get_groupby_stats(gbf, 'trank')
     _fdf = get_groupby_stats(gbf, 'rtmean')
     fdf = pd.concat((fdf, _fdf), axis=1)
-    is_mem = 'mmean' in tdf
+    is_mem = 'mmean' in ldf
     if is_mem:
         _fdf1 = get_groupby_stats(gbf, 'mrank')
         _fdf2 = get_groupby_stats(gbf, 'rmmean')
@@ -368,14 +368,14 @@ def collect_stats(df, data=None):
     tkeys = [key for key in df.keys() if key.startswith('t_')]
     data._fun_names = [tkey[2:] for tkey in tkeys]
 
-    tdf = io.get_from_store(data.store_filename, 'plugin_tdf')
-    if tdf is not None:
-        output('using stored tdf')
-        data._tdf = tdf
+    ldf = io.get_from_store(data.store_filename, 'plugin_ldf')
+    if ldf is not None:
+        output('using stored ldf')
+        data._ldf = ldf
 
     else:
-        data._tdf = _create_tdf(df, tkeys, data)
-        io.put_to_store(data.store_filename, 'plugin_tdf', data._tdf)
+        data._ldf = _create_ldf(df, tkeys, data)
+        io.put_to_store(data.store_filename, 'plugin_ldf', data._ldf)
 
     fdf = io.get_from_store(data.store_filename, 'plugin_fdf')
     if fdf is not None:
@@ -383,7 +383,7 @@ def collect_stats(df, data=None):
         data._fdf = fdf
 
     else:
-        data._fdf = _create_fdf(data._tdf)
+        data._fdf = _create_fdf(data._ldf)
         io.put_to_store(data.store_filename, 'plugin_fdf', data._fdf)
 
     return data
@@ -396,14 +396,14 @@ def select_data(df, data=None, term_names=None, n_cell=None, orders=None,
     data.orders = data.par_uniques['order'] if orders is None else orders
     if functions is None:
         data.fun_names = data._fun_names
-        data.tdf = data._tdf
+        data.ldf = data._ldf
 
     else:
         fun_match = re.compile('|'.join(functions)).match
         data.fun_names = [fun for fun in data._fun_names if fun_match(fun)]
 
-        indexer = data._tdf['fun_name'].isin(data.fun_names)
-        data.tdf = data._tdf[indexer]
+        indexer = data._ldf['fun_name'].isin(data.fun_names)
+        data.ldf = data._ldf[indexer]
 
     data.fun_hash = hashlib.sha256(''.join(data.fun_names)
                                    .encode('utf-8')).hexdigest()
@@ -844,19 +844,19 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
     import soops.plot_selected as sps
     import matplotlib.pyplot as plt
 
-    tdf = data.tdf
+    ldf = data.ldf
 
     df = df.set_index(['term_name', 'n_cell', 'order'])
 
     select = {}
-    select['fun_name'] = tdf['fun_name'].unique()
+    select['fun_name'] = ldf['fun_name'].unique()
     styles = {}
     styles['fun_name'] = {'color' : colormap_name}
 
     styles = sps.setup_plot_styles(select, styles)
     colors = styles['fun_name']['color']
 
-    is_mem = 'mmean' in tdf
+    is_mem = 'mmean' in ldf
     fig, axs = plt.subplots(1 + is_mem, figsize=figsize,
                             sharex=True, squeeze=False)
     for ifig, selection in enumerate(
@@ -868,17 +868,17 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
         output(term_name, n_cell, order)
 
         ig = df.index.get_loc(selection)
-        tsdf = tdf[(tdf['index'] == ig)]
-        if not len(tsdf): continue
+        sdf = ldf[(ldf['index'] == ig)]
+        if not len(sdf): continue
 
         n_dof = df.loc[selection, 'n_dof']
         if nm.isfinite(n_dof):
             n_dof = int(n_dof)
 
-        vx = tsdf['fun_name']
-        tstats = tsdf[['tmean', 'temin', 'temax']].values.T
+        vx = sdf['fun_name']
+        tstats = sdf[['tmean', 'temin', 'temax']].values.T
         if is_mem:
-            mstats = tsdf[['mmean', 'memin', 'memax']].values.T
+            mstats = sdf[['mmean', 'memin', 'memax']].values.T
 
         if sort == 'time':
             ii = nm.argsort(tstats[0])
@@ -897,7 +897,7 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
 
         xs = nm.arange(len(vx))
 
-        diff = tsdf['diff'].values[0]
+        diff = sdf['diff'].values[0]
         if diff is None: diff = '-'
 
         ax = axs[0, 0]
