@@ -208,6 +208,14 @@ def get_plugin_info():
 
     return info
 
+def get_stats(sdf, key):
+    vals = sdf[key].to_list()
+    means = nm.nanmean(vals, axis=1)
+    emins = means - nm.nanmin(vals, axis=1)
+    emaxs = nm.nanmax(vals, axis=1) - means
+
+    return means, emins, emaxs
+
 def collect_stats(df, data=None):
     import soops.ioutils as io
 
@@ -237,31 +245,32 @@ def collect_stats(df, data=None):
         return x['t'] if nm.isfinite(x['t']).all() else [nm.nan] * x['repeat']
     tdf['t'] = tdf.apply(fun, axis=1)
 
-    tdf['ts'], tdf['mems'], fts = _collect_mem_usages(df, tdf, data)
+    tdf['ts'], tdf['mem'], fts = _collect_mem_usages(df, tdf, data)
     if fts is not None:
         df = pd.concat([df, fts], axis=1)
 
-    mmeans, memins, memaxs = get_stats(tdf, 'mems')
-    for key, val in zip(('tmeans', 'temins', 'temaxs'), get_stats(tdf, 't')):
+    mmeans, memins, memaxs = get_stats(tdf, 'mem')
+    for key, val in zip(('tmean', 'temin', 'temax'), get_stats(tdf, 't')):
         tdf[key] = val
     tdf['trank'] = len(tdf)
     if fts is not None:
-        for key, val in zip(('mmeans', 'memins', 'memaxs'),
-                            get_stats(tdf, 'mems')):
+        for key, val in zip(('mmean', 'memin', 'memax'),
+                            get_stats(tdf, 'mem')):
             tdf[key] = val
         tdf['mrank'] = len(tdf)
 
+    is_mem = 'mmean' in tdf
+
     df = df.set_index(['term_name', 'n_cell', 'order'])
-    is_mems = 'mmeans' in tdf
     for ig in range(len(df)):
         mask = tdf['index'] == ig
-        tmeans = tdf.loc[mask, 'tmeans'].values
+        tmeans = tdf.loc[mask, 'tmean'].values
         ii = nm.argsort(tmeans)
         rank = nm.empty_like(ii)
         rank[ii] = nm.arange(len(ii))
         tdf.loc[mask, 'trank'] = rank
-        if is_mems:
-            mmeans = tdf.loc[mask, 'mmeans'].values
+        if is_mem:
+            mmeans = tdf.loc[mask, 'mmean'].values
             ii = nm.argsort(mmeans)
             rank = nm.empty_like(ii)
             rank[ii] = nm.arange(len(ii))
@@ -272,12 +281,12 @@ def collect_stats(df, data=None):
     frdf = pd.concat((rs.min(), rs.max(), rs.mean(), rs.std(),
                       rs.apply(lambda x: sorted(x))), axis=1,
                      keys=['tmin', 'tmax', 'tmean', 'tstd', 'tranks'])
-    if is_mems:
         rs = gbf.mrank
         _frdf = pd.concat((rs.min(), rs.max(), rs.mean(), rs.std(),
                            rs.apply(lambda x: sorted(x))), axis=1,
                           keys=['mmin', 'mmax', 'mmean', 'mstd', 'mranks'])
         frdf = pd.concat((frdf, _frdf), axis=1)
+    if is_mem:
 
     io.put_to_store(data.store_filename, 'plugin_tdf', tdf)
 
@@ -531,14 +540,6 @@ def get_yticks(mi, ma, yscale):
         yticks = nm.logspace(nm.log10(mi), nm.log10(ma), 3)
 
     return yticks
-
-def get_stats(sdf, key):
-    vals = sdf[key].to_list()
-    means = nm.nanmean(vals, axis=1)
-    emins = means - nm.nanmin(vals, axis=1)
-    emaxs = nm.nanmax(vals, axis=1) - means
-
-    return means, emins, emaxs
 
 def plot_all_as_bars(df, data=None, tcolormap_name='viridis',
                      mcolormap_name='plasma', yscale='log',
@@ -822,8 +823,8 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
     styles = sps.setup_plot_styles(select, styles)
     colors = styles['fun_name']['color']
 
-    is_mems = 'mmeans' in tdf
-    fig, axs = plt.subplots(1 + is_mems, figsize=figsize,
+    is_mem = 'mmean' in tdf
+    fig, axs = plt.subplots(1 + is_mem, figsize=figsize,
                             sharex=True, squeeze=False)
     for ifig, selection in enumerate(
             product(data.term_names, data.n_cell, data.orders)
@@ -842,14 +843,14 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
             n_dof = int(n_dof)
 
         vx = tsdf['fun_name']
-        tstats = tsdf[['tmeans', 'temins', 'temaxs']].values.T
-        if is_mems:
-            mstats = tsdf[['mmeans', 'memins', 'memaxs']].values.T
+        tstats = tsdf[['tmean', 'temin', 'temax']].values.T
+        if is_mem:
+            mstats = tsdf[['mmean', 'memin', 'memax']].values.T
 
         if sort == 'time':
             ii = nm.argsort(tstats[0])
 
-        elif (sort == 'memory') and is_mems:
+        elif (sort == 'memory') and is_mem:
             ii = nm.argsort(mstats[0])
 
         if sort != 'none':
@@ -858,7 +859,7 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
 
             vx = vx.iloc[ii]
             tstats = tstats[:, ii]
-            if is_mems:
+            if is_mem:
                 mstats = mstats[:, ii]
 
         xs = nm.arange(len(vx))
@@ -878,7 +879,7 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
         ax.set_yscale(yscale)
         ax.set_ylabel('time [s]')
 
-        if is_mems:
+        if is_mem:
             ax.xaxis.set_visible(False)
 
             ax = axs[1, 0]
