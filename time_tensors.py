@@ -244,10 +244,40 @@ def collect_stats(df, data=None):
     mmeans, memins, memaxs = get_stats(tdf, 'mems')
     for key, val in zip(('tmeans', 'temins', 'temaxs'), get_stats(tdf, 't')):
         tdf[key] = val
+    tdf['trank'] = len(tdf)
     if fts is not None:
         for key, val in zip(('mmeans', 'memins', 'memaxs'),
                             get_stats(tdf, 'mems')):
             tdf[key] = val
+        tdf['mrank'] = len(tdf)
+
+    df = df.set_index(['term_name', 'n_cell', 'order'])
+    is_mems = 'mmeans' in tdf
+    for ig in range(len(df)):
+        mask = tdf['index'] == ig
+        tmeans = tdf.loc[mask, 'tmeans'].values
+        ii = nm.argsort(tmeans)
+        rank = nm.empty_like(ii)
+        rank[ii] = nm.arange(len(ii))
+        tdf.loc[mask, 'trank'] = rank
+        if is_mems:
+            mmeans = tdf.loc[mask, 'mmeans'].values
+            ii = nm.argsort(mmeans)
+            rank = nm.empty_like(ii)
+            rank[ii] = nm.arange(len(ii))
+            tdf.loc[mask, 'mrank'] = rank
+
+    gbf = tdf.groupby('fun_name')
+    rs = gbf.trank
+    frdf = pd.concat((rs.min(), rs.max(), rs.mean(), rs.std(),
+                      rs.apply(lambda x: sorted(x))), axis=1,
+                     keys=['tmin', 'tmax', 'tmean', 'tstd', 'tranks'])
+    if is_mems:
+        rs = gbf.mrank
+        _frdf = pd.concat((rs.min(), rs.max(), rs.mean(), rs.std(),
+                           rs.apply(lambda x: sorted(x))), axis=1,
+                          keys=['mmin', 'mmax', 'mmean', 'mstd', 'mranks'])
+        frdf = pd.concat((frdf, _frdf), axis=1)
 
     io.put_to_store(data.store_filename, 'plugin_tdf', tdf)
 
