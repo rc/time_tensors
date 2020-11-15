@@ -242,7 +242,8 @@ def _create_ldf(df, tkeys, data):
                   var_name='fun_name', value_name='t')
     ldf['fun_name'] = ldf['fun_name'].str[2:] # Strip 't_'.
 
-    aux = pd.json_normalize(df['expressions'])
+    raw_ex = df['expressions']
+    aux = pd.json_normalize(raw_ex.where(raw_ex.notna(), lambda x: [{}]))
     aux['index'] = df.index
     exprs = pd.melt(aux, ['index'],
                     var_name='fun_name', value_name='expressions')
