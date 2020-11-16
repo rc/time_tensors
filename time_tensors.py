@@ -6,6 +6,7 @@ import sys
 sys.path.append('.')
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 import os
+import shutil
 os.environ['OMP_NUM_THREADS'] = '1'
 os.environ['OPENBLAS_NUM_THREADS'] = '1'
 os.environ['MKL_NUM_THREADS'] = '1'
@@ -197,6 +198,7 @@ def get_plugin_info():
     info = [
         setup_uniques,
         collect_stats,
+        remove_raw_df_data,
         select_data,
         setup_styles,
         plot_times,
@@ -397,6 +399,23 @@ def collect_stats(df, data=None):
         io.put_to_store(data.store_filename, 'plugin_fdf', data._fdf)
 
     return data
+
+def remove_raw_df_data(df, data=None):
+    import soops.ioutils as io
+
+    output('df column memory sizes:')
+    mus = df.memory_usage(deep=True)
+    output(mus[mus.values.argsort()])
+
+    if io.is_in_store(data.store_filename, ('plugin_ldf', 'plugin_fdf')):
+        if df.iloc[0]['timestamp'] != 'removed':
+            backup_name = io.edit_filename(data.store_filename, suffix='-orig')
+            shutil.copy2(data.store_filename, backup_name)
+
+            df[['timestamp', 'mem_usage']] = 'removed'
+
+            io.put_to_store(data.store_filename, 'df', df)
+            io.repack_store(data.store_filename)
 
 def select_data(df, data=None, term_names=None, n_cell=None, orders=None,
                 functions=None):
