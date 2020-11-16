@@ -213,7 +213,7 @@ def get_plugin_info():
 
 def get_stats(sdf, key, min_val=0.0):
     vals = nm.array(sdf[key].to_list())
-    vals = nm.where(vals > min_val, vals, min_val)
+    vals = nm.where((vals < min_val) & (nm.isfinite(vals)), min_val, vals)
     means = nm.nanmean(vals, axis=1)
     emins = means - nm.nanmin(vals, axis=1)
     emaxs = nm.nanmax(vals, axis=1) - means
