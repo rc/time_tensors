@@ -1044,7 +1044,8 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect',
 
     mesh, domain, subs, omega = create_domain(n_cell, refine, timer)
 
-    if (term_name in ('dw_convect', 'dw_div', 'dw_lin_elastic')
+    if (term_name in ('dw_convect', 'dw_div', 'dw_lin_elastic',
+                      'ev_cauchy_stress')
         or ('vector' in variant)):
         n_c = mesh.dim
 
@@ -1063,12 +1064,13 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect',
     v = FieldVariable('v', 'test', field, primary_var_name='u')
     output('create variables: {} s'.format(timer.stop()))
 
-    if term_name in ('dw_lin_elastic',) or ('material' in variant):
+    if (term_name in ('dw_lin_elastic', 'ev_cauchy_stress')
+        or ('material' in variant)):
         timer.start()
         if term_name == 'dw_volume_dot':
             mat = Material('m', val=nm.ones((n_c, n_c), dtype=nm.float64))
 
-        elif term_name == 'dw_lin_elastic':
+        elif term_name in ('dw_lin_elastic', 'ev_cauchy_stress'):
             mat = Material('m', D=stiffness_from_lame(dim=3, lam=2.0, mu=1.0))
 
         else:
@@ -1130,6 +1132,15 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect',
 
             else:
                 term = Term.new('dw_{}lin_elastic(m.D, u, u)'.format(prefix),
+                                integral=integral,
+                                region=omega, m=mat, u=u)
+
+        elif term_name == 'ev_cauchy_stress':
+            if eval_mode == 'weak':
+                raise ValueError(term_name, eval_mode)
+
+            else:
+                term = Term.new('ev_{}cauchy_stress(m.D, u)'.format(prefix),
                                 integral=integral,
                                 region=omega, m=mat, u=u)
 
@@ -2558,7 +2569,8 @@ def main():
     parser.add_argument('-t', '--term-name',
                         action='store', dest='term_name',
                         choices=['dw_convect', 'dw_laplace', 'dw_volume_dot',
-                                 'dw_div', 'dw_stokes', 'dw_lin_elastic'],
+                                 'dw_div', 'dw_stokes', 'dw_lin_elastic',
+                                 'ev_cauchy_stress'],
                         default='dw_convect', help=helps['term_name'])
     parser.add_argument('--eval-mode',
                         action='store', dest='eval_mode',
