@@ -2485,14 +2485,23 @@ def get_evals_sfepy(options, term, eterm,
 
     return evaluators
 
+def modify_variables(variables, variables0, ir=0):
+    for var, var0 in zip(variables, variables0):
+        if var.data is not None:
+            var.invalidate_evaluate_cache()
+            var.data[0][:] = var0.data[0] * (ir + 1)
+
 def run_evaluator(key, fun, arg_no, can_use, options, timer,
-                  ref_res=None):
+                  variables=None, variables0=None, ref_res=None):
     output('term evaluation function:', key)
     stats = {}
     times = stats.setdefault('t_' + key, [])
     norms = stats.setdefault('norm_' + key, [])
     rnorms = stats.setdefault('rnorm_' + key, [])
     for ir in range(options.repeat):
+        if variables is not None:
+            modify_variables(variables, variables0, ir=ir)
+
         timer.start()
         res = fun()[arg_no]
         times.append(timer.stop())
@@ -2785,11 +2794,20 @@ def main():
 
     all_stats = {}
 
+    variables = term.get_variables()
+    variables0 = []
+    for var in variables:
+        var0 = var.copy()
+        var0.data = var.data.copy()
+        var0.data[0] = var.data[0].copy()
+        variables0.append(var0)
+
     if not options.micro:
         key = 'sfepy_term'
         fun, arg_no, can_use = evaluators.pop(key)
         stats, ref_res = run_evaluator(key, fun, arg_no, can_use, options,
-                                       timer)
+                                       timer, variables=variables,
+                                       variables0=variables0)
         all_stats.update(stats)
 
         if options.layout == 'F':
@@ -2832,6 +2850,7 @@ def main():
 
         try:
             stats, _ = run_evaluator(key, fun, arg_no, can_use, options, timer,
+                                     variables=variables, variables0=variables0,
                                      ref_res=ref_res)
 
         except KeyboardInterrupt:
