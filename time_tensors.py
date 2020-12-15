@@ -2489,7 +2489,8 @@ def modify_variables(variables, variables0, ir=0):
     for var, var0 in zip(variables, variables0):
         if var.data is not None:
             var.invalidate_evaluate_cache()
-            var.data[0][:] = var0.data[0] * (ir + 1)
+            if var.data[0] is not None:
+                var.data[0][:] = var0.data[0] * (ir + 1)
 
 def run_evaluator(key, fun, arg_no, can_use, options, timer,
                   variables=None, variables0=None, ref_res=None):
@@ -2799,7 +2800,8 @@ def main():
     for var in variables:
         var0 = var.copy()
         var0.data = var.data.copy()
-        var0.data[0] = var.data[0].copy()
+        if var.data[0] is not None:
+            var0.data[0] = var.data[0].copy()
         variables0.append(var0)
 
     if not options.micro:
