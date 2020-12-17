@@ -16,6 +16,12 @@ os.environ['XLA_FLAGS'] = ('--xla_cpu_multi_thread_eigen=false '
                            'intra_op_parallelism_threads=1')
 import psutil
 
+try:
+    profile1 = profile
+
+except NameError:
+    profile1 = lambda x: x
+
 from functools import partial
 from itertools import product
 import gc
@@ -122,12 +128,14 @@ def get_scoop_info():
 
     return info
 
+@profile1
 def load_mprofile(filename, rdata=None):
     mdata = read_mprofile_file(filename)
     mdata.pop('children')
     mdata.pop('cmd_line')
     return mdata
 
+@profile1
 def scrape_output(filename, rdata=None):
     import soops.ioutils as io
     from ast import literal_eval
@@ -238,6 +246,7 @@ def setup_uniques(df, data=None):
 
     return data
 
+@profile1
 def _create_ldf(df, tkeys, data):
     df['index'] = df.index
     ldf = pd.melt(df, list(data.uniques.keys()) + ['index'], tkeys,
@@ -298,6 +307,7 @@ def _create_ldf(df, tkeys, data):
 
     return ldf
 
+@profile1
 def _collect_mem_usages(df, ldf, data):
     if 'func_timestamp' not in df:
         output('no memory profiling data!')
@@ -374,6 +384,7 @@ def _create_fdf(ldf):
 
     return fdf
 
+@profile1
 def collect_stats(df, data=None):
     import soops.ioutils as io
 
@@ -400,6 +411,7 @@ def collect_stats(df, data=None):
 
     return data
 
+@profile1
 def remove_raw_df_data(df, data=None):
     import soops.ioutils as io
 
@@ -417,6 +429,7 @@ def remove_raw_df_data(df, data=None):
             io.put_to_store(data.store_filename, 'df', df)
             io.repack_store(data.store_filename)
 
+@profile1
 def select_data(df, data=None, term_names=None, n_cell=None, orders=None,
                 functions=None):
     data.term_names = (data.par_uniques['term_name']
@@ -871,6 +884,7 @@ def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
     fig.savefig(os.path.join(data.output_dir, prefix + 'all_bars2' + suffix),
                 bbox_inches='tight')
 
+@profile1
 def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
                      yscale='linear', figsize=(8, 6), prefix='', suffix='.png',
                      sort='time', number=None):
