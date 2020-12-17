@@ -205,6 +205,7 @@ def get_plugin_info():
 
     info = [
         setup_uniques,
+        check_rnorms,
         collect_stats,
         remove_raw_df_data,
         select_data,
@@ -245,6 +246,12 @@ def setup_uniques(df, data=None):
         output(key, val)
 
     return data
+
+def check_rnorms(df, data=None):
+    sdf = df.filter(regex='rnorm.*')
+    rnorms = nm.array(sdf.values.tolist())
+    output(rnorms.max(0).max(0))
+    output(rnorms.min(0).min(0))
 
 @profile1
 def _create_ldf(df, tkeys, data):
