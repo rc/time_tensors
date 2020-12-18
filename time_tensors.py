@@ -253,8 +253,11 @@ def setup_uniques(df, data=None):
 def check_rnorms(df, data=None):
     sdf = df.filter(regex='rnorm.*')
     rnorms = nm.array(sdf.values.tolist())
-    output(rnorms.max(0).max(0))
-    output(rnorms.min(0).min(0))
+    rmax = rnorms.max(0).max(0)
+    rmin = rnorms.min(0).min(0)
+    output(rmax)
+    output(rmin)
+    output(rmax - rmin)
 
 @profile1
 def _create_ldf(df, tkeys, data):
