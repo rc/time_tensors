@@ -99,6 +99,7 @@ def get_run_info():
         '--eval-mode' : '--eval-mode={--eval-mode}',
         '--variant' : '--variant={--variant}',
         '--mem-layout' : '--mem-layout={--mem-layout}',
+        '--layouts' : '--layouts={--layouts}',
         '--diff' : '--diff={--diff}',
         '--select' : '--select={--select}',
         '--repeat' : '--repeat={--repeat}',
@@ -2391,6 +2392,68 @@ def get_evals_micro(options, term, eterm,
 
     return evaluators
 
+default_layouts = [
+    'cq0ijd',
+    'cq0jid',
+    'cq0dij',
+    'cq0dji',
+
+    'c0qijd',
+    'c0qjid',
+    'c0qdij',
+    'c0qdji',
+
+    '0cqijd',
+    '0cqjid',
+    '0cqdij',
+    '0cqdji',
+
+    'qc0ijd',
+    'qc0jid',
+    'qc0dij',
+    'qc0dji',
+
+    'q0cijd',
+    'q0cjid',
+    'q0cdij',
+    'q0cdji',
+
+    '0qcijd',
+    '0qcjid',
+    '0qcdij',
+    '0qcdji',
+
+    'ijdcq0',
+    'jidcq0',
+    'dijcq0',
+    'djicq0',
+
+    'ijdc0q',
+    'jidc0q',
+    'dijc0q',
+    'djic0q',
+
+    'ijd0cq',
+    'jid0cq',
+    'dij0cq',
+    'dji0cq',
+
+    'ijdqc0',
+    'jidqc0',
+    'dijqc0',
+    'djiqc0',
+
+    'ijdq0c',
+    'jidq0c',
+    'dijq0c',
+    'djiq0c',
+
+    'ijd0qc',
+    'jid0qc',
+    'dij0qc',
+    'dji0qc',
+]
+
 def get_evals_sfepy(options, term, eterm,
                     dets, qsb, qsbg, qvb, qvbg, state, adc, backend_args):
     if not options.mprof:
@@ -2416,7 +2479,6 @@ def get_evals_sfepy(options, term, eterm,
         'dask_single' : ['greedy', 'optimal'],
         'dask_threads' : ['greedy', 'optimal'],
     }
-    layouts = ['cqijd0', 'cqdij0', 'ijd0cq', 'dji0cq', 'ijd0qc', 'dji0qc']
 
     abbrevs = {
         'numpy' : 'np',
@@ -2470,7 +2532,7 @@ def get_evals_sfepy(options, term, eterm,
 
     can = terms_multilinear.ETermBase.can_backend
     for backend, optimizes in backends.items():
-        for optimize, layout in product(optimizes, layouts):
+        for optimize, layout in product(optimizes, options.layouts):
             name = 'eval_eterm_{}_{}_{}'.format(abbrevs[backend],
                                                 abbrevs[optimize],
                                                 layout)
@@ -2536,6 +2598,8 @@ helps = {
     : 'the term variant [default: %(default)s]',
     'mem_layout'
     : 'the numpy memory layout of term argument arrays [default: %(default)s]',
+    'layouts'
+    : 'ETermBase layouts of term argument arrays [default: %(default)s]',
     'diff'
     : 'if given, differentiate w.r.t. this variable [default: %(default)s]',
     'select'
@@ -2597,6 +2661,10 @@ def main():
                         action='store', dest='mem_layout',
                         choices=['C', 'F'],
                         default='C', help=helps['mem_layout'])
+    parser.add_argument('--layouts',
+                        action='store', dest='layouts',
+                        default=', '.join(default_layouts),
+                        help=helps['layouts'])
     parser.add_argument('--diff',
                         metavar='variable name',
                         action='store', dest='diff',
@@ -2644,6 +2712,7 @@ def main():
     if options.variant is None:
         options.variant = ''
 
+    options.layouts = so.parse_as_list(options.layouts, free_word=True)
     options.select = so.parse_as_list(options.select, free_word=True)
     options.backend_args = so.parse_as_dict(options.backend_args)
     options.affinity = so.parse_as_list(options.affinity)
