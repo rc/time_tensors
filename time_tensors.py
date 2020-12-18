@@ -102,6 +102,8 @@ def get_run_info():
         '--diff' : '--diff={--diff}',
         '--select' : '--select={--select}',
         '--repeat' : '--repeat={--repeat}',
+        '--backend-args' : '--backend-args={--backend-args}',
+        '--micro' : '--micro',
         '--affinity' : '--affinity={--affinity}',
         '--max-mem' : '--max-mem={--max-mem}',
         '--verbosity-eterm' : '--verbosity-eterm={--verbosity-eterm}',
