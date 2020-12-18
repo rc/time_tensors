@@ -98,7 +98,7 @@ def get_run_info():
         '--term-name' : '--term-name={--term-name}',
         '--eval-mode' : '--eval-mode={--eval-mode}',
         '--variant' : '--variant={--variant}',
-        '--layout' : '--layout={--layout}',
+        '--mem-layout' : '--mem-layout={--mem-layout}',
         '--diff' : '--diff={--diff}',
         '--select' : '--select={--select}',
         '--repeat' : '--repeat={--repeat}',
@@ -2534,8 +2534,8 @@ helps = {
     : 'the term evaluation mode [default: %(default)s]',
     'variant'
     : 'the term variant [default: %(default)s]',
-    'layout'
-    : 'the term argument arrays layout [default: %(default)s]',
+    'mem_layout'
+    : 'the numpy memory layout of term argument arrays [default: %(default)s]',
     'diff'
     : 'if given, differentiate w.r.t. this variable [default: %(default)s]',
     'select'
@@ -2593,10 +2593,10 @@ def main():
                                  'scalar-material', 'vector-material',
                                  'div', 'grad'],
                         default=None, help=helps['variant'])
-    parser.add_argument('--layout',
-                        action='store', dest='layout',
+    parser.add_argument('--mem-layout',
+                        action='store', dest='mem_layout',
                         choices=['C', 'F'],
-                        default='C', help=helps['layout'])
+                        default='C', help=helps['mem_layout'])
     parser.add_argument('--diff',
                         metavar='variable name',
                         action='store', dest='diff',
@@ -2818,7 +2818,7 @@ def main():
                                        variables0=variables0)
         all_stats.update(stats)
 
-        if options.layout == 'F':
+        if options.mem_layout == 'F':
             for iv, arg in enumerate(eterm.args):
                 if isinstance(arg, FieldVariable):
                     ag, _ = eterm.get_mapping(arg)
