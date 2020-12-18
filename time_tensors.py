@@ -2407,6 +2407,10 @@ def get_evals_sfepy(options, term, eterm,
         : ['dp:flops', 'dp:size', 'greedy', 'branch-2', 'auto', 'optimal'],
         'opt_einsum_loop'
         : ['dp:flops', 'dp:size', 'greedy', 'branch-2', 'auto', 'optimal'],
+        'opt_einsum_dask_single'
+        : ['dp:flops', 'greedy', 'optimal'],
+        'opt_einsum_dask_threads'
+        : ['dp:flops', 'greedy', 'optimal'],
         'jax' : ['greedy', 'optimal'],
         'jax_vmap' : ['greedy', 'optimal'],
         'dask_single' : ['greedy', 'optimal'],
@@ -2419,6 +2423,8 @@ def get_evals_sfepy(options, term, eterm,
         'numpy_loop' : 'npl',
         'opt_einsum' : 'oe',
         'opt_einsum_loop' : 'oel',
+        'opt_einsum_dask_single' : 'oedas',
+        'opt_einsum_dask_threads' : 'oedat',
         'jax' : 'jx',
         'jax_vmap' : 'jxv',
         'dask_single' : 'das',
@@ -2474,38 +2480,6 @@ def get_evals_sfepy(options, term, eterm,
 
             fun = _make_evaluator(backend, optimize, layout, name)
             evaluators[name[5:]] = (fun, 0, can[backend])
-
-    @profile
-    def eval_eterm_oe_dpf_das(c_chunk_size=10):
-        eterm.set_backend(
-            backend='opt_einsum_dask_single',
-            optimize='dynamic-programming',
-            c_chunk_size=c_chunk_size,
-        )
-        return eterm.evaluate(mode=options.eval_mode,
-                              diff_var=options.diff,
-                              standalone=False, ret_status=True)
-
-    @profile
-    def eval_eterm_oe_dpf_dat(c_chunk_size=10):
-        this = psutil.Process()
-        affinity = this.cpu_affinity()
-        this.cpu_affinity([])
-        eterm.set_backend(
-            backend='opt_einsum_dask_threads',
-            optimize='dynamic-programming',
-            c_chunk_size=c_chunk_size,
-        )
-        out = eterm.evaluate(mode=options.eval_mode,
-                             diff_var=options.diff,
-                             standalone=False, ret_status=True)
-        this.cpu_affinity(affinity)
-        return out
-
-    evaluators.update({
-        'eterm_oe_dpf_das' : (eval_eterm_oe_dpf_das, 0, oe and da),
-        'eterm_oe_dpf_dat' : (eval_eterm_oe_dpf_dat, 0, oe and da),
-    })
 
     return evaluators
 
