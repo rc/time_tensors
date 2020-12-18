@@ -2390,14 +2390,13 @@ def get_evals_micro(options, term, eterm,
     return evaluators
 
 def get_evals_sfepy(options, term, eterm,
-                    dets, qsb, qsbg, qvb, qvbg, state, adc):
+                    dets, qsb, qsbg, qvb, qvbg, state, adc, backend_args):
     if not options.mprof:
         def profile(fun):
             return fun
 
     else:
         profile = globals()['profile']
-
 
     backends = {
         'numpy' : ['greedy', 'optimal'],
@@ -2442,12 +2441,14 @@ def get_evals_sfepy(options, term, eterm,
     evaluators['sfepy_term'] =  (eval_sfepy_term, 0, True)
 
     def _make_evaluator(backend, optimize, layout, name):
+        bkwargs = backend_args.get(backend, {})
         def _eval_eterm():
             if 'threads' in backend:
                 this = psutil.Process()
                 affinity = this.cpu_affinity()
                 this.cpu_affinity([])
-            eterm.set_backend(backend=backend, optimize=optimize, layout=layout)
+            eterm.set_backend(backend=backend, optimize=optimize, layout=layout,
+                              **bkwargs)
             out = eterm.evaluate(mode=options.eval_mode,
                                  diff_var=options.diff,
                                  standalone=False, ret_status=True)
@@ -2563,6 +2564,9 @@ helps = {
     : 'if given, differentiate w.r.t. this variable [default: %(default)s]',
     'select'
     : ' evaluation functions selection [default: %(default)s]',
+    'backend_args'
+    :  """optional arguments passed to backends given as backend_name={key1=val1,
+          key2=val2, ...}, ...""",
     'repeat'
     : 'the number of term implementation evaluations [default: %(default)s]',
     'micro'
@@ -2628,6 +2632,9 @@ def main():
     parser.add_argument('--repeat', metavar='int', type=int,
                         action='store', dest='repeat',
                         default=1, help=helps['repeat'])
+    parser.add_argument('--backend-args', metavar='dict-like',
+                        action='store', dest='backend_args',
+                        default='', help=helps['backend_args'])
     parser.add_argument('--micro',
                         action='store_true', dest='micro',
                         default=False, help=helps['micro'])
@@ -2662,6 +2669,7 @@ def main():
         options.variant = ''
 
     options.select = so.parse_as_list(options.select, free_word=True)
+    options.backend_args = so.parse_as_dict(options.backend_args)
     options.affinity = so.parse_as_list(options.affinity)
     options.max_mem = so.parse_as_dict(options.max_mem, free_word=True)
 
@@ -2798,7 +2806,8 @@ def main():
 
     else:
         evaluators = get_evals_sfepy(
-            options, term, eterm, dets, qsb, qsbg, qvb, qvbg, state, adc
+            options, term, eterm, dets, qsb, qsbg, qvb, qvbg, state, adc,
+            options.backend_args
         )
 
         if options.term_name == 'dw_convect':
