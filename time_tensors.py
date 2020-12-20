@@ -65,6 +65,7 @@ except ImportError:
 from mprof import read_mprofile_file
 
 import pandas as pd
+from itertools import permutations
 
 import soops as so
 from sfepy.base.base import output
@@ -2395,67 +2396,46 @@ def get_evals_micro(options, term, eterm,
 
     return evaluators
 
-default_layouts = [
-    'cq0ijkd', 'cq0ijdk',
-    'cq0jikd', 'cq0jidk',
-    'cq0kdij', 'cq0dkij',
-    'cq0kdji', 'cq0dkji',
+def merge_permutations(dst, src):
+    aux = set(src[0]).difference(dst[0])
+    assert len(aux) == 1
+    insert = aux.pop()
 
-    'c0qijkd', 'c0qijdk',
-    'c0qjikd', 'c0qjidk',
-    'c0qkdij', 'c0qdkij',
-    'c0qkdji', 'c0qdkji',
+    ddval = []
+    for dval in dst:
+        for sval in src:
+            iis = []
+            for isv, c in enumerate(sval):
+                if c == insert:
+                    si = isv
+                    continue
+                iis.append(dval.index(c))
+            iis.append(len(dval)) # Sentinel.
+            if iis[0] < iis[1]: # Insert if dval is in correct order.
+                aux = dval.copy()
+                aux.insert(iis[si], insert)
+                ddval.append(aux)
 
-    '0cqijkd', '0cqijdk',
-    '0cqjikd', '0cqjidk',
-    '0cqkdij', '0cqdkij',
-    '0cqkdji', '0cqdkji',
+    return ddval
 
-    'qc0ijkd', 'qc0ijdk',
-    'qc0jikd', 'qc0jidk',
-    'qc0kdij', 'qc0dkij',
-    'qc0kdji', 'qc0dkji',
+def gen_unique_layouts():
+    defaults = {
+        'bfg' : 'cqgd',
+        'dofs' : 'cvd',
+        'mat' : 'cq0',
+    }
 
-    'q0cijkd', 'q0cijdk',
-    'q0cjikd', 'q0cjidk',
-    'q0ckdij', 'q0cdkij',
-    'q0ckdji', 'q0cdkji',
+    perms = []
+    for key, val in defaults.items():
+        perms.append(list(map(list, permutations(val))))
 
-    '0qcijkd', '0qcijdk',
-    '0qcjikd', '0qcjidk',
-    '0qckdij', '0qcdkij',
-    '0qckdji', '0qcdkji',
+    aux1 = merge_permutations(perms[0], perms[1])
+    aux2 = merge_permutations(aux1, perms[2])
+    default_layouts = [''.join(ii) for ii in aux2]
 
-    'ijkdcq0', 'ijdkcq0',
-    'jikdcq0', 'jidkcq0',
-    'kdijcq0', 'dkijcq0',
-    'kdjicq0', 'dkjicq0',
+    return default_layouts
 
-    'ijkdc0q', 'ijdkc0q',
-    'jikdc0q', 'jidkc0q',
-    'kdijc0q', 'dkijc0q',
-    'kdjic0q', 'dkjic0q',
-
-    'ijkd0cq', 'ijdk0cq',
-    'jikd0cq', 'jidk0cq',
-    'kdij0cq', 'dkij0cq',
-    'kdji0cq', 'dkji0cq',
-
-    'ijkdqc0', 'ijdkqc0',
-    'jikdqc0', 'jidkqc0',
-    'kdijqc0', 'dkijqc0',
-    'kdjiqc0', 'dkjiqc0',
-
-    'ijkdq0c', 'ijdkq0c',
-    'jikdq0c', 'jidkq0c',
-    'kdijq0c', 'dkijq0c',
-    'kdjiq0c', 'dkjiq0c',
-
-    'ijkd0qc', 'ijdk0qc',
-    'jikd0qc', 'jidk0qc',
-    'kdij0qc', 'dkij0qc',
-    'kdji0qc', 'dkji0qc',
-]
+default_layouts = gen_unique_layouts()
 
 def get_evals_sfepy(options, term, eterm,
                     dets, qsb, qsbg, qvb, qvbg, state, adc, backend_args):
