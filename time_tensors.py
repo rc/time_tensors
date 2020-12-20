@@ -2483,6 +2483,12 @@ def get_evals_sfepy(options, term, eterm,
         'dask_threads' : ['greedy', 'optimal'],
     }
 
+    eval_funs = {
+        'opt_einsum'
+        : ['eval_einsum_orig', 'eval_einsum0', 'eval_einsum1', 'eval_einsum2',
+           'eval_einsum3', 'eval_einsum4'],
+    }
+
     abbrevs = {
         'numpy' : 'np',
         'numpy_loop' : 'npl',
@@ -2500,6 +2506,12 @@ def get_evals_sfepy(options, term, eterm,
         'dp:size' : 'dps',
         'branch-2' : 'br2',
         'auto' : 'aut',
+        'eval_einsum_orig' : 'o',
+        'eval_einsum0' : '0',
+        'eval_einsum1' : '1',
+        'eval_einsum2' : '2',
+        'eval_einsum3' : '3',
+        'eval_einsum4' : '4',
     }
 
     evaluators = {
@@ -2513,8 +2525,7 @@ def get_evals_sfepy(options, term, eterm,
 
     evaluators['sfepy_term'] =  (eval_sfepy_term, 0, True)
 
-    def _make_evaluator(backend, optimize, layout, name):
-        bkwargs = backend_args.get(backend, {})
+    def _make_evaluator(backend, optimize, layout, name, bkwargs):
         def _eval_eterm():
             if 'threads' in backend:
                 this = psutil.Process()
@@ -2535,15 +2546,32 @@ def get_evals_sfepy(options, term, eterm,
 
     can = terms_multilinear.ETermBase.can_backend
     for backend, optimizes in backends.items():
-        for optimize, layout in product(optimizes, options.layouts):
-            name = 'eval_eterm_{}_{}_{}'.format(abbrevs[backend],
-                                                abbrevs[optimize],
-                                                layout)
+        bkwargs = backend_args.get(backend, {})
+        if 'eval_fun' in bkwargs:
+            efuns = bkwargs['eval_fun']
+
+        else:
+            efuns = eval_funs.get(backend, [None])
+
+        for optimize, efun, layout in product(optimizes, efuns, options.layouts):
+            bkw = bkwargs.copy()
+            if efun is not None:
+                name = 'eval_eterm_{}_{}_{}_{}'.format(abbrevs[backend],
+                                                       abbrevs[efun],
+                                                       abbrevs[optimize],
+                                                       layout)
+                bkw['eval_fun'] = efun
+
+            else:
+                name = 'eval_eterm_{}_{}_{}'.format(abbrevs[backend],
+                                                    abbrevs[optimize],
+                                                    layout)
+
             if ':' in optimize:
                 _, minimize = optimize.split(':')
                 optimize = oe.DynamicProgramming(minimize=minimize)
 
-            fun = _make_evaluator(backend, optimize, layout, name)
+            fun = _make_evaluator(backend, optimize, layout, name, bkw)
             evaluators[name[5:]] = (fun, 0, can[backend])
 
     return evaluators
