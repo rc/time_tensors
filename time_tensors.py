@@ -2286,10 +2286,10 @@ def get_evals_dw_laplace(options, term, eterm,
             ), 0
 
     evaluators = {
-        'numpy_einsum2' : (eval_numpy_einsum2, 0, nm),
-        'opt_einsum1a' : (eval_opt_einsum1a, 0, oe),
+        # 'numpy_einsum2' : (eval_numpy_einsum2, 0, nm),
+        # 'opt_einsum1a' : (eval_opt_einsum1a, 0, oe),
         # 'opt_einsum1g' : (eval_opt_einsum1g, 0, oe), # Uses too much memory in this case
-        'opt_einsum1dp' : (eval_opt_einsum1dp, 0, oe),
+        # 'opt_einsum1dp' : (eval_opt_einsum1dp, 0, oe),
         'opt_einsum1dp2' : (eval_opt_einsum1dp2, 0, oe),
         'opt_einsum1dp2_nl1f' : (eval_opt_einsum1dp2_nl1f, 0, oe),
         'opt_einsum1dp2_nl1c' : (eval_opt_einsum1dp2_nl1c, 0, oe),
@@ -2303,11 +2303,11 @@ def get_evals_dw_laplace(options, term, eterm,
         'opt_einsum1dp4b' : (eval_opt_einsum1dp4b, 0, oe),
         'opt_einsum1dp5' : (eval_opt_einsum1dp5, 0, oe),
         'opt_einsum1dp5a' : (eval_opt_einsum1dp5a, 0, oe),
-        'dask_einsum1' : (eval_dask_einsum1, 0, da),
-        'dask_einsum2' : (eval_dask_einsum2, 0, da),
+        # 'dask_einsum1' : (eval_dask_einsum1, 0, da),
+        # 'dask_einsum2' : (eval_dask_einsum2, 0, da),
         'opt_einsum_loop' : (eval_opt_einsum_loop, 0, oe),
         'numba_loops' : (eval_numba_loops, 0, nb),
-        'opt_einsum_dask' : (eval_opt_einsum_dask, 0, oe and da),
+        # 'opt_einsum_dask' : (eval_opt_einsum_dask, 0, oe and da),
         # 'jax_einsum1' : (eval_jax_einsum1, 0, jnp), # meddles with memory profiler
     }
 
