@@ -1460,7 +1460,8 @@ def get_evals_dw_convect(options, term, eterm,
         ucc = uc.reshape((dets.shape[0], -1, qsb.shape[-1]))
         ee = nm.eye(ucc.shape[-2])
 
-        opt = 'dynamic-programming'
+        #opt = 'dynamic-programming'
+        opt = 'greedy'
         tt = Timer(start=True)
         qgu = oe.contract('cqkl,cjl->cqkj', qsbg, ucc, optimize=opt)
         qu = oe.contract('qzn,ckn->cqk', qsb[0], ucc, optimize=opt)
@@ -1471,14 +1472,14 @@ def get_evals_dw_convect(options, term, eterm,
                                             det, qbs[0], ee,
                                             qbgs[0], ee, qu,
                                             optimize=opt)
-            print(path1)
-            print(info1)
+            # print(path1)
+            # print(info1)
             path2, info2 = oe.contract_path('cq,q,jx,cqkj,q,kX->cxX',
                                              det, qbs[0], ee,
                                              qgu, qbs[0], ee,
                                              optimize=opt)
-            print(path2)
-            print(info2)
+            # print(path2)
+            # print(info2)
             for ir in range(n_en): # y
                 rqb = qbs[ir]
                 for ic in range(n_en): # Y
@@ -1511,7 +1512,8 @@ def get_evals_dw_convect(options, term, eterm,
         ucc = uc.reshape((dets.shape[0], -1, qsb.shape[-1]))
         ee = nm.eye(ucc.shape[-2])
 
-        opt = 'dynamic-programming'
+        #opt = 'dynamic-programming'
+        opt = 'greedy'
         tt = Timer(start=True)
         qgu = oe.contract('cqkl,cjl->kjcq', qsbg, ucc, optimize=opt)
         qu = oe.contract('qzn,ckn->kcq', qsb[0], ucc, optimize=opt)
@@ -1522,14 +1524,14 @@ def get_evals_dw_convect(options, term, eterm,
                                             det2, qbs2[0], ee,
                                             qbgs2[0], ee, qu,
                                             optimize=opt)
-            print(path1)
-            print(info1)
+            # print(path1)
+            # print(info1)
             path2, info2 = oe.contract_path('cq,q,jx,kjcq,q,kX->cxX',
                                              det2, qbs2[0], ee,
                                              qgu, qbs2[0], ee,
                                              optimize=opt)
-            print(path2)
-            print(info2)
+            # print(path2)
+            # print(info2)
             for ir in range(n_en): # y
                 rqb = qbs2[ir]
                 for ic in range(n_en): # Y
@@ -1690,7 +1692,6 @@ def get_evals_dw_convect(options, term, eterm,
                              ), 0
 
     evaluators = {
-        # 'numpy_einsum1' : (eval_numpy_einsum1, 0, True), # unusably slow
         'numpy_einsum2' : (eval_numpy_einsum2, 0, nm),
         'numpy_einsum_qsb' : (eval_numpy_einsum_qsb, 0, nm),
         # 'numpy_einsum3' : (eval_numpy_einsum3, 0, nm), # slow, memory hog
@@ -1701,11 +1702,11 @@ def get_evals_dw_convect(options, term, eterm,
         'opt_einsum_nl1f' : (eval_opt_einsum_nl1f, 0, oe),
         'opt_einsum_nl2c' : (eval_opt_einsum_nl2c, 0, oe),
         #'opt_einsum2a' : (eval_opt_einsum2a, 0, oe), # more memory than opt_einsum1*
-        'opt_einsum2dp' : (eval_opt_einsum2dp, 0, oe), # more memory than opt_einsum1*
-        'dask_einsum1' : (eval_dask_einsum1, 0, da),
-        # 'jax_einsum1' : (eval_jax_einsum1, 0, jnp), # meddles with memory profiler
-         'jax_einsum2_qsb' : (eval_jax_einsum2_qsb, 0, jnp),
-         'jax_einsum2_qsb2' : (eval_jax_einsum2_qsb2, 0, jnp),
+#        'opt_einsum2dp' : (eval_opt_einsum2dp, 0, oe), # more memory than opt_einsum1*
+#        'dask_einsum1' : (eval_dask_einsum1, 0, da),
+        'jax_einsum1' : (eval_jax_einsum1, 0, jnp), # meddles with memory profiler
+        'jax_einsum2_qsb' : (eval_jax_einsum2_qsb, 0, jnp),
+        'jax_einsum2_qsb2' : (eval_jax_einsum2_qsb2, 0, jnp),
     }
 
     return evaluators
