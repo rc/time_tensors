@@ -13,6 +13,7 @@ from matplotlib.lines import Line2D
 import soops as so
 import soops.plot_selected as sps
 
+from sfepy.base.base import Struct
 from sfepy.discrete.fem.geometry_element import GeometryElement
 from sfepy.discrete import (Integral, PolySpace)
 from sfepy.mechanics.tensors import dim2sym
@@ -45,12 +46,12 @@ def _compute_size_by_dict(indices, idx_dict):
         ret *= idx_dict[i]
     return ret
 
-def get_naive_cost(ebuilder):
+def get_naive_cost(ebuilder, operands):
     cost = 0
     for ia, (expr, ops) in enumerate(zip(ebuilder.get_expressions(),
-                                         ebuilder.operands)):
+                                         operands)):
         print(expr)
-        sizes = ebuilder.get_sizes(ia)
+        sizes = ebuilder.get_sizes(ia, operands)
         print(sizes)
 
         input_sets = [set(val) for val in ebuilder.subscripts[ia]]
@@ -147,63 +148,68 @@ def main():
 
             virtual = tm.ExpressionArg(
                 name='v',
-                qsb=nm.empty((1, n_qp, 1, n_en)),
-                qsbg=nm.empty((n_cell, n_qp, dim, n_en)),
+                bf=nm.empty((1, n_qp, 1, n_en)),
+                bfg=nm.empty((n_cell, n_qp, dim, n_en)),
                 det=nm.empty((n_cell, n_qp)),
                 n_components=n_c,
                 dim=dim,
                 kind='virtual',
             )
 
+            arg = Struct(evaluate_cache={
+                'dofs' : {0 : {'u' : nm.empty((n_cell, n_c, n_en))}}
+            })
             state = tm.ExpressionArg(
                 name='u',
-                qsb=nm.empty((1, n_qp, 1, n_en)),
-                qsbg=nm.empty((n_cell, n_qp, dim, n_en)),
+                arg=arg,
+                bf=nm.empty((1, n_qp, 1, n_en)),
+                bfg=nm.empty((n_cell, n_qp, dim, n_en)),
                 det=nm.empty((n_cell, n_qp)),
-                dofs=nm.empty((n_cell, n_c, n_en)),
                 n_components=n_c,
                 dim=dim,
                 kind='state',
             )
             if term_name == 'dw_convect':
-                ebuilder.build('i,i.j,j', virtual, state, state,
-                               diff_var=options.diff)
+                eargs = [virtual, state, state]
+                ebuilder.build('i,i.j,j', *eargs, diff_var=options.diff)
 
             elif term_name == 'dw_laplace':
-                ebuilder.build('0.j,0.j', virtual, state,
-                               diff_var=options.diff)
+                eargs = [virtual, state]
+                ebuilder.build('0.j,0.j', *eargs, diff_var=options.diff)
 
             elif term_name == 'dw_volume_dot':
                 if 'material' not in variant:
-                    ebuilder.build('i,i', virtual, state,
-                                   diff_var=options.diff)
+                    eargs = [virtual, state]
+                    ebuilder.build('i,i', *eargs, diff_var=options.diff)
 
                 else:
                     mat = tm.ExpressionArg(
                         name='c',
-                        val=nm.empty((n_cell, n_qp, n_c, n_c)),
+                        arg=nm.empty((n_cell, n_qp, n_c, n_c)),
                         kind='ndarray',
                     )
-                    ebuilder.build('ij,i,j', mat, virtual, state,
-                                   diff_var=options.diff)
+                    eargs = [mat, virtual, state]
+                    ebuilder.build('ij,i,j', *eargs, diff_var=options.diff)
 
             elif term_name == 'dw_div':
-                ebuilder.build('i.i', virtual,
-                               diff_var=options.diff)
+                eargs = [virtual]
+                ebuilder.build('i.i', *eargs, diff_var=options.diff)
 
             elif term_name == 'dw_lin_elastic':
                 mat = tm.ExpressionArg(
                     name='D',
-                    val=nm.empty((n_cell, n_qp, sym, sym)),
+                    arg=nm.empty((n_cell, n_qp, sym, sym)),
                     kind='ndarray',
                 )
-                ebuilder.build('IK,s(i:j)->I,s(k:l)->K', mat, virtual, state,
+                eargs = [mat, virtual, state]
+                ebuilder.build('IK,s(i:j)->I,s(k:l)->K', *eargs,
                                diff_var=options.diff)
 
             else:
                 continue
 
-            cost = get_naive_cost(ebuilder)
+            operands = tm.get_einsum_ops(eargs, ebuilder, expr_cache)
+            cost = get_naive_cost(ebuilder, operands)
             costs.append(cost)
 
     markers = list(Line2D.filled_markers)
