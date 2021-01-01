@@ -2789,9 +2789,10 @@ def main():
     output('memory estimate [MB]: {:.2f}'.format(mem_est / 1000**2))
 
     if mem_est > mem.available:
-        raise MemoryError('insufficient memory for timing!'
-                          ' ({:.2f} [MB] > {:.2f} [MB])'
-                          .format(to_mb(mem_est), to_mb(mem.available)))
+        msg = ('insufficient memory for timing! ({:.2f} [MB] > {:.2f} [MB])'
+               .format(to_mb(mem_est), to_mb(mem.available)))
+        output(msg)
+        raise MemoryError(msg)
 
     if options.term_name not in ['dw_stokes']:
         uvec, term, eterm = setup_data(
