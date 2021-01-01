@@ -228,10 +228,19 @@ def get_stats(sdf, key, min_val=0.0):
     vals = nm.array(sdf[key].to_list())
     vals = nm.where((vals < min_val) & (nm.isfinite(vals)), min_val, vals)
     means = nm.nanmean(vals, axis=1)
-    emins = means - nm.nanmin(vals, axis=1)
-    emaxs = nm.nanmax(vals, axis=1) - means
+    mins = nm.nanmin(vals, axis=1)
+    maxs = nm.nanmax(vals, axis=1)
+    emins = means - mins
+    emaxs = maxs - means
 
-    return means, emins, emaxs
+    if vals.shape[1] > 1:
+        svals = nm.sort(vals, axis=1)
+        wwmeans = nm.nanmean(svals[:, :-1], axis=1)
+
+    else:
+        wwmeans = means
+
+    return means, mins, maxs, emins, emaxs, wwmeans
 
 def get_groupby_stats(gb, key):
     vals = gb[key]
@@ -262,6 +271,9 @@ def check_rnorms(df, data=None):
 
 @profile1
 def _create_ldf(df, tkeys, data):
+    """
+    ldf == long df: row for each function in df columns.
+    """
     df['index'] = df.index
     ldf = pd.melt(df, list(data.uniques.keys()) + ['index'], tkeys,
                   var_name='fun_name', value_name='t')
@@ -284,12 +296,13 @@ def _create_ldf(df, tkeys, data):
     if fts is not None:
         df = pd.concat([df, fts], axis=1)
 
-    for key, val in zip(('tmean', 'temin', 'temax'), get_stats(ldf, 't')):
+    stat_keys = ('mean', 'min', 'max', 'emin', 'emax', 'wwmean')
+    for key, val in zip(['t' + ii for ii in stat_keys], get_stats(ldf, 't')):
         ldf[key] = val
     ldf['trank'] = len(ldf)
     ldf['rtmean'] = nm.nan
     if fts is not None:
-        for key, val in zip(('mmean', 'memin', 'memax'),
+        for key, val in zip(['m' + ii for ii in stat_keys],
                             get_stats(ldf, 'mem', min_val=0.1)):
             ldf[key] = val
         ldf['mrank'] = len(ldf)
