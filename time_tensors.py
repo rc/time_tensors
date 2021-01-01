@@ -914,7 +914,7 @@ def plot_all_as_bars2(df, data=None, tcolormap_name='viridis',
 @profile1
 def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
                      yscale='linear', figsize=(8, 6), prefix='', suffix='.png',
-                     sort='time', number=None):
+                     sort='tmean', number=None):
     import soops.plot_selected as sps
     import matplotlib.pyplot as plt
 
@@ -950,24 +950,26 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
             n_dof = int(n_dof)
 
         vx = sdf['fun_name']
-        tstats = sdf[['tmean', 'temin', 'temax']].values.T
+        tstats = sdf[['tmean', 'temin', 'temax', 'twwmean']].values.T
         if is_mem:
-            mstats = sdf[['mmean', 'memin', 'memax']].values.T
+            mstats = sdf[['mmean', 'memin', 'memax', 'mwwmean']].values.T
 
-        if sort == 'time':
-            ii = nm.argsort(tstats[0])
+        if sort.startswith('t'):
+            ii = nm.argsort(sdf[sort])
 
-        elif (sort == 'memory') and is_mem:
-            ii = nm.argsort(mstats[0])
+        elif sort.startswith('m') and is_mem:
+            ii = nm.argsort(sdf[sort])
 
-        if sort != 'none':
-            if number is not None:
-                ii = ii[:number]
+        else:
+            ii = nm.arange(len(sdf))
 
-            vx = vx.iloc[ii]
-            tstats = tstats[:, ii]
-            if is_mem:
-                mstats = mstats[:, ii]
+        if number is not None:
+            ii = ii[:number]
+
+        vx = vx.iloc[ii]
+        tstats = tstats[:, ii]
+        if is_mem:
+            mstats = mstats[:, ii]
 
         xs = nm.arange(len(vx))
 
@@ -979,10 +981,11 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
         ax.set_title('{}, diff: {}, #cells: {}, order: {}, #DOFs: {}'
                      .format(term_name, diff, n_cell, order, n_dof))
         ax.grid(which='both', axis='y')
-        tmeans, temins, temaxs = tstats
+        tmeans, temins, temaxs, twwmeans = tstats
         ax.bar(xs, tmeans, width=0.8, align='center',
                yerr=[temins, temaxs], bottom=ax.get_ylim()[0],
                color=colors, capsize=2)
+        ax.hlines(twwmeans, xs - 0.3, xs + 0.3, 'k')
         ax.set_yscale(yscale)
         ax.set_ylabel('time [s]')
 
@@ -992,10 +995,11 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
             ax = axs[1, 0]
             ax.cla()
             ax.grid(which='both', axis='y')
-            mmeans, memins, memaxs = mstats
+            mmeans, memins, memaxs, mwwmeans = mstats
             ax.bar(xs, mmeans, width=0.8, align='center',
                    yerr=[memins, memaxs], bottom=ax.get_ylim()[0],
                    color=colors, capsize=2)
+            ax.hlines(mwwmeans, xs - 0.3, xs + 0.3, 'k')
             ax.set_yscale(yscale)
             ax.set_ylabel('memory [MB]')
 
