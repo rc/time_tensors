@@ -117,6 +117,96 @@ def get_run_info():
 
     return run_cmd, opt_args, output_dir_key, is_finished_basename
 
+class ComputePars(so.Struct):
+    """
+    Contract --order, --n-cell -> --repeat, sampling
+    """
+    def __init__(self, pars, par_seqs, key_order, options):
+        import soops.run_parametric as rp
+
+        self.samplings = pars['sampling']
+        self.repeats = pars['--repeat']
+
+        dim = 3
+        all_sizes = {}
+        all_sizes2 = {}
+        for _all_pars in product(*par_seqs):
+            if not rp.check_contracted(_all_pars, options, key_order): continue
+            _it, keys, vals = zip(*_all_pars)
+            all_pars = dict(zip(keys, vals))
+
+            term_name = all_pars['--term-name']
+            variant = all_pars['--variant']
+            diff = all_pars['--diff']
+            order = all_pars['--order']
+            n_cell = all_pars['--n-cell']
+
+            quad_order = all_pars['--quad-order']
+            if quad_order == '@undefined':
+                quad_order = 2 * order
+
+            ps = PolySpace.any_from_args('ps', GeometryElement('3_8'), order)
+            integral = Integral('i', order=quad_order)
+            _, weights = integral.get_qp('3_8')
+
+            n_qp = len(weights)
+            n_en = ps.n_nod
+
+            if (term_name in ('dw_convect', 'dw_div', 'dw_lin_elastic',
+                              'ev_cauchy_stress', 'dw_stokes')
+                or ('vector' in variant)):
+                n_c = dim
+
+            else:
+                n_c = 1
+
+            if diff is None:
+                csize = n_c * n_en
+
+            else:
+                csize = (n_c * n_en)**2
+
+            size = n_cell * n_qp * csize
+            sizes = all_sizes.setdefault((term_name, variant, diff), {})
+            sizes[order, n_cell] = size
+
+            sizes = all_sizes2.setdefault((term_name, variant, diff), {})
+            sizes[order, n_cell] = (n_cell, n_qp * csize)
+
+        # all_sizes = {}
+        # for key, sizes in all_sizes2.items():
+        #     aux = nm.array(list(sizes.values()))
+        #     maxs = aux.max(axis=0)
+        #     mins = aux.min(axis=0)
+        #     ds = maxs - mins
+        #     s2 = {k : (((vs[0] - mins[0]) / ds[0]) + ((vs[1] - mins[1]) / ds[1]))
+        #           for k, vs in sizes.items()}
+        #     all_sizes[key] = s2
+
+        self.all_sizes = all_sizes
+
+    def __call__(self, all_pars):
+        term_name = all_pars['--term-name']
+        variant = all_pars['--variant']
+        diff = all_pars['--diff']
+        order = all_pars['--order']
+        n_cell = all_pars['--n-cell']
+
+        sizes = self.all_sizes[term_name, variant, diff]
+        size = sizes[order, n_cell]
+        sizes = nm.array(list(sizes.values()))
+        sizes.sort()
+
+        ii = nm.searchsorted(sizes, size)
+        i0 = int((ii * len(self.samplings)) / len(sizes))
+        i1 = int((ii * len(self.repeats)) / len(sizes))
+
+        out = {'sampling' : self.samplings[i0], '--repeat' : self.repeats[i1]}
+
+        output(order, n_cell, out)
+
+        return out
+
 def get_scoop_info():
     import soops.scoop_outputs as sc
 
