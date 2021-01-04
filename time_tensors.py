@@ -548,37 +548,32 @@ def plot_times(df, data=None, xscale='log', yscale='log',
     select['fun_name'] = data.fun_names
     styles = data.styles
 
-    tdf = data.tdf
+    ldf = data.ldf
 
     fig, ax = plt.subplots()
     used = None
     lines = {}
-    for term_name in data.par_uniques['term_name']:
-        if term_name not in data.term_names: continue
-        for order in data.par_uniques['order']:
-            if order not in data.orders: continue
-            for fun_name in data.fun_names:
-                if fun_name not in data._fun_names: continue
-                print(term_name, order, fun_name)
-                sdf = tdf[(tdf['term_name'] == term_name) &
-                          (tdf['order'] == order) &
-                          (tdf['fun_name'] == fun_name)]
-                vx = sdf.n_cell.values
-                times = sdf['t'].to_list()
+    for term_name, order, fun_name in product(
+            data.term_names, data.orders, data.fun_names
+    ):
+        print(term_name, order, fun_name)
 
-                means = nm.nanmean(times, axis=1)
-                emins = means - nm.nanmin(times, axis=1)
-                emaxs = nm.nanmax(times, axis=1) - means
-                style_kwargs, indices = sps.get_row_style(
-                    sdf.iloc[0], select, {}, styles
-                )
-                used = sps.update_used(used, indices)
-                line = plt.errorbar(vx, means, yerr=[emins, emaxs],
-                                    ecolor=style_kwargs['color'],
-                                    elinewidth=1, capsize=2,
-                                    **style_kwargs)[0]
-                line.set_picker(True)
-                lines[line] = (fun_name, order)
+        sdf = ldf[(ldf['term_name'] == term_name) &
+                  (ldf['order'] == order) &
+                  (ldf['fun_name'] == fun_name)]
+        vx = sdf.n_cell.values
+        means, emins, emaxs = sdf[['tmean', 'temin', 'temax']].values.T
+
+        style_kwargs, indices = sps.get_row_style(
+            sdf.iloc[0], select, {}, styles
+        )
+        used = sps.update_used(used, indices)
+        line = plt.errorbar(vx, means, yerr=[emins, emaxs],
+                            ecolor=style_kwargs['color'],
+                            elinewidth=1, capsize=2,
+                            **style_kwargs)[0]
+        line.set_picker(True)
+        lines[line] = (fun_name, order)
 
     sps.add_legend(ax, select, styles, used, format_labels)
     ax.set_xscale(xscale)
@@ -597,7 +592,7 @@ def plot_mem_usages(df, data=None, xscale='log', yscale='symlog',
     import soops.plot_selected as sps
     import matplotlib.pyplot as plt
 
-    if data.mdf is None:
+    if 'mmean' not in data.ldf:
         output('no memory data!')
         return
 
@@ -605,38 +600,33 @@ def plot_mem_usages(df, data=None, xscale='log', yscale='symlog',
     select['fun_name'] = data.fun_names
     styles = data.styles
 
-    mdf = data.mdf
+    ldf = data.ldf
 
     fig, ax = plt.subplots()
     used = None
     lines = {}
-    for term_name in data.par_uniques['term_name']:
-        if term_name not in data.term_names: continue
-        for order in data.par_uniques['order']:
-            if order not in data.orders: continue
-            for fun_name in data.fun_names:
-                if fun_name not in data._fun_names: continue
-                print(term_name, order, fun_name)
-                sdf = mdf[(mdf['term_name'] == term_name) &
-                          (mdf['order'] == order) &
-                          (mdf['fun_name'] == fun_name)]
-                vx = sdf.n_cell.values
-                mems = sdf['mems'].to_list()
+    for term_name, order, fun_name in product(
+            data.term_names, data.orders, data.fun_names
+    ):
+        print(term_name, order, fun_name)
 
-                means = nm.nanmean(mems, axis=1)
-                emins = means - nm.nanmin(mems, axis=1)
-                emaxs = nm.nanmax(mems, axis=1) - means
-                style_kwargs, indices = sps.get_row_style(
-                    sdf.iloc[0], select, {}, styles
-                )
-                used = sps.update_used(used, indices)
+        sdf = ldf[(ldf['term_name'] == term_name) &
+                  (ldf['order'] == order) &
+                  (ldf['fun_name'] == fun_name)]
+        vx = sdf.n_cell.values
+        means, emins, emaxs = sdf[['mmean', 'memin', 'memax']].values.T
 
-                line = plt.errorbar(vx, means, yerr=[emins, emaxs],
-                                    ecolor=style_kwargs['color'],
-                                    elinewidth=1, capsize=2,
-                                    **style_kwargs)[0]
-                line.set_picker(True)
-                lines[line] = (fun_name, order)
+        style_kwargs, indices = sps.get_row_style(
+            sdf.iloc[0], select, {}, styles
+        )
+        used = sps.update_used(used, indices)
+
+        line = plt.errorbar(vx, means, yerr=[emins, emaxs],
+                            ecolor=style_kwargs['color'],
+                            elinewidth=1, capsize=2,
+                            **style_kwargs)[0]
+        line.set_picker(True)
+        lines[line] = (fun_name, order)
 
     sps.add_legend(ax, select, styles, used, format_labels)
     ax.set_xscale(xscale)
