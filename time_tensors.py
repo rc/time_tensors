@@ -954,11 +954,8 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
         if is_mem:
             mstats = sdf[['mmean', 'memin', 'memax', 'mwwmean']].values.T
 
-        if sort.startswith('t'):
-            ii = nm.argsort(sdf[sort])
-
-        elif sort.startswith('m') and is_mem:
-            ii = nm.argsort(sdf[sort])
+        if (sort.startswith('t') or (sort.startswith('m') and is_mem)):
+            ii = nm.argsort(sdf[sort].values)
 
         else:
             ii = nm.arange(len(sdf))
