@@ -225,20 +225,41 @@ def get_plugin_info():
     return info
 
 def get_stats(sdf, key, min_val=0.0):
-    vals = nm.array(sdf[key].to_list())
-    vals = nm.where((vals < min_val) & (nm.isfinite(vals)), min_val, vals)
-    means = nm.nanmean(vals, axis=1)
-    mins = nm.nanmin(vals, axis=1)
-    maxs = nm.nanmax(vals, axis=1)
-    emins = means - mins
-    emaxs = maxs - means
+    repeat = sdf['repeat'].unique()
+    lvals = sdf[key].to_list()
+    if len(repeat) == 1:
+        vals = nm.array(lvals)
+        vals = nm.where((vals < min_val) & (nm.isfinite(vals)), min_val, vals)
+        means = nm.nanmean(vals, axis=1)
+        mins = nm.nanmin(vals, axis=1)
+        maxs = nm.nanmax(vals, axis=1)
+        emins = means - mins
+        emaxs = maxs - means
 
-    if vals.shape[1] > 1:
-        svals = nm.sort(vals, axis=1)
-        wwmeans = nm.nanmean(svals[:, :-1], axis=1)
+        if vals.shape[1] > 1:
+            svals = nm.sort(vals, axis=1)
+            wwmeans = nm.nanmean(svals[:, :-1], axis=1)
+
+        else:
+            wwmeans = means
 
     else:
-        wwmeans = means
+        nvals = len(lvals)
+        means = nm.empty(nvals, dtype=nm.float64)
+        mins = nm.empty(nvals, dtype=nm.float64)
+        maxs = nm.empty(nvals, dtype=nm.float64)
+        wwmeans = nm.empty(nvals, dtype=nm.float64)
+        for ii, val in enumerate(lvals):
+            val = nm.array(val)
+            val = nm.where((val < min_val) & (nm.isfinite(val)), min_val, val)
+            sval = nm.sort(val)
+            means[ii] = nm.nanmean(val)
+            mins[ii] = nm.nanmin(val)
+            maxs[ii] = nm.nanmax(val)
+            wwmeans[ii] = nm.nanmean(sval[:-1])
+
+        emins = means - mins
+        emaxs = maxs - means
 
     return means, mins, maxs, emins, emaxs, wwmeans
 
