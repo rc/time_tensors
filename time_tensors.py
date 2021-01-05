@@ -410,38 +410,14 @@ def _create_ldf(df, tkeys, data):
     stat_keys = ('mean', 'min', 'max', 'emin', 'emax', 'wwmean')
     for key, val in zip(['t' + ii for ii in stat_keys], get_stats(ldf, 't')):
         ldf[key] = val
-    ldf['trank'] = len(ldf)
-    ldf['rtmean'] = nm.nan
+
     if fts is not None:
         for key, val in zip(['m' + ii for ii in stat_keys],
                             get_stats(ldf, 'mem', min_val=0.1)):
             ldf[key] = val
-        ldf['mrank'] = len(ldf)
-        ldf['rmmean'] = nm.nan
 
-    is_mem = 'mmean' in ldf
-
-    df = df.set_index(['term_name', 'n_cell', 'order'])
-    gbf = ldf.groupby('fun_name')
-    ref_tmeans = gbf.get_group('sfepy_term')['tmean']
-    if is_mem:
-        ref_mmeans = gbf.get_group('sfepy_term')['mmean']
-
-    for ig in range(len(df)):
-        mask = ldf['index'] == ig
-        tmeans = ldf.loc[mask, 'tmean'].values
-        ii = nm.argsort(tmeans)
-        rank = nm.empty_like(ii)
-        rank[ii] = nm.arange(len(ii))
-        ldf.loc[mask, 'trank'] = rank
-        ldf.loc[mask, 'rtmean'] = tmeans / ref_tmeans[ig]
-        if is_mem:
-            mmeans = ldf.loc[mask, 'mmean'].values
-            ii = nm.argsort(mmeans)
-            rank = nm.empty_like(ii)
-            rank[ii] = nm.arange(len(ii))
-            ldf.loc[mask, 'mrank'] = rank
-            ldf.loc[mask, 'rmmean'] = mmeans / ref_mmeans[ig]
+    _insert_ldf_ranks(ldf, df, 'tmean', 'mmean')
+    _insert_ldf_ranks(ldf, df, 'twwmean', 'mwwmean')
 
     return ldf
 
@@ -508,17 +484,60 @@ def _collect_mem_usages(df, ldf, data):
 
     return ts, mems, fts
 
+@profile1
+def _insert_ldf_ranks(ldf, df, tmean_key, mmean_key):
+    """
+    Modifies ldf inplace.
+    """
+    is_mem = 'mmean' in ldf
+
+    trank_key = tmean_key.replace('mean', 'rank')
+    rtmean_key = 'r' + tmean_key
+    ldf[trank_key] = len(ldf)
+    ldf[rtmean_key] = nm.nan
+    if is_mem:
+        mrank_key = mmean_key.replace('mean', 'rank')
+        rmmean_key = 'r' + mmean_key
+        ldf[mrank_key] = len(ldf)
+        ldf[rmmean_key] = nm.nan
+
+    df = df.set_index(['term_name', 'n_cell', 'order'])
+    gbf = ldf.groupby('fun_name')
+    ref_tmeans = gbf.get_group('sfepy_term')[tmean_key]
+    if is_mem:
+        ref_mmeans = gbf.get_group('sfepy_term')[mmean_key]
+
+    for ig in range(len(df)):
+        mask = ldf['index'] == ig
+        tmeans = ldf.loc[mask, tmean_key].values
+        ii = nm.argsort(tmeans)
+        rank = nm.empty_like(ii)
+        rank[ii] = nm.arange(len(ii))
+        ldf.loc[mask, trank_key] = rank
+        ldf.loc[mask, rtmean_key] = tmeans / ref_tmeans[ig]
+        if is_mem:
+            mmeans = ldf.loc[mask, mmean_key].values
+            ii = nm.argsort(mmeans)
+            rank = nm.empty_like(ii)
+            rank[ii] = nm.arange(len(ii))
+            ldf.loc[mask, mrank_key] = rank
+            ldf.loc[mask, rmmean_key] = mmeans / ref_mmeans[ig]
+
 def _create_fdf(ldf):
     gbf = ldf.groupby('fun_name')
     fdf = gbf['expressions'].apply(lambda x: x.iloc[0])
     _fdf1 = get_groupby_stats(gbf, 'trank')
     _fdf2 = get_groupby_stats(gbf, 'rtmean')
-    fdf = pd.concat((fdf, _fdf1, _fdf2), axis=1)
+    _fdf3 = get_groupby_stats(gbf, 'twwrank')
+    _fdf4 = get_groupby_stats(gbf, 'rtwwmean')
+    fdf = pd.concat((fdf, _fdf1, _fdf2, _fdf3, _fdf4), axis=1)
     is_mem = 'mmean' in ldf
     if is_mem:
         _fdf1 = get_groupby_stats(gbf, 'mrank')
         _fdf2 = get_groupby_stats(gbf, 'rmmean')
-        fdf = pd.concat((fdf, _fdf1, _fdf2), axis=1)
+        _fdf3 = get_groupby_stats(gbf, 'mwwrank')
+        _fdf4 = get_groupby_stats(gbf, 'rmwwmean')
+        fdf = pd.concat((fdf, _fdf1, _fdf2, _fdf3, _fdf4), axis=1)
 
     return fdf
 
