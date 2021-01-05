@@ -288,9 +288,30 @@ def scrape_output(filename, rdata=None):
 
             line = io.skip_lines_to(fd, 'parsed expressions:')
             if not len(line): break
-            val = line.split(':')[2].strip()
+            val = literal_eval(line.split(':')[2].strip())
 
-            exprs[key] = literal_eval(val)
+            line = io.skip_lines(fd, 2)
+            if len(line):
+                try:
+                    sizes = literal_eval(line[14:])
+
+                except SyntaxError:
+                    sizes = None
+
+                else:
+                    line = io.skip_lines_to(fd, 'path:')
+                    if len(line):
+                        path = literal_eval(line.split(':')[2].strip())
+                        if len(path) and isinstance(path[0], str):
+                            path = path[1:]
+
+                    else:
+                        path = None
+
+            else:
+                sizes = None
+
+            exprs[key] = (val, path, sizes)
 
     return out
 
