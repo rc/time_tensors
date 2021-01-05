@@ -384,6 +384,8 @@ def check_rnorms(df, data=None):
 def _create_ldf(df, tkeys, data):
     """
     ldf == long df: row for each function in df columns.
+
+    ww stats = stats without worst
     """
     df['index'] = df.index
     ldf = pd.melt(df, list(data.uniques.keys()) + ['index'], tkeys,
@@ -524,6 +526,9 @@ def _insert_ldf_ranks(ldf, df, tmean_key, mmean_key):
             ldf.loc[mask, rmmean_key] = mmeans / ref_mmeans[ig]
 
 def _create_fdf(ldf):
+    """
+    fdf == function df: rows are individual functions.
+    """
     gbf = ldf.groupby('fun_name')
     fdf = gbf['expressions'].apply(lambda x: x.iloc[0])
     _fdf1 = get_groupby_stats(gbf, 'trank')
