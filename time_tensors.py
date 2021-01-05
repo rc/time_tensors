@@ -379,7 +379,7 @@ def get_groupby_stats(gb, key):
     prefix = key
     ckeys = ['min', 'max', 'mean', 'std', 'vals']
     gdf = pd.concat((vals.min(), vals.max(), vals.mean(), vals.std(),
-                     vals.apply(lambda x: sorted(x))), axis=1,
+                     vals.apply(lambda x: nm.sort(x))), axis=1,
                     keys=[prefix + '_' + ckey for ckey in ckeys])
     return gdf
 
