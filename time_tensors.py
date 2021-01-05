@@ -534,14 +534,16 @@ def _insert_ldf_ranks(ldf, df, tmean_key, mmean_key):
         mask = ldf['index'] == ig
         tmeans = ldf.loc[mask, tmean_key].values
         ii = nm.argsort(tmeans)
-        rank = nm.empty_like(ii)
+        rank = nm.full_like(ii, len(ii))
+        ii = ii[nm.isfinite(tmeans[ii])]
         rank[ii] = nm.arange(len(ii))
         ldf.loc[mask, trank_key] = rank
         ldf.loc[mask, rtmean_key] = tmeans / ref_tmeans[ig]
         if is_mem:
             mmeans = ldf.loc[mask, mmean_key].values
             ii = nm.argsort(mmeans)
-            rank = nm.empty_like(ii)
+            rank = nm.full_like(ii, len(ii))
+            ii = ii[nm.isfinite(mmeans[ii])]
             rank[ii] = nm.arange(len(ii))
             ldf.loc[mask, mrank_key] = rank
             ldf.loc[mask, rmmean_key] = mmeans / ref_mmeans[ig]
