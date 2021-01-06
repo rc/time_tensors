@@ -286,6 +286,9 @@ def scrape_output(filename, rdata=None):
             if not len(line): break
             key = line.split(':')[2].strip()
 
+            line = next(fd)
+            if 'build expression:' not in line: continue
+
             line = io.skip_lines_to(fd, 'parsed expressions:')
             if not len(line): break
             val = literal_eval(line.split(':')[2].strip())
@@ -299,19 +302,21 @@ def scrape_output(filename, rdata=None):
                     sizes = None
 
                 else:
-                    line = io.skip_lines_to(fd, 'path:')
-                    if len(line):
+                    paths = []
+                    for ii in range(len(val)):
+                        line = io.skip_lines_to(fd, 'path:')
                         path = literal_eval(line.split(':')[2].strip())
                         if len(path) and isinstance(path[0], str):
                             path = path[1:]
+                        paths.append(path)
 
-                    else:
-                        path = None
+                    if not len(line):
+                        break
 
             else:
                 sizes = None
 
-            exprs[key] = (val, path, sizes)
+            exprs[key] = (val, paths, sizes)
 
     return out
 
