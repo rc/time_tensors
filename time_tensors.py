@@ -426,9 +426,11 @@ def _create_ldf(df, tkeys, data):
     raw_ex = df['expressions']
     aux = pd.json_normalize(raw_ex.where(raw_ex.notna(), lambda x: [{}]))
     aux['index'] = df.index
-    exprs = pd.melt(aux, ['index'],
-                    var_name='fun_name', value_name='expressions')
-    exprs['expressions'] = exprs['expressions'].str.join(' + ')
+    exprs = pd.melt(aux, ['index'], var_name='fun_name',
+                    value_name='expressions')
+    exprs[['expressions', 'paths', 'sizes']] = pd.DataFrame(
+        exprs['expressions'].to_list()
+    )
     ldf = ldf.join(exprs.set_index(['index', 'fun_name']),
                    on=['index', 'fun_name'])
 
