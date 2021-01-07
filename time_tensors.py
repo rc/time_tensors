@@ -628,7 +628,7 @@ def remove_raw_df_data(df, data=None):
 
 @profile1
 def select_data(df, data=None, term_names=None, n_cell=None, orders=None,
-                functions=None):
+                functions=None, omit_functions=None):
     data.term_names = (data.par_uniques['term_name']
                        if term_names is None else term_names)
     data.n_cell = data.par_uniques['n_cell'] if n_cell is None else n_cell
@@ -642,6 +642,11 @@ def select_data(df, data=None, term_names=None, n_cell=None, orders=None,
         fun_match = re.compile('|'.join(functions)).match
         data.fun_names = [fun for fun in data._fun_names if fun_match(fun)]
 
+    if omit_functions is not None:
+        fun_match = re.compile('|'.join(omit_functions)).match
+        data.fun_names = [fun for fun in data._fun_names if not fun_match(fun)]
+
+    if (functions is not None) or (omit_functions is not None):
         indexer = data._ldf['fun_name'].isin(data.fun_names)
         data.ldf = data._ldf[indexer]
 
