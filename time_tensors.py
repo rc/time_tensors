@@ -1103,7 +1103,9 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
 
         ig = df.index.get_loc(selection)
         sdf = ldf[(ldf['index'] == ig)]
-        if not len(sdf): continue
+        if (not len(sdf)) or (not sdf.tmean.notna().any()):
+            output('-> no data, skipped!')
+            continue
 
         n_dof = df.loc[selection, 'n_dof']
         if nm.isfinite(n_dof):
