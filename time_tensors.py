@@ -329,6 +329,7 @@ def get_plugin_info():
         collect_stats,
         remove_raw_df_data,
         select_data,
+        report_eval_fun_variants,
         setup_styles,
         plot_times,
         plot_mem_usages,
@@ -657,6 +658,84 @@ def select_data(df, data=None, term_names=None, n_cell=None, orders=None,
                                    .encode('utf-8')).hexdigest()
 
     return data
+
+@profile1
+def report_eval_fun_variants(df, data=None, report_dir=None):
+    prefixes = ('eterm_oe_',)
+
+    df = df.set_index(['term_name', 'n_cell', 'order'])
+
+    ldf = data.ldf[data.ldf['fun_name'].str.match('|'.join(prefixes))].copy()
+    ldf['variant'] = ldf['fun_name'].str.slice(9, 10)
+    ldf['opt'] = ldf['fun_name'].str.slice(11, 14)
+    is_mem = 'mmean' in ldf
+
+    vdfs = {}
+    for ir, selection in enumerate(
+            product(data.term_names, data.n_cell, data.orders)
+    ):
+        if not selection in df.index: continue
+
+        term_name, n_cell, order = selection
+        output(term_name, n_cell, order)
+
+        ig = df.index.get_loc(selection)
+        sdf = ldf[(ldf['index'] == ig)]
+        if (not len(sdf)) or (not sdf.tmean.notna().any()):
+            output('-> no data, skipped!')
+            continue
+
+        keys = ['opt', 'variant', 'tmean', 'tmin', 'twwmean']
+        if is_mem:
+            keys += ['mmean', 'mmin', 'mwwmean']
+        stats = sdf[keys]
+
+        dstats = {}
+        for ic, key in enumerate(keys[2:]):
+            sst = stats[['opt', 'variant', key]].sort_values(
+                ['opt', key], ignore_index=True
+            )
+            # Relative plus-minus.
+            sst['rpm'] = (
+                (sst[key] - sst.groupby('opt').transform('mean')[key])
+                / sst[key]
+            )
+            for opt in sst['opt'].unique():
+                iopt = sst['opt'] == opt
+                ostats = dstats.setdefault(opt, {})
+                ostats[key] = sst[iopt][['variant', 'rpm']].apply(
+                    lambda x: tuple(x), axis=1, result_type='reduce'
+                ).to_list()
+
+        dfstats = {key : pd.DataFrame(val) for key, val in dstats.items()}
+        vdf = pd.concat(dfstats)
+        vdfs[selection] = vdf
+
+    from time_tensors_report import fragments
+    from soops.base import Output
+    import soops.formatting as sof
+
+    if report_dir is None:
+        report_dir = os.path.join(data.output_dir, 'report')
+
+    filename = os.path.join(report_dir, 'best_fun_variants.tex')
+    report = Output(prefix='', filename=filename, quiet=True)
+
+    report(fragments['begin-document'])
+    report('results scoop date (UTC):', df.iloc[0]['time'])
+
+    report(fragments['section'].format(
+        level='', name='Best eval\_fun() variants', label='')
+    )
+    for selection, vdf in vdfs.items():
+        report(sof.escape_latex(str(selection)))
+        report(fragments['newline'])
+        fmt = lambda x: x[0] + ', '+ sof.format_float_latex(x[1], 1)
+        report(vdf.to_latex(escape=False, formatters=[fmt] * vdf.shape[1]))
+        report(fragments['newpage'])
+
+    report(fragments['end-document'])
+    sof.build_pdf(filename)
 
 def setup_styles(df, data=None, colormap_name='viridis', markers=None):
     import soops.plot_selected as sps
