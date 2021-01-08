@@ -671,6 +671,7 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
     is_mem = 'mmean' in ldf
 
     vdfs = {}
+    ranks = {ii : [] for ii in ldf['variant'].unique()}
     for ir, selection in enumerate(
             product(data.term_names, data.n_cell, data.orders)
     ):
@@ -702,14 +703,23 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
             )
             for opt in sst['opt'].unique():
                 iopt = sst['opt'] == opt
+
+                aux = sst[iopt][['variant', 'rpm']]
+                if key == 'twwmean':
+                    for ii, iv in enumerate(aux['variant']):
+                        if nm.isfinite(aux['rpm'].iloc[ii]):
+                            ranks[iv].append(ii)
+
                 ostats = dstats.setdefault(opt, {})
-                ostats[key] = sst[iopt][['variant', 'rpm']].apply(
+                ostats[key] = aux.apply(
                     lambda x: tuple(x), axis=1, result_type='reduce'
                 ).to_list()
 
         dfstats = {key : pd.DataFrame(val) for key, val in dstats.items()}
         vdf = pd.concat(dfstats)
         vdfs[selection] = vdf
+
+    rdf = pd.DataFrame(ranks)
 
     from time_tensors_report import fragments
     from soops.base import Output
@@ -727,6 +737,13 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
     report(fragments['section'].format(
         level='', name='Best eval\_fun() variants', label='')
     )
+
+    report('twwmean average ranks:')
+    report(fragments['center'].format(
+        text=rdf.describe().sort_values('mean', axis=1).to_latex()
+    ))
+    report(fragments['newpage'])
+
     for selection, vdf in vdfs.items():
         report(sof.escape_latex(str(selection)))
         report(fragments['newline'])
