@@ -672,6 +672,8 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
 
     vdfs = {}
     ranks = {ii : [] for ii in ldf['variant'].unique()}
+    opts = ldf['opt'].unique()
+    paths = {ii : {} for ii in opts}
     for ir, selection in enumerate(
             product(data.term_names, data.n_cell, data.orders)
     ):
@@ -691,6 +693,11 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
             keys += ['mmean', 'mmin', 'mwwmean']
         stats = sdf[keys]
 
+        spaths = sdf['paths']
+        for opt in opts:
+            path = spaths[stats.opt==opt].iloc[0]
+            paths[opt][selection] = path
+
         dstats = {}
         for ic, key in enumerate(keys[2:]):
             sst = stats[['opt', 'variant', key]].sort_values(
@@ -701,7 +708,7 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
                 (sst[key] - sst.groupby('opt').transform('mean')[key])
                 / sst[key]
             )
-            for opt in sst['opt'].unique():
+            for opt in opts:
                 iopt = sst['opt'] == opt
 
                 aux = sst[iopt][['variant', 'rpm']]
@@ -720,6 +727,7 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
         vdfs[selection] = vdf
 
     rdf = pd.DataFrame(ranks)
+    pdf = pd.DataFrame(paths)
 
     from time_tensors_report import fragments
     from soops.base import Output
@@ -741,6 +749,12 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
     report('twwmean average ranks:')
     report(fragments['center'].format(
         text=rdf.describe().sort_values('mean', axis=1).to_latex()
+    ))
+    report(fragments['newpage'])
+
+    report('optimization paths:')
+    report(fragments['center'].format(
+        text=r'\tiny\\' + pdf.to_latex()
     ))
     report(fragments['newpage'])
 
