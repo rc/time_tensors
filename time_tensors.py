@@ -703,11 +703,10 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
             sst = stats[['opt', 'variant', key]].sort_values(
                 ['opt', key], ignore_index=True
             )
+            gbopt = sst.groupby('opt')
             # Relative plus-minus.
-            sst['rpm'] = (
-                (sst[key] - sst.groupby('opt').transform('mean')[key])
-                / sst[key]
-            )
+            vmean = gbopt[key].transform('mean')
+            sst['rpm'] = (sst[key] - vmean) / vmean
             for opt in opts:
                 iopt = sst['opt'] == opt
 
