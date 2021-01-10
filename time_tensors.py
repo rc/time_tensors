@@ -672,6 +672,10 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
 
     vdfs = {}
     ranks = {ii : [] for ii in ldf['variant'].unique()}
+    max_to_best = {
+        'tmean' : {ii : {} for ii in ldf['variant'].unique()},
+        'mmean' : {ii : {} for ii in ldf['variant'].unique()},
+    }
     opts = ldf['opt'].unique()
     paths = {ii : {} for ii in opts}
     for ir, selection in enumerate(
@@ -711,15 +715,29 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
                 iopt = sst['opt'] == opt
 
                 aux = sst[iopt][['variant', 'rpm']]
+                ostats = dstats.setdefault(opt, {})
+                ostats[key] = aux.apply(
+                    lambda x: tuple(x), axis=1, result_type='reduce'
+                ).to_list()
+
                 if key == 'twwmean':
                     for ii, iv in enumerate(aux['variant']):
                         if nm.isfinite(aux['rpm'].iloc[ii]):
                             ranks[iv].append(ii)
 
-                ostats = dstats.setdefault(opt, {})
-                ostats[key] = aux.apply(
-                    lambda x: tuple(x), axis=1, result_type='reduce'
-                ).to_list()
+            if key in ('tmean', 'mmean'):
+                vmin = gbopt[key].transform('min')
+                sst['r_to_best'] = (sst[key] - vmin) / vmin
+
+                gbvopt = sst.groupby(['variant', 'opt'])
+                vmax = gbvopt['r_to_best'].max()
+                mtbs = max_to_best[key]
+                for ik in max_to_best[key].keys():
+                    for opt in opts:
+                        v0 = mtbs[ik].setdefault(opt, -1)
+                        v1 = vmax.loc[ik, opt]
+                        if v1 > v0:
+                            mtbs[ik][opt] = v1
 
         dfstats = {key : pd.DataFrame(val) for key, val in dstats.items()}
         vdf = pd.concat(dfstats)
@@ -727,6 +745,9 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
 
     rdf = pd.DataFrame(ranks)
     pdf = pd.DataFrame(paths)
+
+    ttbdf = pd.DataFrame(max_to_best['tmean'])
+    mtbdf = pd.DataFrame(max_to_best['mmean'])
 
     from time_tensors_report import fragments
     from soops.base import Output
@@ -749,6 +770,27 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
     report(fragments['center'].format(
         text=rdf.describe().sort_values('mean', axis=1).to_latex()
     ))
+
+    fmt = lambda x: sof.format_float_latex(x, 1)
+    report('rel. tmean to best:')
+    nr = ttbdf.shape[0]
+    ttbdf.loc['sum'] = ttbdf[:nr].sum(axis=0)
+    ttbdf.loc['min'] = ttbdf[:nr].min(axis=0)
+    ttbdf.loc['max'] = ttbdf[:nr].max(axis=0)
+    report(fragments['center'].format(
+        text=(ttbdf.to_latex(escape=False, formatters=[fmt] * ttbdf.shape[1]))
+        .replace('sum', '\\hline\nsum')
+    ))
+    report('rel. mmean to best:')
+    nr = mtbdf.shape[0]
+    mtbdf.loc['sum'] = mtbdf[:nr].sum(axis=0)
+    mtbdf.loc['min'] = mtbdf[:nr].min(axis=0)
+    mtbdf.loc['max'] = mtbdf[:nr].max(axis=0)
+    report(fragments['center'].format(
+        text=(mtbdf.to_latex(escape=False, formatters=[fmt] * mtbdf.shape[1]))
+        .replace('sum', '\\hline\nsum')
+    ))
+
     report(fragments['newpage'])
 
     report('optimization paths:')
