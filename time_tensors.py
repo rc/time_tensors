@@ -522,6 +522,22 @@ def _collect_mem_usages(df, ldf, data):
 
     return ts, mems, fts
 
+def _get_ranks(arr):
+    ii = nm.argsort(arr)
+    ranks = nm.full_like(ii, len(ii))
+    ic = nm.isfinite(arr[ii])
+    if ic.any():
+        # Some functions failed - use len(ii) for their ranks.
+        ii = ii[ic]
+        ranks[ii] = nm.arange(len(ii))
+        ranks = ranks.astype(nm.float64)
+
+    else:
+        # All functions failed - ignore (replace by nans).
+        ranks = nm.full_like(arr, nm.nan)
+
+    return ranks
+
 @profile1
 def _insert_ldf_ranks(ldf, df, tmean_key, mmean_key):
     """
@@ -548,19 +564,13 @@ def _insert_ldf_ranks(ldf, df, tmean_key, mmean_key):
     for ig in range(len(df)):
         mask = ldf['index'] == ig
         tmeans = ldf.loc[mask, tmean_key].values
-        ii = nm.argsort(tmeans)
-        rank = nm.full_like(ii, len(ii))
-        ii = ii[nm.isfinite(tmeans[ii])]
-        rank[ii] = nm.arange(len(ii))
-        ldf.loc[mask, trank_key] = rank
+        ranks = _get_ranks(tmeans)
+        ldf.loc[mask, trank_key] = ranks
         ldf.loc[mask, rtmean_key] = tmeans / ref_tmeans[ig]
         if is_mem:
             mmeans = ldf.loc[mask, mmean_key].values
-            ii = nm.argsort(mmeans)
-            rank = nm.full_like(ii, len(ii))
-            ii = ii[nm.isfinite(mmeans[ii])]
-            rank[ii] = nm.arange(len(ii))
-            ldf.loc[mask, mrank_key] = rank
+            ranks = _get_ranks(mmeans)
+            ldf.loc[mask, mrank_key] = ranks
             ldf.loc[mask, rmmean_key] = mmeans / ref_mmeans[ig]
 
 def _create_fdf(ldf):
