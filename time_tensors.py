@@ -329,6 +329,8 @@ def get_plugin_info():
         collect_stats,
         remove_raw_df_data,
         select_data,
+        report_rank_stats,
+        report_rmean_stats,
         report_eval_fun_variants,
         setup_styles,
         plot_times,
@@ -658,6 +660,47 @@ def select_data(df, data=None, term_names=None, n_cell=None, orders=None,
                                    .encode('utf-8')).hexdigest()
 
     return data
+
+def _report_dfdict(filename, report_dir, dfs, date, data=None):
+    from time_tensors_report import fragments
+    from soops.base import Output
+    import soops.formatting as sof
+
+    if report_dir is None:
+        report_dir = os.path.join(data.output_dir, 'report')
+
+    filename = os.path.join(report_dir, filename)
+    report = Output(prefix='', filename=filename, quiet=True)
+
+    report(fragments['begin-document'])
+    report('results scoop date (UTC):', date)
+    report(fragments['newpage'])
+
+    for df in dfs.values():
+        report(fragments['center'].format(
+            text=df.to_latex()
+        ))
+        report(fragments['newpage'])
+
+    report(fragments['end-document'])
+    sof.build_pdf(filename)
+
+@profile1
+def report_rank_stats(df, data=None, report_dir=None, number=40):
+    fdf = data.fdf
+
+    keys = ['trank_mean', 'twwrank_mean', 'mrank_mean', 'mwwrank_mean']
+    sdfs = {key : fdf.sort_values(by=key)[key][:number] for key in keys}
+    _report_dfdict('rank-stats.tex', report_dir, sdfs, df.iloc[0]['time'],
+                   data=data)
+
+def report_rmean_stats(df, data=None, report_dir=None, number=40):
+    fdf = data.fdf
+
+    keys = ['rtmean_mean', 'rtwwmean_mean', 'rmmean_mean', 'rmwwmean_mean']
+    sdfs = {key : fdf.sort_values(by=key)[key][:number] for key in keys}
+    _report_dfdict('rmean-stats.tex', report_dir, sdfs, df.iloc[0]['time'],
+                   data=data)
 
 @profile1
 def report_eval_fun_variants(df, data=None, report_dir=None):
