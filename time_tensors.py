@@ -849,8 +849,10 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
     report(fragments['newpage'])
 
     report('optimization paths:')
+    fmt = lambda x: '+'.join([','.join(['{}{}'.format(*ii) for ii in path])
+                              for path in x])
     report(fragments['center'].format(
-        text=r'\tiny\\' + pdf.to_latex()
+        text=r'\tiny\\' + pdf.to_latex(formatters=[fmt] * pdf.shape[1])
     ))
     report(fragments['newpage'])
 
