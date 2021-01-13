@@ -1377,6 +1377,10 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
         ax.set_xticks(xs)
         ax.set_xticklabels(vx, rotation='vertical')
 
+        for ax in axs.flat:
+            ax.set_xlim(xs[0] - 1, xs[-1] + 1)
+            ax.autoscale_view()
+
         plt.tight_layout()
         filename = (prefix
                     + '{}-{:03d}-{:03d}-{}-{}-{}-{}-{}'
