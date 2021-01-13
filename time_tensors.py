@@ -761,13 +761,13 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
                 ['opt', key], ignore_index=True
             )
             gbopt = sst.groupby('opt')
-            # Relative plus-minus.
-            vmean = gbopt[key].transform('mean')
-            sst['rpm'] = (sst[key] - vmean) / vmean
+            # Relative time to best.
+            vmin = gbopt[key].transform('min')
+            sst['r_to_best'] = (sst[key] - vmin) / vmin
             for opt in opts:
                 iopt = sst['opt'] == opt
 
-                aux = sst[iopt][['variant', 'rpm']]
+                aux = sst[iopt][['variant', 'r_to_best']]
                 ostats = dstats.setdefault(opt, {})
                 ostats[key] = aux.apply(
                     lambda x: tuple(x), axis=1, result_type='reduce'
@@ -775,13 +775,10 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
 
                 if key == 'twwmean':
                     for ii, iv in enumerate(aux['variant']):
-                        if nm.isfinite(aux['rpm'].iloc[ii]):
+                        if nm.isfinite(aux['r_to_best'].iloc[ii]):
                             ranks[iv].append(ii)
 
             if key in ('tmean', 'mmean'):
-                vmin = gbopt[key].transform('min')
-                sst['r_to_best'] = (sst[key] - vmin) / vmin
-
                 gbvopt = sst.groupby(['variant', 'opt'])
                 vmax = gbvopt['r_to_best'].max()
                 mtbs = max_to_best[key]
@@ -791,6 +788,11 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
                         v1 = vmax.loc[ik, opt]
                         if v1 > v0:
                             mtbs[ik][opt] = v1
+
+                for ik in max_to_best[key].keys():
+                    for opt in opts:
+                        if mtbs[ik][opt] == -1:
+                            mtbs[ik][opt] = nm.nan
 
         dfstats = {key : pd.DataFrame(val) for key, val in dstats.items()}
         vdf = pd.concat(dfstats)
