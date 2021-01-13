@@ -657,7 +657,7 @@ def select_data(df, data=None, term_names=None, n_cell=None, orders=None,
 
     if omit_functions is not None:
         fun_match = re.compile('|'.join(omit_functions)).match
-        data.fun_names = [fun for fun in data._fun_names if not fun_match(fun)]
+        data.fun_names = [fun for fun in data.fun_names if not fun_match(fun)]
 
     if (functions is not None) or (omit_functions is not None):
         indexer = data._ldf['fun_name'].isin(data.fun_names)
