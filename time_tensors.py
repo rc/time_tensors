@@ -431,9 +431,14 @@ def _create_ldf(df, tkeys, data):
     aux['index'] = df.index
     exprs = pd.melt(aux, ['index'], var_name='fun_name',
                     value_name='expressions')
-    exprs[['expressions', 'paths', 'sizes']] = pd.DataFrame(
-        exprs['expressions'].to_list()
-    )
+    if len(exprs['expressions']) > 1:
+        exprs[['expressions', 'paths', 'sizes']] = pd.DataFrame(
+            exprs['expressions'].to_list()
+        )
+
+    else:
+        exprs[['expressions', 'paths', 'sizes']] = None, None, None
+
     ldf = ldf.join(exprs.set_index(['index', 'fun_name']),
                    on=['index', 'fun_name'])
 
