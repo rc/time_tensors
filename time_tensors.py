@@ -77,10 +77,9 @@ import sfepy.discrete.fem.refine_hanging as rh
 from sfepy.discrete.fem.geometry_element import GeometryElement
 from sfepy.discrete import (FieldVariable, Material, Integral, PolySpace)
 from sfepy.terms import Term
+from sfepy.terms.terms_multilinear import ETermBase
 from sfepy.mesh.mesh_generators import gen_block_mesh
 from sfepy.mechanics.matcoefs import stiffness_from_lame
-
-import terms_multilinear; terms_multilinear
 
 def get_run_info():
     # script_dir is added by soops-run, it is the normalized path to
@@ -2923,7 +2922,7 @@ def get_evals_sfepy(options, term, eterm,
 
         return _eval_eterm
 
-    can = terms_multilinear.ETermBase.can_backend
+    can = ETermBase.can_backend
     for backend, optimizes in backends.items():
         bkwargs = backend_args.get(backend, {})
         if 'eval_fun' in bkwargs:
