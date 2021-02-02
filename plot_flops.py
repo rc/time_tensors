@@ -68,6 +68,8 @@ helps = {
     : 'field approximation orders [default: %(default)s]',
     'quad_orders'
     : 'quadrature orders [default: 2 * approximation orders]',
+    'term_names'
+    : 'use given terms [default: %(default)s]',
     'diff'
     : 'if given, differentiate w.r.t. this variable [default: %(default)s]',
     'no_show'
@@ -77,6 +79,12 @@ helps = {
 }
 
 def main():
+    default_term_names = ', '.join((
+        'dw_convect', 'dw_laplace',
+        'dw_volume_dot:scalar', 'dw_volume_dot:scalar-material',
+        'dw_volume_dot:vector','dw_volume_dot:vector-material',
+        'dw_div', 'dw_lin_elastic'
+    ))
     parser = ArgumentParser(description=__doc__.rstrip(),
                             formatter_class=RawDescriptionHelpFormatter)
     parser.add_argument('output_dir', help=helps['output_dir'])
@@ -86,6 +94,9 @@ def main():
     parser.add_argument('--quad-orders', metavar='int[,int,...]',
                         action='store', dest='quad_orders',
                         default=None, help=helps['quad_orders'])
+    parser.add_argument('--term-names', metavar='list',
+                        action='store', dest='term_names',
+                        default=default_term_names, help=helps['term_names'])
     parser.add_argument('--diff',
                         metavar='variable name',
                         action='store', dest='diff',
@@ -105,6 +116,8 @@ def main():
     else:
         options.quad_orders = [2 * ii for ii in options.orders]
 
+    options.term_names = so.parse_as_list(options.term_names, free_word=True)
+
     n_cell = 1
     dim = 3
     sym = dim2sym(dim)
@@ -112,10 +125,7 @@ def main():
     orders = options.orders
 
     all_costs = {}
-    for _term_name in ('dw_convect', 'dw_laplace',
-                       'dw_volume_dot:scalar', 'dw_volume_dot:scalar-material',
-                       'dw_volume_dot:vector','dw_volume_dot:vector-material',
-                       'dw_div', 'dw_lin_elastic'):
+    for _term_name in options.term_names:
         aux = _term_name.split(':')
         term_name = aux[0]
         variant = aux[1] if len(aux) == 2 else ''
@@ -226,16 +236,19 @@ def main():
         used = sps.update_used(used, indices)
         ax.semilogy(orders, costs, **style_kwargs)
 
-    mode = 'residual' if options.diff is None else 'matrix'
+    mode = 'vector' if options.diff is None else 'matrix'
     ax.set_title('{} mode'.format(mode))
+    ax.set_xticks(orders)
     ax.set_xlabel('order')
     ax.set_ylabel('flops per cell')
     ax.grid(which='both', axis='y')
-    sps.add_legend(ax, select, styles, used)
+    sps.add_legend(ax, select, styles, used,
+                   format_labels=lambda key, iv, val: val[3:])
     plt.tight_layout()
 
-    fig.savefig(os.path.join(options.output_dir, 'flops-{}.pdf'.format(mode)),
-                bbox_inches='tight')
+    filename = os.path.join(options.output_dir, 'flops-{}.pdf'.format(mode))
+    so.ensure_path(filename)
+    fig.savefig(filename, bbox_inches='tight')
 
     if options.show:
         plt.show()
