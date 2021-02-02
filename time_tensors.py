@@ -338,6 +338,7 @@ def get_plugin_info():
         plot_all_as_bars2,
         show_figures,
         plot_comparisons,
+        plot_scatter,
     ]
 
     return info
@@ -576,6 +577,17 @@ def _insert_ldf_ranks(ldf, df, tmean_key, mmean_key):
             ranks = _get_ranks(mmeans)
             ldf.loc[mask, mrank_key] = ranks
             ldf.loc[mask, rmmean_key] = mmeans / ref_mmeans[ig]
+
+def _get_lib(x):
+    aux = x.split('_')
+    if x.startswith('eterm'):
+        return aux[1]
+
+    elif x.startswith('opt_einsum'):
+        return 's-oe'
+
+    else:
+        return aux[0]
 
 def _create_fdf(ldf):
     """
@@ -1395,6 +1407,156 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
                     + suffix)
         fig.savefig(os.path.join(data.output_dir, filename),
                     bbox_inches='tight')
+
+def mscatter(ax, x, y, m=None, **kw):
+    """
+    From https://stackoverflow.com/a/52303895.
+    """
+    import matplotlib.markers as mmarkers
+    sc = ax.scatter(x, y, **kw)
+    if (m is not None) and (len(m) == len(x)):
+        paths = []
+        for marker in m:
+            if isinstance(marker, mmarkers.MarkerStyle):
+                marker_obj = marker
+
+            else:
+                marker_obj = mmarkers.MarkerStyle(marker)
+
+            path = marker_obj.get_path().transformed(
+                marker_obj.get_transform()
+            )
+            paths.append(path)
+        sc.set_paths(paths)
+    return sc
+
+@profile1
+def plot_scatter(df, data=None, colormap_name='tab10:qualitative',
+                 alpha=0.8, size=100,
+                 xaxis='mmean', yaxis='tmean',
+                 xscale='linear', yscale='linear',
+                 figsize=(8, 6), prefix='', suffix='.png',
+                 sort='tmean', number=None):
+    import soops.plot_selected as sps
+    import matplotlib.pyplot as plt
+
+    ldf = data.ldf
+    if 'mmean' not in data.ldf:
+        output('no memory data!')
+        return
+
+    df = df.set_index(['term_name', 'n_cell', 'order'])
+
+    fmt = lambda x: '+'.join([','.join(['{}{}'.format(*ii) for ii in path])
+                              for path in x] if isinstance(x, list) else '-')
+    ldf['spaths'] = ldf['paths'].apply(fmt)
+    ldf['lib'] = ldf['fun_name'].apply(_get_lib)
+
+    select = {}
+    select['lib'] = ldf['lib'].unique()
+    select['path'] = ldf['spaths'].unique()
+    styles = {}
+    styles['lib'] = {
+        'color' : colormap_name,
+        'lw' : 3,
+        'alpha' : alpha,
+    }
+    styles['path'] = {
+        'marker' : ['${}$'.format(chr(ii))
+                    for ii in range(65, 65 + len(select['path']))],
+        'ls' : 'None',
+    }
+
+    styles = sps.setup_plot_styles(select, styles)
+
+    colors = {key : val for key, val in
+              zip(select['lib'], styles['lib']['color'])}
+    markers = {key : val for key, val in
+               zip(select['path'], styles['path']['marker'])}
+
+    fig0, ax0 = plt.subplots(1, figsize=figsize)
+    fig, ax = plt.subplots(1, figsize=figsize)
+    for ifig, selection in enumerate(
+            product(data.term_names, data.n_cell, data.orders)
+    ):
+        if not selection in df.index: continue
+
+        term_name, n_cell, order = selection
+        output(term_name, n_cell, order)
+
+        ig = df.index.get_loc(selection)
+        sdf = ldf[(ldf['index'] == ig)]
+        if (not len(sdf)) or (not sdf.tmean.notna().any()):
+            output('-> no data, skipped!')
+            continue
+
+        n_dof = df.loc[selection, 'n_dof']
+        if nm.isfinite(n_dof):
+            n_dof = int(n_dof)
+
+        sdf = sdf.sort_values(sort)
+        if number is not None:
+            sdf = sdf.iloc[:number]
+
+        diff = sdf['diff'].values[0]
+        if diff is None: diff = '-'
+
+        ax.cla()
+        ax.set_title('{}, diff: {}, #cells: {}, order: {}, #DOFs: {}'
+                     .format(term_name, diff, n_cell, order, n_dof))
+        ax.grid(which='both')
+
+        vx = sdf[xaxis]
+        vy = sdf[yaxis]
+        cs = [colors[lib] for lib in sdf['lib']]
+        ms = [markers[path] for path in sdf['spaths']]
+
+        mscatter(ax, vx, vy, m=ms, c=cs, s=size, alpha=alpha)
+        mscatter(ax0, vx, vy, m=ms, c=cs, s=size, alpha=alpha)
+
+        ax.set_xscale(xscale)
+        ax.set_xlabel(xaxis)
+        ax.set_yscale(yscale)
+        ax.set_ylabel(yaxis)
+
+        aux = select.copy()
+        if len(ms) > 10:
+            aux.pop('path')
+            print(markers)
+        sps.add_legend(ax, aux, styles, used=None)
+        ax.autoscale_view()
+
+        plt.tight_layout()
+        filename = (prefix
+                    + 's-{}-{:03d}-{:03d}-{}-{}-{}-{}-{}-{}-{}-{}-{}'
+                    .format(data.fun_hash[:8], len(vx), ig,
+                            term_name, diff, n_cell, order,
+                            xaxis, yaxis, xscale, yscale, sort)
+                    + suffix)
+        fig.savefig(os.path.join(data.output_dir, filename),
+                    bbox_inches='tight')
+
+    ax0.grid(which='both')
+    ax0.set_xscale(xscale)
+    ax0.set_xlabel(xaxis)
+    ax0.set_yscale(yscale)
+    ax0.set_ylabel(yaxis)
+
+    aux = select.copy()
+    if len(ms) > 10:
+        aux.pop('path')
+        print(markers)
+    sps.add_legend(ax0, aux, styles, used=None)
+    ax0.autoscale_view()
+
+    plt.tight_layout()
+    filename = (prefix
+                + 's-{}-{:03d}-{}-{}-{}-{}-{}-{}'
+                .format(data.fun_hash[:8], len(vx),
+                        diff, xaxis, yaxis, xscale, yscale, sort)
+                + suffix)
+    fig.savefig(os.path.join(data.output_dir, filename),
+                bbox_inches='tight')
 
 def create_domain(n_cell, refine, timer):
     timer.start()
