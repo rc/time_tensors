@@ -17,8 +17,7 @@ from sfepy.base.base import Struct
 from sfepy.discrete.fem.geometry_element import GeometryElement
 from sfepy.discrete import (Integral, PolySpace)
 from sfepy.mechanics.tensors import dim2sym
-
-import terms_multilinear as tm
+import sfepy.terms.terms_multilinear as tm
 
 def _flop_count(idx_contraction, inner, num_terms, size_dictionary):
     """
