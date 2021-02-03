@@ -1554,6 +1554,7 @@ def plot_scatter(df, data=None, colormap_name='tab10:qualitative',
     sps.add_legend(ax0, aux, styles, used=None)
     ax0.autoscale_view()
 
+    plt.figure(fig0.number)
     plt.tight_layout()
     filename = (prefix
                 + 's-{}-{:03d}-{}-{}-{}-{}-{}-{}'
