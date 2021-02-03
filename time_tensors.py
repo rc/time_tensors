@@ -1537,6 +1537,11 @@ def plot_scatter(df, data=None, colormap_name='tab10:qualitative',
                     bbox_inches='tight')
 
     ax0.grid(which='both')
+    n_dofs = df['n_dof']
+    ax0.set_title('diff: {}, #cells: {}-{}, orders: {}-{}, #DOFs: {}-{}'
+                  .format(diff, data.n_cell[0], data.n_cell[-1],
+                          data.orders[0], data.orders[-1],
+                          n_dofs.min(), n_dofs.max()))
     ax0.set_xscale(xscale)
     ax0.set_xlabel(xaxis)
     ax0.set_yscale(yscale)
