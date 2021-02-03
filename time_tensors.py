@@ -7,13 +7,6 @@ sys.path.append('.')
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 import os
 import shutil
-os.environ['OMP_NUM_THREADS'] = '1'
-os.environ['OPENBLAS_NUM_THREADS'] = '1'
-os.environ['MKL_NUM_THREADS'] = '1'
-os.environ['VECLIB_MAXIMUM_THREADS'] = '1'
-os.environ['NUMEXPR_NUM_THREADS'] = '1'
-os.environ['XLA_FLAGS'] = ('--xla_cpu_multi_thread_eigen=false '
-                           'intra_op_parallelism_threads=1')
 import psutil
 
 try:
@@ -85,7 +78,7 @@ def get_run_info():
     # script_dir is added by soops-run, it is the normalized path to
     # this script.
     run_cmd = """
-    rm {output_dir}/mprofile.dat; mprof run -T {sampling} -C -o {output_dir}/mprofile.dat time_tensors.py --mprof {output_dir}
+    rm {output_dir}/mprofile.dat; source {env}; mprof run -T {sampling} -C -o {output_dir}/mprofile.dat time_tensors.py --mprof {output_dir}
     """
     run_cmd = ' '.join(run_cmd.split())
 
@@ -3073,7 +3066,7 @@ def get_evals_sfepy(options, term, eterm,
 
     def _make_evaluator(backend, optimize, layout, name, bkwargs):
         def _eval_eterm():
-            if 'threads' in backend:
+            if ('threads' in backend) or options.run_env == 'multi':
                 this = psutil.Process()
                 affinity = this.cpu_affinity()
                 this.cpu_affinity([])
@@ -3300,6 +3293,9 @@ def main():
     filename = os.path.join(output_dir, 'output_log.txt')
     ensure_path(filename)
     output.set_output(filename=filename, combined=options.silent == False)
+
+    options.run_env = os.environ.get('TIME_TENSORS_RUN', 'unset')
+    output('run environment:', options.run_env)
 
     filename = os.path.join(output_dir, 'options.txt')
     save_options(filename, [('options', vars(options))],
