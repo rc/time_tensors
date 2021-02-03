@@ -1432,7 +1432,7 @@ def mscatter(ax, x, y, m=None, **kw):
 
 @profile1
 def plot_scatter(df, data=None, colormap_name='tab10:qualitative',
-                 alpha=0.8, size=100,
+                 alpha=0.8, size=100, max_path_legends=10,
                  xaxis='mmean', yaxis='tmean',
                  xscale='linear', yscale='linear',
                  figsize=(8, 6), prefix='', suffix='.png',
@@ -1520,9 +1520,9 @@ def plot_scatter(df, data=None, colormap_name='tab10:qualitative',
         ax.set_ylabel(yaxis)
 
         aux = select.copy()
-        if len(ms) > 10:
+        if len(aux['path']) > max_path_legends:
             aux.pop('path')
-            print(markers)
+            output(markers)
         sps.add_legend(ax, aux, styles, used=None)
         ax.autoscale_view()
 
