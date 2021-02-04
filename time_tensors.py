@@ -730,6 +730,8 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
     ldf = data.ldf[data.ldf['fun_name'].str.match('|'.join(prefixes))].copy()
     ldf['variant'] = ldf['fun_name'].str.slice(9, 10)
     ldf['opt'] = ldf['fun_name'].str.slice(11, 14)
+    ldf['layout'] = ldf['fun_name'].str.slice(-6, None)
+
     is_mem = 'mmean' in ldf
 
     vdfs = {}
@@ -754,7 +756,7 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
             output('-> no data, skipped!')
             continue
 
-        keys = ['opt', 'variant', 'tmean', 'tmin', 'twwmean']
+        keys = ['opt', 'variant', 'layout', 'tmean', 'tmin', 'twwmean']
         if is_mem:
             keys += ['mmean', 'mmin', 'mwwmean']
         stats = sdf[keys]
@@ -765,14 +767,18 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
             paths[opt][selection] = path
 
         dstats = {}
-        for ic, key in enumerate(keys[2:]):
-            sst = stats[['opt', 'variant', key]].sort_values(
-                ['opt', key], ignore_index=True
-            )
-            gbopt = sst.groupby('opt')
-            # Relative time to best.
-            vmin = gbopt[key].transform('min')
-            sst['r_to_best'] = (sst[key] - vmin) / vmin
+        for ic, key in enumerate(keys[3:]):
+            sst2 = stats[['opt', 'variant', 'layout', key]]
+            gboptv = sst2.groupby(['opt', 'variant'])
+            # Max. over all layouts.
+            sst = gboptv[key].max()
+
+            gbopt = sst2.groupby('opt')
+            # Relative time to best, reset hierarchical index into columns.
+            vmin = gbopt[key].min().reindex(sst.index, level=0).reset_index()
+            sst = sst.reset_index()
+            sst['r_to_best'] = (sst[key] - vmin[key]) / vmin[key]
+            sst = sst.sort_values(['opt', key])
             for opt in opts:
                 iopt = sst['opt'] == opt
 
