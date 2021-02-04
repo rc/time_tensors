@@ -737,8 +737,8 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
     vdfs = {}
     ranks = {ii : [] for ii in ldf['variant'].unique()}
     max_to_best = {
-        'tmean' : {ii : {} for ii in ldf['variant'].unique()},
-        'mmean' : {ii : {} for ii in ldf['variant'].unique()},
+        'twwmean' : {ii : {} for ii in ldf['variant'].unique()},
+        'mwwmean' : {ii : {} for ii in ldf['variant'].unique()},
     }
     opts = ldf['opt'].unique()
     paths = {ii : {} for ii in opts}
@@ -793,7 +793,7 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
                         if nm.isfinite(aux['r_to_best'].iloc[ii]):
                             ranks[iv].append(ii)
 
-            if key in ('tmean', 'mmean'):
+            if key in ('twwmean', 'mwwmean'):
                 gbvopt = sst.groupby(['variant', 'opt'])
                 vmax = gbvopt['r_to_best'].max()
                 mtbs = max_to_best[key]
@@ -816,8 +816,8 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
     rdf = pd.DataFrame(ranks)
     pdf = pd.DataFrame(paths)
 
-    ttbdf = pd.DataFrame(max_to_best['tmean'])
-    mtbdf = pd.DataFrame(max_to_best['mmean'])
+    ttbdf = pd.DataFrame(max_to_best['twwmean'])
+    mtbdf = pd.DataFrame(max_to_best['mwwmean'])
 
     from time_tensors_report import fragments
     from soops.base import Output
@@ -842,7 +842,7 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
     ))
 
     fmt = lambda x: sof.format_float_latex(x, 1)
-    report('rel. tmean to best:')
+    report('rel. twwmean to best:')
     nr = ttbdf.shape[0]
     ttbdf.loc['sum'] = ttbdf[:nr].sum(axis=0)
     ttbdf.loc['min'] = ttbdf[:nr].min(axis=0)
@@ -851,7 +851,7 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
         text=(ttbdf.to_latex(escape=False, formatters=[fmt] * ttbdf.shape[1]))
         .replace('sum', '\\hline\nsum')
     ))
-    report('rel. mmean to best:')
+    report('rel. mwwmean to best:')
     nr = mtbdf.shape[0]
     mtbdf.loc['sum'] = mtbdf[:nr].sum(axis=0)
     mtbdf.loc['min'] = mtbdf[:nr].min(axis=0)
