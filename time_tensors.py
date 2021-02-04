@@ -861,13 +861,12 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
     fmt = lambda x: '+'.join([','.join(['{}{}'.format(*ii) for ii in path])
                               for path in x])
     report(fragments['center'].format(
-        text=r'\tiny\\' + pdf.to_latex(formatters=[fmt] * pdf.shape[1])
+        text=r'\tiny' + pdf.to_latex(formatters=[fmt] * pdf.shape[1])
     ))
     report(fragments['newpage'])
 
     for selection, vdf in vdfs.items():
-        report(sof.escape_latex(str(selection)))
-        report(fragments['newline'])
+        report(sof.escape_latex(str(selection)) + fragments['newline'])
         fmt = lambda x: x[0] + ', '+ sof.format_float_latex(x[1], 1)
         report(vdf.to_latex(escape=False, formatters=[fmt] * vdf.shape[1]))
         report(fragments['newpage'])
