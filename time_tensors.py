@@ -1433,7 +1433,7 @@ def plot_scatter(df, data=None, colormap_name='tab10:qualitative',
     import soops.plot_selected as sps
     import matplotlib.pyplot as plt
 
-    ldf = data.ldf
+    ldf = data.ldf.copy()
     if 'mmean' not in data.ldf:
         output('no memory data!')
         return
