@@ -438,6 +438,15 @@ def _create_ldf(df, tkeys, data):
     ldf = ldf.join(exprs.set_index(['index', 'fun_name']),
                    on=['index', 'fun_name'])
 
+    fmt = lambda x: '+'.join([','.join(['{}{}'.format(*ii) for ii in path])
+                              for path in x] if isinstance(x, list) else '-')
+    ldf['spaths'] = ldf['paths'].apply(fmt)
+
+    aux = ldf['fun_name'].str.extract('eterm_([a-z]*)(?:_(.*))*_(.*)_(.*)')
+    ldf[['lib', 'variant', 'opt', 'layout']] = aux
+    ii = ldf['lib'].isna()
+    ldf.loc[ii, 'lib'] = ldf.loc[ii, 'fun_name'].apply(_get_lib)
+
     def fun(x):
         return x['t'] if nm.isfinite(x['t']).all() else [nm.nan] * x['repeat']
     ldf['t'] = ldf.apply(fun, axis=1)
@@ -730,24 +739,20 @@ def report_rmean_stats(df, data=None, report_dir=None, number=40):
 
 @profile1
 def report_eval_fun_variants(df, data=None, report_dir=None):
-    prefixes = ('eterm_oe_',)
-
     df = df.set_index(['term_name', 'n_cell', 'order'])
 
-    ldf = data.ldf[data.ldf['fun_name'].str.match('|'.join(prefixes))].copy()
-    ldf['variant'] = ldf['fun_name'].str.slice(9, 10)
-    ldf['opt'] = ldf['fun_name'].str.slice(11, 14)
-    ldf['layout'] = ldf['fun_name'].str.slice(-6, None)
+    ldf = data.ldf[data.ldf['variant'].notna()]
 
     is_mem = 'mmean' in ldf
 
     vdfs = {}
-    ranks = {ii : [] for ii in ldf['variant'].unique()}
+    variants = ldf['variant'].unique()
+    ranks = {ii : [] for ii in variants}
     max_to_best = {
-        'twwmean' : {ii : {} for ii in ldf['variant'].unique()},
-        'mwwmean' : {ii : {} for ii in ldf['variant'].unique()},
+        'twwmean' : {ii : {} for ii in variants},
+        'mwwmean' : {ii : {} for ii in variants},
     }
-    opts = ldf['opt'].unique()
+    opts = ldf['opt'].dropna().unique()
     paths = {ii : {} for ii in opts}
     for ir, selection in enumerate(
             product(data.term_names, data.n_cell, data.orders)
@@ -1451,11 +1456,6 @@ def plot_scatter(df, data=None, colormap_name='tab10:qualitative',
         return
 
     df = df.set_index(['term_name', 'n_cell', 'order'])
-
-    fmt = lambda x: '+'.join([','.join(['{}{}'.format(*ii) for ii in path])
-                              for path in x] if isinstance(x, list) else '-')
-    ldf['spaths'] = ldf['paths'].apply(fmt)
-    ldf['lib'] = ldf['fun_name'].apply(_get_lib)
 
     select = {}
     select['lib'] = ldf['lib'].unique()
