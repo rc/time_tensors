@@ -219,6 +219,9 @@ def load_mprofile(filename, rdata=None):
     mdata = read_mprofile_file(filename)
     mdata.pop('children')
     mdata.pop('cmd_line')
+    mdata['mem_usage'] = nm.array(mdata['mem_usage'])
+    mdata['timestamp'] = nm.array(mdata['timestamp'])
+
     return mdata
 
 @profile1
@@ -494,18 +497,22 @@ def _collect_mem_usages(df, ldf, data):
     for irow, (term_name, n_cell, order, fun_name) in enumerate(ldfcols.values):
         drow = df.loc[term_name, n_cell, order]
         repeat = drow['repeat']
-        mu = nm.array(drow['mem_usage'])
-        tss = nm.array(drow['timestamp'])
+        mu = drow['mem_usage']
+        tss = drow['timestamp']
         tsis = ts[irow]
         if (tsis is not nm.nan) and (len(tsis) == repeat):
+            iis = nm.searchsorted(tss, nm.array(tsis)[:, :2])
             _mems = []
-            for tsi in tsis:
-                i0, i1 = nm.searchsorted(tss, tsi[:2])
+            for it, tsi in enumerate(tsis):
+                i0, i1 = iis[it]
+                if i1 > i0:
+                    mmax = max(mu[i0:i1].max(), tsi[3])
+                    mmin = min(mu[i0:i1].min(), tsi[2])
 
-                mmax = max(mu[i0:i1].max() if i1 > i0 else tsi[3],
-                           tsi[3])
-                mmin = min(mu[i0:i1].min() if i1 > i0 else tsi[2],
-                           tsi[2])
+                else:
+                    mmax = tsi[3]
+                    mmin = tsi[2]
+
                 mem = mmax - mmin
                 _mems.append(mem)
 
