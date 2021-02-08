@@ -78,7 +78,7 @@ def get_run_info():
     # script_dir is added by soops-run, it is the normalized path to
     # this script.
     run_cmd = """
-    rm {output_dir}/mprofile.dat; source {env}; mprof run -T {sampling} -C -o {output_dir}/mprofile.dat time_tensors.py --mprof {output_dir}
+    rm {output_dir}/mprofile.dat; bash -c "source {env} && mprof run -T {sampling} -C -o {output_dir}/mprofile.dat time_tensors.py --mprof {output_dir}
     """
     run_cmd = ' '.join(run_cmd.split())
 
@@ -102,6 +102,7 @@ def get_run_info():
         '--max-mem' : '--max-mem={--max-mem}',
         '--verbosity-eterm' : '--verbosity-eterm={--verbosity-eterm}',
         '--silent' : '--silent',
+        'CLOSE_ENV' : '"', # Hack: must be @defined to close env!!!
     }
 
     output_dir_key = 'output_dir'
