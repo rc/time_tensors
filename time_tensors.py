@@ -8,6 +8,7 @@ from argparse import ArgumentParser, RawDescriptionHelpFormatter
 import os
 import shutil
 import psutil
+import timeout_decorator as tod
 
 try:
     profile1 = profile
@@ -100,6 +101,7 @@ def get_run_info():
         '--micro' : '--micro',
         '--affinity' : '--affinity={--affinity}',
         '--max-mem' : '--max-mem={--max-mem}',
+        '--timeout' : '--timeout={--timeout}',
         '--verbosity-eterm' : '--verbosity-eterm={--verbosity-eterm}',
         '--silent' : '--silent',
         'CLOSE_ENV' : '"', # Hack: must be @defined to close env!!!
@@ -3094,6 +3096,9 @@ def get_evals_sfepy(options, term, eterm,
         _eval_eterm.__name__ = name
         _eval_eterm = profile(_eval_eterm)
 
+        if options.timeout is not None:
+            _eval_eterm = tod.timeout(options.timeout)(_eval_eterm)
+
         return _eval_eterm
 
     can = ETermBase.can_backend
@@ -3146,11 +3151,20 @@ def run_evaluator(key, fun, arg_no, can_use, options, timer,
         if variables is not None:
             modify_variables(variables, variables0, ir=ir)
 
-        timer.start()
-        res = fun()[arg_no]
-        times.append(timer.stop())
-        output('result shape:', res.shape)
-        res = res.reshape(-1)
+        try:
+            timer.start()
+            res = fun()[arg_no]
+            times.append(timer.stop())
+
+        except tod.timeout_decorator.TimeoutError:
+            res = nm.nan
+            times.append(nm.nan)
+            output('result shape: None')
+
+        else:
+            output('result shape:', res.shape)
+            res = res.reshape(-1)
+
         if ref_res is None:
             ref_res = res
         norms.append(nm.linalg.norm(res))
@@ -3200,6 +3214,9 @@ helps = {
     : ' CPU affinity [default: %(default)s]',
     'max_mem'
     : ' max. memory estimate in qsbg size units [default: %(default)s]',
+    'timeout'
+    : """ if given, evaluation functions fail after the given number of seconds
+          [default: %(default)s]""",
     'verbosity_eterm'
     : ' ETermBase verbosity level [default: %(default)s]',
     'silent'
@@ -3274,6 +3291,9 @@ def main():
     parser.add_argument('--max-mem',
                         action='store', dest='max_mem',
                         default='total=20', help=helps['max_mem'])
+    parser.add_argument('--timeout', metavar='float', type=float,
+                        action='store', dest='timeout',
+                        default=None, help=helps['timeout'])
     parser.add_argument('--verbosity-eterm', type=int,
                         action='store', dest='verbosity_eterm',
                         choices=[0, 1, 2, 3],
