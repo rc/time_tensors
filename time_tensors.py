@@ -446,6 +446,7 @@ def _create_ldf(df, tkeys, data):
     ldf['spaths'] = ldf['paths'].apply(fmt)
 
     aux = ldf['fun_name'].str.extract('eterm_([a-z]*)(?:_(.*))*_(.*)_(.*)')
+    aux[[1, 2, 3]] = aux[[1, 2, 3]].fillna('default')
     ldf[['lib', 'variant', 'opt', 'layout']] = aux
     ii = ldf['lib'].isna()
     ldf.loc[ii, 'lib'] = ldf.loc[ii, 'fun_name'].apply(_get_lib)
