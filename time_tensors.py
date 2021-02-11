@@ -1483,6 +1483,11 @@ def plot_scatter(df, data=None, colormap_name='tab10:qualitative',
     markers = {key : val for key, val in
                zip(select['path'], styles['path']['marker'])}
 
+    lselect = select.copy()
+    if len(lselect['path']) > max_path_legends:
+        lselect.pop('path')
+        output(markers)
+
     fig0, ax0 = plt.subplots(1, figsize=figsize)
     fig, ax = plt.subplots(1, figsize=figsize)
     for ifig, selection in enumerate(
@@ -1528,11 +1533,7 @@ def plot_scatter(df, data=None, colormap_name='tab10:qualitative',
         ax.set_yscale(yscale)
         ax.set_ylabel(yaxis)
 
-        aux = select.copy()
-        if len(aux['path']) > max_path_legends:
-            aux.pop('path')
-            output(markers)
-        sps.add_legend(ax, aux, styles, used=None)
+        sps.add_legend(ax, lselect, styles, used=None)
         ax.autoscale_view()
 
         plt.tight_layout()
@@ -1556,11 +1557,7 @@ def plot_scatter(df, data=None, colormap_name='tab10:qualitative',
     ax0.set_yscale(yscale)
     ax0.set_ylabel(yaxis)
 
-    aux = select.copy()
-    if len(ms) > 10:
-        aux.pop('path')
-        print(markers)
-    sps.add_legend(ax0, aux, styles, used=None)
+    sps.add_legend(ax0, lselect, styles, used=None)
     ax0.autoscale_view()
 
     plt.figure(fig0.number)
@@ -1570,8 +1567,8 @@ def plot_scatter(df, data=None, colormap_name='tab10:qualitative',
                 .format(data.fun_hash[:8], len(vx),
                         diff, xaxis, yaxis, xscale, yscale, sort)
                 + suffix)
-    fig.savefig(os.path.join(data.output_dir, filename),
-                bbox_inches='tight')
+    fig0.savefig(os.path.join(data.output_dir, filename),
+                 bbox_inches='tight')
 
 def create_domain(n_cell, refine, timer):
     timer.start()
