@@ -1446,7 +1446,9 @@ def mscatter(ax, x, y, m=None, **kw):
 
 @profile1
 def plot_scatter(df, data=None, colormap_name='tab10:qualitative',
-                 alpha=0.8, size=100, max_path_legends=10,
+                 alpha=0.8, size=100,
+                 max_color_legends=10, max_marker_legends=10,
+                 color_key='lib', marker_key='spaths',
                  xaxis='mmean', yaxis='tmean',
                  xscale='linear', yscale='linear',
                  figsize=(8, 6), prefix='', suffix='.png',
@@ -1462,30 +1464,33 @@ def plot_scatter(df, data=None, colormap_name='tab10:qualitative',
     df = df.set_index(['term_name', 'n_cell', 'order'])
 
     select = {}
-    select['lib'] = ldf['lib'].unique()
-    select['path'] = ldf['spaths'].unique()
+    select[color_key] = sorted(ldf[color_key].unique())
+    select[marker_key] = sorted(ldf[marker_key].unique())
     styles = {}
-    styles['lib'] = {
+    styles[color_key] = {
         'color' : colormap_name,
         'lw' : 3,
         'alpha' : alpha,
     }
-    styles['path'] = {
+    styles[marker_key] = {
         'marker' : ['${}$'.format(chr(ii))
-                    for ii in range(65, 65 + len(select['path']))],
+                    for ii in range(65, 65 + len(select[marker_key]))],
         'ls' : 'None',
     }
 
     styles = sps.setup_plot_styles(select, styles)
 
     colors = {key : val for key, val in
-              zip(select['lib'], styles['lib']['color'])}
+              zip(select[color_key], styles[color_key]['color'])}
     markers = {key : val for key, val in
-               zip(select['path'], styles['path']['marker'])}
+               zip(select[marker_key], styles[marker_key]['marker'])}
 
     lselect = select.copy()
-    if len(lselect['path']) > max_path_legends:
-        lselect.pop('path')
+    if len(lselect[color_key]) > max_color_legends:
+        lselect.pop(color_key)
+        output(colors.keys())
+    if len(lselect[marker_key]) > max_marker_legends:
+        lselect.pop(marker_key)
         output(markers)
 
     fig0, ax0 = plt.subplots(1, figsize=figsize)
@@ -1522,8 +1527,8 @@ def plot_scatter(df, data=None, colormap_name='tab10:qualitative',
 
         vx = sdf[xaxis]
         vy = sdf[yaxis]
-        cs = [colors[lib] for lib in sdf['lib']]
-        ms = [markers[path] for path in sdf['spaths']]
+        cs = [colors[layout] for layout in sdf[color_key]]
+        ms = [markers[path] for path in sdf[marker_key]]
 
         mscatter(ax, vx, vy, m=ms, c=cs, s=size, alpha=alpha)
         mscatter(ax0, vx, vy, m=ms, c=cs, s=size, alpha=alpha)
