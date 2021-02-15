@@ -3026,9 +3026,12 @@ def get_evals_sfepy(options, term, eterm,
     backends = {
         'numpy' : ['greedy', 'optimal'],
         'numpy_loop' : ['greedy', 'optimal'],
+        'numpy_qloop' : ['greedy', 'optimal'],
         'opt_einsum'
         : ['dp:flops', 'dp:size', 'greedy', 'branch-2', 'auto', 'optimal'],
         'opt_einsum_loop'
+        : ['dp:flops', 'dp:size', 'greedy', 'branch-2', 'auto', 'optimal'],
+        'opt_einsum_qloop'
         : ['dp:flops', 'dp:size', 'greedy', 'branch-2', 'auto', 'optimal'],
         'opt_einsum_dask_single'
         : ['dp:flops', 'greedy', 'optimal'],
@@ -3049,8 +3052,10 @@ def get_evals_sfepy(options, term, eterm,
     abbrevs = {
         'numpy' : 'np',
         'numpy_loop' : 'npl',
+        'numpy_qloop' : 'npq',
         'opt_einsum' : 'oe',
         'opt_einsum_loop' : 'oel',
+        'opt_einsum_qloop' : 'oeq',
         'opt_einsum_dask_single' : 'oedas',
         'opt_einsum_dask_threads' : 'oedat',
         'jax' : 'jx',
