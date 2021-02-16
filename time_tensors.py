@@ -421,8 +421,10 @@ def _create_ldf(df, tkeys, data):
     ww stats = stats without worst
     """
     df['index'] = df.index
-    ldf = pd.melt(df, list(data.uniques.keys()) + ['index'], tkeys,
-                  var_name='fun_name', value_name='t')
+    ldf = pd.melt(df, list(data.uniques.keys())
+                  + ['index', 'c_mtx_size_mb', 'c_vec_size_mb', 'dim',
+                     'n_cdof', 'n_dof', 'n_en', 'n_qp'],
+                  tkeys, var_name='fun_name', value_name='t')
     ldf['fun_name'] = ldf['fun_name'].str[2:] # Strip 't_'.
 
     raw_ex = df['expressions']
