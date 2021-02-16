@@ -1458,12 +1458,12 @@ def plot_scatter(df, data=None, colormap_name='tab10:qualitative',
     import soops.plot_selected as sps
     import matplotlib.pyplot as plt
 
-    ldf = data.ldf.copy()
     if 'mmean' not in data.ldf:
         output('no memory data!')
         return
 
-    df = df.set_index(['term_name', 'n_cell', 'order'])
+    ldf = data.ldf.copy()
+    groups = ldf.groupby(['term_name', 'n_cell', 'order'])
 
     select = {}
     select[color_key] = sorted(ldf[color_key].unique())
@@ -1500,18 +1500,18 @@ def plot_scatter(df, data=None, colormap_name='tab10:qualitative',
     for ifig, selection in enumerate(
             product(data.term_names, data.n_cell, data.orders)
     ):
-        if not selection in df.index: continue
+        if not selection in groups.indices: continue
 
         term_name, n_cell, order = selection
         output(term_name, n_cell, order)
 
-        ig = df.index.get_loc(selection)
-        sdf = ldf[(ldf['index'] == ig)]
+        sdf = ldf.loc[groups.indices[selection]]
+        ig = sdf['index'].iloc[0]
         if (not len(sdf)) or (not sdf.tmean.notna().any()):
             output('-> no data, skipped!')
             continue
 
-        n_dof = df.loc[selection, 'n_dof']
+        n_dof = sdf['n_dof'].iloc[0]
         if nm.isfinite(n_dof):
             n_dof = int(n_dof)
 
@@ -1554,7 +1554,7 @@ def plot_scatter(df, data=None, colormap_name='tab10:qualitative',
                     bbox_inches='tight')
 
     ax0.grid(which='both')
-    n_dofs = df['n_dof']
+    n_dofs = ldf['n_dof']
     ax0.set_title('diff: {}, #cells: {}-{}, orders: {}-{}, #DOFs: {}-{}'
                   .format(diff, data.n_cell[0], data.n_cell[-1],
                           data.orders[0], data.orders[-1],
