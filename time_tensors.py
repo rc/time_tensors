@@ -211,11 +211,23 @@ def get_scoop_info():
             split_keys=None,
         ), True),
         ('stats.csv', sc.load_csv),
+        ('stats-tentative.csv', load_tentative_csv),
         ('mprofile.dat', load_mprofile),
         ('output_log.txt', scrape_output),
     ]
 
     return info
+
+@profile1
+def load_tentative_csv(filename, rdata=None):
+    import soops.scoop_outputs as sc
+
+    t0 = os.path.getmtime(filename)
+    fname = os.path.join(rdata['rdir'], 'stats.csv')
+    t1 = os.path.getmtime(os.path.expanduser(fname))
+    if t0 > t1:
+        output('using tentative stats!')
+        return sc.load_csv(filename, rdata=rdata)
 
 @profile1
 def load_mprofile(filename, rdata=None):
@@ -3484,6 +3496,8 @@ def main():
         options.select = list(evaluators.keys())
 
     all_stats = {}
+    tentative_filename = os.path.join(options.output_dir, 'stats-tentative.csv')
+    filename = os.path.join(options.output_dir, 'stats.csv')
 
     variables = term.get_variables()
     variables0 = []
@@ -3559,10 +3573,12 @@ def main():
         else:
             all_stats.update(stats)
 
+            df = pd.DataFrame(all_stats)
+            df.index.rename('evaluation', inplace=True)
+            df.to_csv(tentative_filename)
+
     df = pd.DataFrame(all_stats)
     df.index.rename('evaluation', inplace=True)
-
-    filename = os.path.join(options.output_dir, 'stats.csv')
     df.to_csv(filename)
 
 if __name__ == '__main__':
