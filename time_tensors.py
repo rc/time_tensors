@@ -1467,9 +1467,7 @@ def plot_scatter(df, data=None, colormap_name='tab10:qualitative',
     ldf = data.ldf.copy()
     groups = ldf.groupby(['term_name', 'n_cell', 'order'])
 
-    select = {}
-    select[color_key] = sorted(ldf[color_key].unique())
-    select[marker_key] = sorted(ldf[marker_key].unique())
+    select = sps.select_by_keys(ldf, [color_key, marker_key])
     styles = {}
     styles[color_key] = {
         'color' : colormap_name,
@@ -1484,10 +1482,8 @@ def plot_scatter(df, data=None, colormap_name='tab10:qualitative',
 
     styles = sps.setup_plot_styles(select, styles)
 
-    colors = {key : val for key, val in
-              zip(select[color_key], styles[color_key]['color'])}
-    markers = {key : val for key, val in
-               zip(select[marker_key], styles[marker_key]['marker'])}
+    colors = sps.get_cat_style(select, color_key, styles, 'color')
+    markers = sps.get_cat_style(select, marker_key, styles, 'marker')
 
     lselect = select.copy()
     if len(lselect[color_key]) > max_color_legends:
@@ -1531,8 +1527,8 @@ def plot_scatter(df, data=None, colormap_name='tab10:qualitative',
 
         vx = sdf[xaxis]
         vy = sdf[yaxis]
-        cs = [colors[layout] for layout in sdf[color_key]]
-        ms = [markers[path] for path in sdf[marker_key]]
+        cs = sps.select_cat_style(colors, sdf[color_key])
+        ms = sps.select_cat_style(markers, sdf[marker_key])
 
         mscatter(ax, vx, vy, m=ms, c=cs, s=size, alpha=alpha)
         mscatter(ax0, vx, vy, m=ms, c=cs, s=size, alpha=alpha)
