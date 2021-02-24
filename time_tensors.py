@@ -464,7 +464,7 @@ def check_rnorms(df, data=None):
     output(rmax - rmin)
 
 @profile1
-def _create_ldf(df, tkeys, data):
+def _create_ldf(df, data):
     """
     ldf == long df: row for each function in df columns.
 
@@ -476,24 +476,26 @@ def _create_ldf(df, tkeys, data):
     add = set(['index', 'c_mtx_size_mb', 'c_vec_size_mb', 'dim',
                'n_cdof', 'n_dof', 'n_en', 'n_qp'])
     lkeys = sorted(set(data.uniques.keys()).difference(omit).union(add))
-    ldf = pd.melt(df, lkeys, tkeys, var_name='fun_name', value_name='t')
-    ldf['fun_name'] = ldf['fun_name'].str[2:] # Strip 't_'.
 
-    raw_ex = df['expressions']
-    aux = pd.json_normalize(raw_ex.where(raw_ex.notna(), lambda x: [{}]))
-    aux['index'] = df.index
-    exprs = pd.melt(aux, ['index'], var_name='fun_name',
-                    value_name='expressions')
-    if len(exprs['expressions']) > 1:
-        exprs[['expressions', 'paths', 'sizes']] = pd.DataFrame(
-            exprs['expressions'].to_list()
+    df['lexpressions'] = df[['fun_name', 'expressions']].apply(
+        lambda x: [x[1].get(key, (None,) * 3) for key in x[0]],
+        axis=1,
+    )
+
+    ekeys = ['fun_name', 'lexpressions', 't', 'norm', 'rnorm']
+    if 'func_timestamp' in df:
+        df['lfunc_timestamp'] = df[['fun_name', 'func_timestamp']].apply(
+            lambda x: [x[1].get(key, None) for key in x[0]],
+            axis=1,
         )
+        ekeys.append('lfunc_timestamp')
 
-    else:
-        exprs[['expressions', 'paths', 'sizes']] = None, None, None
-
-    ldf = ldf.join(exprs.set_index(['index', 'fun_name']),
-                   on=['index', 'fun_name'])
+    ldf = df[lkeys + ekeys].apply(lambda x: x.explode()
+                                  if x.name in ekeys else x)
+    ldf.reset_index(drop=True, inplace=True)
+    exprs = pd.DataFrame(ldf['lexpressions'].to_list(),
+                         columns=['expressions', 'paths', 'sizes'])
+    ldf[['expressions', 'paths', 'sizes']] = exprs
 
     fmt = lambda x: '+'.join([','.join(['{}{}'.format(*ii) for ii in path])
                               for path in x] if isinstance(x, list) else '-')
@@ -509,15 +511,13 @@ def _create_ldf(df, tkeys, data):
         return x['t'] if nm.isfinite(x['t']).all() else [nm.nan] * x['repeat']
     ldf['t'] = ldf.apply(fun, axis=1)
 
-    ldf['ts'], ldf['mem'], fts = _collect_mem_usages(df, ldf, data)
-    if fts is not None:
-        df = pd.concat([df, fts], axis=1)
+    ldf['mem'] = _collect_mem_usages(df, ldf, data)
 
     stat_keys = ('mean', 'min', 'max', 'emin', 'emax', 'wwmean')
     for key, val in zip(['t' + ii for ii in stat_keys], get_stats(ldf, 't')):
         ldf[key] = val
 
-    if fts is not None:
+    if 'func_timestamp' in df:
         for key, val in zip(['m' + ii for ii in stat_keys],
                             get_stats(ldf, 'mem', min_val=0.1)):
             ldf[key] = val
@@ -531,38 +531,16 @@ def _create_ldf(df, tkeys, data):
 def _collect_mem_usages(df, ldf, data):
     if 'func_timestamp' not in df:
         output('no memory profiling data!')
-        return nm.nan, nm.nan, None
+        return nm.nan
 
-    fts = pd.json_normalize(df['func_timestamp']).rename(
-        lambda x: 'm_' + x.split('.')[-1].replace('eval_', ''), axis=1
-    )
-    mkeys = ['m_' + fun_name for fun_name in data._fun_names]
-    smkeys = set(mkeys)
-    sfts = set(fts.keys())
-    if smkeys != sfts:
-        if sfts.intersection(smkeys) == smkeys:
-            output('skipping memory data for: {}'
-                   .format(sfts.difference(smkeys)))
-
-        else:
-            output('wrong memory profiling data, ignoring!')
-            return nm.nan, nm.nan, None
-
-    fts['index'] = df.index
-    mdf = pd.melt(fts, ['index'], mkeys, var_name='fun_name', value_name='ts')
-    mdf['fun_name'] = mdf['fun_name'].str[2:] # Strip 'm_'.
-    if (ldf[['index', 'fun_name']] != mdf[['index', 'fun_name']]).any().any():
-        raise RuntimeError('pd.melt() failed!')
-
-    ts = mdf['ts']
-
-    df = df.set_index(['term_name', 'n_cell', 'order'])
-
-    ldfcols = ldf[['term_name', 'n_cell', 'order', 'fun_name']]
+    ts = ldf['lfunc_timestamp']
+    df = df.set_index(['index', 'term_name', 'n_cell', 'order'])
+    ldfcols = ldf[['index', 'term_name', 'n_cell', 'order', 'fun_name']]
 
     mems = []
-    for irow, (term_name, n_cell, order, fun_name) in enumerate(ldfcols.values):
-        drow = df.loc[term_name, n_cell, order]
+    for irow, cols in enumerate(ldfcols.values):
+        index, term_name, n_cell, order, fun_name = cols
+        drow = df.loc[index, term_name, n_cell, order]
         repeat = drow['repeat']
         mu = drow['mem_usage']
         tss = drow['timestamp']
@@ -586,13 +564,13 @@ def _collect_mem_usages(df, ldf, data):
         else:
             if (tsis is not nm.nan) and len(tsis):
                 output('wrong memory profiling data for'
-                       ' {}/{} order: {} n_cell: {}!'
-                       .format(fun_name, term_name, order, n_cell))
+                       ' {}/{} order: {} n_cell: {} index: {}!'
+                       .format(fun_name, term_name, order, n_cell, index))
             _mems = [nm.nan] * repeat
 
         mems.append(_mems)
 
-    return ts, mems, fts
+    return mems
 
 def _get_ranks(arr):
     ii = nm.argsort(arr)
@@ -681,8 +659,7 @@ def _create_fdf(ldf):
 def collect_stats(df, data=None):
     import soops.ioutils as io
 
-    tkeys = [key for key in df.keys() if key.startswith('t_')]
-    data._fun_names = [tkey[2:] for tkey in tkeys]
+    data._fun_names = sorted(set(sum(df['fun_name'].to_list(), [])))
 
     ldf = io.get_from_store(data.store_filename, 'plugin_ldf')
     if ldf is not None:
@@ -690,7 +667,7 @@ def collect_stats(df, data=None):
         data._ldf = ldf
 
     else:
-        data._ldf = _create_ldf(df, tkeys, data)
+        data._ldf = _create_ldf(df, data)
         io.put_to_store(data.store_filename, 'plugin_ldf', data._ldf)
 
     fdf = io.get_from_store(data.store_filename, 'plugin_fdf')
