@@ -1580,34 +1580,10 @@ def _expand_sbg(basis, dpn):
         vg[..., ir, :, n_ep*ir:n_ep*(ir+1)] = basis
     return vg
 
-def get_evals_dw_convect(options, term, eterm,
-                         dets, qsb, qsbg, qvb, qvbg, state, adc):
-    if not options.mprof:
-        def profile(fun):
-            return fun
+def get_evals_dw_convect():
 
-    else:
-        profile = globals()['profile']
-
-    @profile
-    def eval_numpy_einsum2():
-        uc = state()[adc]
-
-        if options.diff == 'u':
-            v1 = nm.einsum('cqab,qji,cqjkl,qkn,cn->cil',
-                           dets, qvb[0], qvbg, qvb[0], uc,
-                           optimize='greedy')
-            v2 = nm.einsum('cqab,qji,cqjkl,cl,qkn->cin',
-                           dets, qvb[0], qvbg, uc, qvb[0],
-                           optimize='greedy')
-            return v1 + v2, 0
-
-        else:
-            return nm.einsum('cqab,qji,cqjkl,cl,qkn,cn->ci',
-                             dets, qvb[0], qvbg, uc, qvb[0], uc,
-                             optimize='greedy'), 0
-    @profile
-    def eval_numpy_einsum_qsb():
+    def eval_numpy_einsum_qsb(term, operands, options):
+        dets, qsb, qsbg, qvb, qvbg, state, adc = operands
         uc = state()[adc]
 
         n_cell, n_ed = uc.shape
@@ -1639,84 +1615,8 @@ def get_evals_dw_convect(options, term, eterm,
 
             return v2, 0
 
-    @profile
-    def eval_numpy_einsum3():
-        # Slower than eval_numpy_einsum2().
-        uc = state()[adc]
-
-        if options.diff == 'u':
-            aux = nm.einsum('cqab,qji,cqjkl->cqikl',
-                           dets, qvb[0], qvbg,
-                           optimize='greedy')
-            v1 = nm.einsum('cqikl,qkn,cn->cil',
-                           aux, qvb[0], uc,
-                           optimize='greedy')
-            v2 = nm.einsum('cqikl,cl,qkn->cin',
-                           aux, uc, qvb[0],
-                           optimize='greedy')
-            return v1 + v2, 0
-
-        else:
-            return nm.einsum('cqab,qji,cqjkl,cl,qkn,cn->ci',
-                             dets, qvb[0], qvbg, uc, qvb[0], uc,
-                             optimize='greedy'), 0
-
-    @profile
-    def eval_opt_einsum1a():
-        uc = state()[adc]
-
-        if options.diff == 'u':
-            v1 = oe.contract('cqab,qji,cqjkl,qkn,cn->cil',
-                             dets, qvb[0], qvbg, qvb[0], uc,
-                             optimize='auto')
-            v2 = oe.contract('cqab,qji,cqjkl,cl,qkn->cin',
-                             dets, qvb[0], qvbg, uc, qvb[0],
-                             optimize='auto')
-            return v1 + v2, 0
-
-        else:
-            return oe.contract('cqab,qji,cqjkl,cl,qkn,cn->ci',
-                               dets, qvb[0], qvbg, uc, qvb[0], uc,
-                               optimize='auto'), 0
-
-    @profile
-    def eval_opt_einsum1g():
-        uc = state()[adc]
-
-        if options.diff == 'u':
-            v1 = oe.contract('cqab,qji,cqjkl,qkn,cn->cil',
-                             dets, qvb[0], qvbg, qvb[0], uc,
-                             optimize='greedy')
-            v2 = oe.contract('cqab,qji,cqjkl,cl,qkn->cin',
-                             dets, qvb[0], qvbg, uc, qvb[0],
-                             optimize='greedy')
-            return v1 + v2, 0
-
-        else:
-            return oe.contract('cqab,qji,cqjkl,cl,qkn,cn->ci',
-                               dets, qvb[0], qvbg, uc, qvb[0], uc,
-                               optimize='greedy'), 0
-
-    @profile
-    def eval_opt_einsum1dp():
-        uc = state()[adc]
-
-        if options.diff == 'u':
-            v1 = oe.contract('cqab,qji,cqjkl,qkn,cn->cil',
-                             dets, qvb[0], qvbg, qvb[0], uc,
-                             optimize='dynamic-programming')
-            v2 = oe.contract('cqab,qji,cqjkl,cl,qkn->cin',
-                             dets, qvb[0], qvbg, uc, qvb[0],
-                             optimize='dynamic-programming')
-            return v1 + v2, 0
-
-        else:
-            return oe.contract('cqab,qji,cqjkl,cl,qkn,cn->ci',
-                               dets, qvb[0], qvbg, uc, qvb[0], uc,
-                               optimize='dynamic-programming'), 0
-
-    @profile
-    def eval_opt_einsum_qsb():
+    def eval_opt_einsum_qsb(term, operands, options):
+        dets, qsb, qsbg, qvb, qvbg, state, adc = operands
         uc = state()[adc]
         n_cell, n_ed = uc.shape
         ucc = uc.reshape((dets.shape[0], -1, qsb.shape[-1]))
@@ -1750,267 +1650,195 @@ def get_evals_dw_convect(options, term, eterm,
 
             return v2, 0
 
-    n_cell, n_qp, dim, n_en = qsbg.shape
-    n_c = dim
+    def gen_eval_opt_einsum_nl1f(term, operands, options):
+        dets, qsb, qsbg, qvb, qvbg, state, adc = operands
+        n_cell, n_qp, dim, n_en = qsbg.shape
+        n_c = dim
 
-    qbs = [qsb[0, :, 0, ir].copy(order='F') for ir in range(n_en)]
-    qbgs = [qsbg[..., ir].copy(order='F') for ir in range(n_en)]
-    det = dets[..., 0, 0].copy(order='F')
+        qbs = [qsb[0, :, 0, ir].copy(order='F') for ir in range(n_en)]
+        qbgs = [qsbg[..., ir].copy(order='F') for ir in range(n_en)]
+        det = dets[..., 0, 0].copy(order='F')
 
-    @profile
-    def eval_opt_einsum_nl1f():
-        uc = state()[adc]
-        n_cell, n_ed = uc.shape
-        ucc = uc.reshape((dets.shape[0], -1, qsb.shape[-1]))
-        ee = nm.eye(ucc.shape[-2])
+        def eval_opt_einsum_nl1f(term, operands, options):
+            uc = state()[adc]
+            n_cell, n_ed = uc.shape
+            ucc = uc.reshape((dets.shape[0], -1, qsb.shape[-1]))
+            ee = nm.eye(ucc.shape[-2])
 
-        #opt = 'dynamic-programming'
-        opt = 'greedy'
-        tt = Timer(start=True)
-        qgu = oe.contract('cqkl,cjl->cqkj', qsbg, ucc, optimize=opt)
-        qu = oe.contract('qzn,ckn->cqk', qsb[0], ucc, optimize=opt)
-        print(tt.stop())
-        if options.diff == 'u':
-            out = nm.empty((n_cell, n_c * n_en, n_c * n_en), dtype=nm.float64)
-            path1, info1 = oe.contract_path('cq,q,jx,cqk,jX,cqk->cxX',
-                                            det, qbs[0], ee,
-                                            qbgs[0], ee, qu,
-                                            optimize=opt)
-            # print(path1)
-            # print(info1)
-            path2, info2 = oe.contract_path('cq,q,jx,cqkj,q,kX->cxX',
-                                             det, qbs[0], ee,
-                                             qgu, qbs[0], ee,
-                                             optimize=opt)
-            # print(path2)
-            # print(info2)
-            for ir in range(n_en): # y
-                rqb = qbs[ir]
-                for ic in range(n_en): # Y
-                    cqbg = qbgs[ic]
-                    cqb = qbs[ic]
-                    v1 = oe.contract('cq,q,jx,cqk,jX,cqk->cxX',
-                                     det, rqb, ee,
-                                     cqbg, ee, qu,
-                                     optimize=path1)
-                    v2 = oe.contract('cq,q,jx,cqkj,q,kX->cxX',
-                                     det, rqb, ee,
-                                     qgu, cqb, ee,
-                                     optimize=path2)
-                    out[:, ir::n_en, ic::n_en] = v1 + v2
+            #opt = 'dynamic-programming'
+            opt = 'greedy'
+            tt = Timer(start=True)
+            qgu = oe.contract('cqkl,cjl->cqkj', qsbg, ucc, optimize=opt)
+            qu = oe.contract('qzn,ckn->cqk', qsb[0], ucc, optimize=opt)
+            print(tt.stop())
+            if options.diff == 'u':
+                out = nm.empty((n_cell, n_c * n_en, n_c * n_en),
+                               dtype=nm.float64)
+                path1, info1 = oe.contract_path('cq,q,jx,cqk,jX,cqk->cxX',
+                                                det, qbs[0], ee,
+                                                qbgs[0], ee, qu,
+                                                optimize=opt)
+                # print(path1)
+                # print(info1)
+                path2, info2 = oe.contract_path('cq,q,jx,cqkj,q,kX->cxX',
+                                                 det, qbs[0], ee,
+                                                 qgu, qbs[0], ee,
+                                                 optimize=opt)
+                # print(path2)
+                # print(info2)
+                for ir in range(n_en): # y
+                    rqb = qbs[ir]
+                    for ic in range(n_en): # Y
+                        cqbg = qbgs[ic]
+                        cqb = qbs[ic]
+                        v1 = oe.contract('cq,q,jx,cqk,jX,cqk->cxX',
+                                         det, rqb, ee,
+                                         cqbg, ee, qu,
+                                         optimize=path1)
+                        v2 = oe.contract('cq,q,jx,cqkj,q,kX->cxX',
+                                         det, rqb, ee,
+                                         qgu, cqb, ee,
+                                         optimize=path2)
+                        out[:, ir::n_en, ic::n_en] = v1 + v2
 
-            return out, 0
+                return out, 0
 
-        else:
-            raise NotImplementedError
+            else:
+                raise NotImplementedError
 
-    qbs2 = [qsb[0, :, 0, ir].copy(order='C') for ir in range(n_en)]
-    qbgs2 = [qsbg[..., ir].transpose(2, 0, 1).copy(order='C')
-             for ir in range(n_en)]
-    det2 = dets[..., 0, 0].copy(order='C')
+        return eval_opt_einsum_nl1f
 
-    @profile
-    def eval_opt_einsum_nl2c():
-        uc = state()[adc]
-        n_cell, n_ed = uc.shape
-        ucc = uc.reshape((dets.shape[0], -1, qsb.shape[-1]))
-        ee = nm.eye(ucc.shape[-2])
+    def gen_eval_opt_einsum_nl2c(term, operands, options):
+        dets, qsb, qsbg, qvb, qvbg, state, adc = operands
+        n_cell, n_qp, dim, n_en = qsbg.shape
+        n_c = dim
+        qbs2 = [qsb[0, :, 0, ir].copy(order='C') for ir in range(n_en)]
+        qbgs2 = [qsbg[..., ir].transpose(2, 0, 1).copy(order='C')
+                 for ir in range(n_en)]
+        det2 = dets[..., 0, 0].copy(order='C')
 
-        #opt = 'dynamic-programming'
-        opt = 'greedy'
-        tt = Timer(start=True)
-        qgu = oe.contract('cqkl,cjl->kjcq', qsbg, ucc, optimize=opt)
-        qu = oe.contract('qzn,ckn->kcq', qsb[0], ucc, optimize=opt)
-        print(tt.stop())
-        if options.diff == 'u':
-            out = nm.empty((n_cell, n_c * n_en, n_c * n_en), dtype=nm.float64)
-            path1, info1 = oe.contract_path('cq,q,jx,kcq,jX,kcq->cxX',
-                                            det2, qbs2[0], ee,
-                                            qbgs2[0], ee, qu,
-                                            optimize=opt)
-            # print(path1)
-            # print(info1)
-            path2, info2 = oe.contract_path('cq,q,jx,kjcq,q,kX->cxX',
-                                             det2, qbs2[0], ee,
-                                             qgu, qbs2[0], ee,
-                                             optimize=opt)
-            # print(path2)
-            # print(info2)
-            for ir in range(n_en): # y
-                rqb = qbs2[ir]
-                for ic in range(n_en): # Y
-                    cqbg = qbgs2[ic]
-                    cqb = qbs2[ic]
-                    v1 = oe.contract('cq,q,jx,kcq,jX,kcq->cxX',
-                                     det2, rqb, ee,
-                                     cqbg, ee, qu,
-                                     optimize=path1)
-                    v2 = oe.contract('cq,q,jx,kjcq,q,kX->cxX',
-                                     det2, rqb, ee,
-                                     qgu, cqb, ee,
-                                     optimize=path2)
-                    out[:, ir::n_en, ic::n_en] = v1 + v2
+        def eval_opt_einsum_nl2c():
+            uc = state()[adc]
+            n_cell, n_ed = uc.shape
+            ucc = uc.reshape((dets.shape[0], -1, qsb.shape[-1]))
+            ee = nm.eye(ucc.shape[-2])
 
-            return out, 0
+            #opt = 'dynamic-programming'
+            opt = 'greedy'
+            tt = Timer(start=True)
+            qgu = oe.contract('cqkl,cjl->kjcq', qsbg, ucc, optimize=opt)
+            qu = oe.contract('qzn,ckn->kcq', qsb[0], ucc, optimize=opt)
+            print(tt.stop())
+            if options.diff == 'u':
+                out = nm.empty((n_cell, n_c * n_en, n_c * n_en),
+                               dtype=nm.float64)
+                path1, info1 = oe.contract_path('cq,q,jx,kcq,jX,kcq->cxX',
+                                                det2, qbs2[0], ee,
+                                                qbgs2[0], ee, qu,
+                                                optimize=opt)
+                # print(path1)
+                # print(info1)
+                path2, info2 = oe.contract_path('cq,q,jx,kjcq,q,kX->cxX',
+                                                 det2, qbs2[0], ee,
+                                                 qgu, qbs2[0], ee,
+                                                 optimize=opt)
+                # print(path2)
+                # print(info2)
+                for ir in range(n_en): # y
+                    rqb = qbs2[ir]
+                    for ic in range(n_en): # Y
+                        cqbg = qbgs2[ic]
+                        cqb = qbs2[ic]
+                        v1 = oe.contract('cq,q,jx,kcq,jX,kcq->cxX',
+                                         det2, rqb, ee,
+                                         cqbg, ee, qu,
+                                         optimize=path1)
+                        v2 = oe.contract('cq,q,jx,kjcq,q,kX->cxX',
+                                         det2, rqb, ee,
+                                         qgu, cqb, ee,
+                                         optimize=path2)
+                        out[:, ir::n_en, ic::n_en] = v1 + v2
 
-        else:
-            raise NotImplementedError
+                return out, 0
 
-    @profile
-    def eval_opt_einsum2a():
-        uc = state()[adc]
+            else:
+                raise NotImplementedError
 
-        if options.diff == 'u':
-            with oe.shared_intermediates():
-                v1 = oe.contract('cqab,qji,cqjkl,qkn,cn->cil',
-                                 dets, qvb[0], qvbg, qvb[0], uc,
-                                 optimize='auto')
-                v2 = oe.contract('cqab,qji,cqjkl,cl,qkn->cin',
-                                 dets, qvb[0], qvbg, uc, qvb[0],
-                                 optimize='auto')
-            return v1 + v2, 0
+        return eval_opt_einsum_nl2c
 
-        else:
-            return oe.contract('cqab,qji,cqjkl,cl,qkn,cn->ci',
-                               dets, qvb[0], qvbg, uc, qvb[0], uc,
-                               optimize='auto'), 0
+    def gen_eval_jax_einsum2_qsb(term, operands, options):
+        dets, qsb, qsbg, qvb, qvbg, state, adc = operands
 
-    @profile
-    def eval_opt_einsum2dp():
-        uc = state()[adc]
+        @jax.jit
+        def _eval_jax_einsum2_qsb(dets, qsb, qsbg, dofs, adc):
+            uc = dofs[adc]
+            n_cell, n_ed = uc.shape
+            ucc = uc.reshape((dets.shape[0], -1, qsb.shape[-1]))
+            ee = nm.eye(ucc.shape[-2])
+            if options.diff == 'u':
+                val1 = jnp.einsum('cqab,qzy,jx,cqkY,jX,qzn,ckn->cxyXY',
+                                  dets, qsb[0], ee, qsbg, ee, qsb[0], ucc,
+                                  optimize='greedy')
+                v1 = val1.reshape((n_cell, n_ed, n_ed))
+                val2 = jnp.einsum('cqab,qzy,jx,cqkl,cjl,qzY,kX->cxyXY',
+                                  dets, qsb[0], ee, qsbg, ucc, qsb[0], ee,
+                                  optimize='greedy')
+                v2 = val2.reshape((n_cell, n_ed, n_ed))
+                return v1 + v2
 
-        if options.diff == 'u':
-            with oe.shared_intermediates():
-                v1 = oe.contract('cqab,qji,cqjkl,qkn,cn->cil',
-                                 dets, qvb[0], qvbg, qvb[0], uc,
-                                 optimize='dynamic-programming')
-                v2 = oe.contract('cqab,qji,cqjkl,cl,qkn->cin',
-                                 dets, qvb[0], qvbg, uc, qvb[0],
-                                 optimize='dynamic-programming')
-            return v1 + v2, 0
+            else:
+                val = jnp.einsum('cqab,qzy,jx,cqkl,cjl,qzn,ckn->cxy',
+                                 dets, qsb[0], ee, qsbg, ucc, qsb[0], ucc,
+                                 optimize='greedy')
+                v = val.reshape((n_cell, n_ed))
 
-        else:
-            return oe.contract('cqab,qji,cqjkl,cl,qkn,cn->ci',
-                               dets, qvb[0], qvbg, uc, qvb[0], uc,
-                               optimize='dynamic-programming'), 0
+                return v
 
-    def eval_jax2(dets, Fs, Gs, u):
-        out = jnp.einsum('qab,qji,qjkl,l,qkn,n->i', dets, Fs, Gs, u, Fs, u)
-        return out
+        def eval_jax_einsum2_qsb():
+            val = _eval_jax_einsum2_qsb(dets, qsb, qsbg, state(), adc)
+            return nm.asarray(val), 0
 
-    if jax is not None:
-        eval_jax2_grad = jax.jacobian(eval_jax2, 3)
+        return eval_jax_einsum2_qsb
 
-    @profile
-    def eval_jax_einsum1():
-        if jax is None: return nm.zeros(1), 1
-        uc = state()[adc]
-        f = 0
-        vm = (0, None, 0, 0)
-        if options.diff is None:
-            f = jax.jit(jax.vmap(eval_jax2, vm, 0))(dets, qvb[0], qvbg, uc)
-
-        elif options.diff == 'u':
-            f = jax.jit(jax.vmap(eval_jax2_grad, vm, 0))(dets, qvb[0], qvbg, uc)
-
-        return f, 0
-
-    @jax.jit
-    def _eval_jax_einsum2_qsb(dets, qsb, qsbg, dofs, adc):
+    def gen_eval_jax_einsum2_qsb2(term, operands, options):
+        dets, qsb, qsbg, qvb, qvbg, state, adc = operands
+        _dets = dets[..., 0, 0]
+        bf = qsb[0, :, 0]
+        dofs = state()
         uc = dofs[adc]
         n_cell, n_ed = uc.shape
         ucc = uc.reshape((dets.shape[0], -1, qsb.shape[-1]))
         ee = nm.eye(ucc.shape[-2])
-        if options.diff == 'u':
-            val1 = jnp.einsum('cqab,qzy,jx,cqkY,jX,qzn,ckn->cxyXY',
-                              dets, qsb[0], ee, qsbg, ee, qsb[0], ucc,
-                              optimize='greedy')
-            v1 = val1.reshape((n_cell, n_ed, n_ed))
-            val2 = jnp.einsum('cqab,qzy,jx,cqkl,cjl,qzY,kX->cxyXY',
-                              dets, qsb[0], ee, qsbg, ucc, qsb[0], ee,
-                              optimize='greedy')
-            v2 = val2.reshape((n_cell, n_ed, n_ed))
-            return v1 + v2
 
-        else:
-            val = jnp.einsum('cqab,qzy,jx,cqkl,cjl,qzn,ckn->cxy',
-                             dets, qsb[0], ee, qsbg, ucc, qsb[0], ucc,
-                             optimize='greedy')
-            v = val.reshape((n_cell, n_ed))
+        @jax.jit
+        def _eval_jax_einsum2_qsb2(dets, qsb, qsbg, ucc, ee):
+            if options.diff == 'u':
+                val1 = jnp.einsum('cq,qy,jx,cqkY,jX,qn,ckn->cxyXY',
+                                  dets, qsb, ee, qsbg, ee, qsb, ucc,
+                                  optimize='greedy')
+                val2 = jnp.einsum('cq,qy,jx,cqkl,cjl,qY,kX->cxyXY',
+                                  dets, qsb, ee, qsbg, ucc, qsb, ee,
+                                  optimize='greedy')
+                return (val1 + val2).reshape((n_cell, n_ed, n_ed))
 
-            return v
+            else:
+                val = jnp.einsum('cq,qy,jx,cqkl,cjl,qn,ckn->cxy',
+                                 dets, qsb, ee, qsbg, ucc, qsb, ucc,
+                                 optimize='greedy')
+                return val.reshape((n_cell, n_ed))
 
-    @profile
-    def eval_jax_einsum2_qsb():
-        val = _eval_jax_einsum2_qsb(dets, qsb, qsbg, state(), adc)
-        return nm.asarray(val), 0
+        def eval_jax_einsum2_qsb2():
+            val = _eval_jax_einsum2_qsb2(_dets, bf, qsbg, ucc, ee)
+            return nm.asarray(val), 0
 
-    _dets = dets[..., 0, 0]
-    bf = qsb[0, :, 0]
-    dofs = state()
-    uc = dofs[adc]
-    n_cell, n_ed = uc.shape
-    ucc = uc.reshape((dets.shape[0], -1, qsb.shape[-1]))
-    ee = nm.eye(ucc.shape[-2])
-
-    @jax.jit
-    def _eval_jax_einsum2_qsb2(dets, qsb, qsbg, ucc, ee):
-        if options.diff == 'u':
-            val1 = jnp.einsum('cq,qy,jx,cqkY,jX,qn,ckn->cxyXY',
-                              dets, qsb, ee, qsbg, ee, qsb, ucc,
-                              optimize='greedy')
-            val2 = jnp.einsum('cq,qy,jx,cqkl,cjl,qY,kX->cxyXY',
-                              dets, qsb, ee, qsbg, ucc, qsb, ee,
-                              optimize='greedy')
-            return (val1 + val2).reshape((n_cell, n_ed, n_ed))
-
-        else:
-            val = jnp.einsum('cq,qy,jx,cqkl,cjl,qn,ckn->cxy',
-                             dets, qsb, ee, qsbg, ucc, qsb, ucc,
-                             optimize='greedy')
-            return val.reshape((n_cell, n_ed))
-
-    @profile
-    def eval_jax_einsum2_qsb2():
-        val = _eval_jax_einsum2_qsb2(_dets, bf, qsbg, ucc, ee)
-        return nm.asarray(val), 0
-
-    @profile
-    def eval_dask_einsum1():
-        uc = state()[adc]
-
-        if options.diff == 'u':
-            v1 = da.einsum('cqab,qji,cqjkl,qkn,cn->cil',
-                           dets, qvb[0], qvbg, qvb[0], uc,
-                           optimize='greedy')
-            v2 = da.einsum('cqab,qji,cqjkl,cl,qkn->cin',
-                           dets, qvb[0], qvbg, uc, qvb[0],
-                           optimize='greedy')
-            return (v1 + v2).compute(scheduler='single-threaded'), 0
-
-        else:
-            return da.einsum('cqab,qji,cqjkl,cl,qkn,cn->ci',
-                             dets, qvb[0], qvbg, uc, qvb[0], uc,
-                             optimize='greedy').compute(
-                                 scheduler='single-threaded'
-                             ), 0
+        return eval_jax_einsum2_qsb2
 
     evaluators = {
-        'numpy_einsum2' : (eval_numpy_einsum2, 0, nm),
-        'numpy_einsum_qsb' : (eval_numpy_einsum_qsb, 0, nm),
-        # 'numpy_einsum3' : (eval_numpy_einsum3, 0, nm), # slow, memory hog
-        #'opt_einsum1a' : (eval_opt_einsum1a, 0, oe),
-        'opt_einsum1g' : (eval_opt_einsum1g, 0, oe),
-        'opt_einsum1dp' : (eval_opt_einsum1dp, 0, oe),
         'opt_einsum_qsb' : (eval_opt_einsum_qsb, 0, oe),
-        'opt_einsum_nl1f' : (eval_opt_einsum_nl1f, 0, oe),
-        'opt_einsum_nl2c' : (eval_opt_einsum_nl2c, 0, oe),
-        #'opt_einsum2a' : (eval_opt_einsum2a, 0, oe), # more memory than opt_einsum1*
-#        'opt_einsum2dp' : (eval_opt_einsum2dp, 0, oe), # more memory than opt_einsum1*
-#        'dask_einsum1' : (eval_dask_einsum1, 0, da),
-        'jax_einsum1' : (eval_jax_einsum1, 0, jnp), # meddles with memory profiler
-        'jax_einsum2_qsb' : (eval_jax_einsum2_qsb, 0, jnp),
-        'jax_einsum2_qsb2' : (eval_jax_einsum2_qsb2, 0, jnp),
+        'opt_einsum_nl1f' : (gen_eval_opt_einsum_nl1f, 0, oe),
+        'opt_einsum_nl2c' : (gen_eval_opt_einsum_nl2c, 0, oe),
+        'jax_einsum2_qsb' : (gen_eval_jax_einsum2_qsb, 0, jnp),
+        'jax_einsum2_qsb2' : (gen_eval_jax_einsum2_qsb2, 0, jnp),
     }
 
     return evaluators
@@ -3189,8 +3017,8 @@ def main():
     else:
         evaluators = get_evals_sfepy()
 
-        # if options.term_name == 'dw_convect':
-        #     evaluators.update(get_evals_dw_convect())
+        if options.term_name == 'dw_convect':
+            evaluators.update(get_evals_dw_convect())
 
         # elif options.term_name == 'dw_laplace':
         #     evaluators.update(get_evals_dw_laplace())
@@ -3286,12 +3114,11 @@ def main():
         if skip: continue
 
         fargs = (eterm, operands, options)
-        if key.startswith('gen_'):
+        if fun.__name__.startswith('gen_'):
             fun = profile(fun(*fargs))
 
-        else:
-            fun = profile(fun)
-            fun = partial(fun, *fargs)
+        fun = profile(fun)
+        fun = partial(fun, *fargs)
 
         try:
             stats, _ = run_evaluator(key, fun, arg_no, can_use, options, timer,
