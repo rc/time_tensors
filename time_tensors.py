@@ -274,6 +274,8 @@ def load_mprofile(filename, rdata=None):
     mdata.pop('cmd_line')
     mdata['mem_usage'] = nm.array(mdata['mem_usage'])
     mdata['timestamp'] = nm.array(mdata['timestamp'])
+    mdata['func_timestamp'] = {key.split('.')[-1].replace('eval_', '') : val
+                               for key, val in mdata['func_timestamp'].items()}
 
     return mdata
 
