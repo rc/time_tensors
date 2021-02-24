@@ -112,6 +112,30 @@ def get_run_info():
 
     return run_cmd, opt_args, output_dir_key, is_finished_basename
 
+def generate_pars(pars, gkeys, dconf, options):
+    all_evaluators = get_evals_sfepy()
+    if pars.get('term_name') == 'dw_convect':
+        all_evaluators.update(get_evals_dw_convect())
+    # if pars.get('term_name') == 'dw_laplace':
+    #     all_evaluators.update(get_evals_dw_laplace())
+
+    select_match = re.compile('|'.join(pars.select)).match
+    evaluators = {key : val for key, val in all_evaluators.items()
+                  if select_match(key) is not None}
+
+    gconf = {}
+    if '--select' in gkeys:
+        gconf['--select'] = list(evaluators.keys())
+
+    if '--layouts' in gkeys:
+        df = pd.DataFrame({'fun_name' : gconf['--select']})
+        aux = df['fun_name'].str.extract('eterm_([a-z]*)(?:_(.*))*_(.*)_(.*)')
+        aux[[1, 2, 3]] = aux[[1, 2, 3]].fillna('default')
+        df[['lib', 'variant', 'opt', 'layout']] = aux
+        gconf['--layouts'] = df['layout'].tolist()
+
+    return gconf
+
 class ComputePars(so.Struct):
     """
     Contract --order, --n-cell -> --repeat, sampling
