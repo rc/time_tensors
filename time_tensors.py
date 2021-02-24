@@ -234,7 +234,7 @@ def get_scoop_info():
             sc.load_split_options,
             split_keys=None,
         ), True),
-        ('stats.csv', sc.load_csv),
+        ('stats.csv', load_csv),
         ('stats-tentative.csv', load_tentative_csv),
         ('mprofile.dat', load_mprofile),
         ('output_log.txt', scrape_output),
@@ -243,15 +243,29 @@ def get_scoop_info():
     return info
 
 @profile1
-def load_tentative_csv(filename, rdata=None):
+def load_csv(filename, rdata=None):
     import soops.scoop_outputs as sc
 
+    data = sc.load_csv(filename, rdata=rdata)
+    out = {'fun_name' : [], 't' : [], 'norm' : [], 'rnorm' : []}
+    for key, val in data.items():
+        if key.startswith('t_'):
+            fun_name = key[2:]
+            out['fun_name'].append(fun_name)
+            out['t'].append(val)
+            out['norm'].append(data['norm_' + fun_name])
+            out['rnorm'].append(data['rnorm_' + fun_name])
+
+    return out
+
+@profile1
+def load_tentative_csv(filename, rdata=None):
     t0 = os.path.getmtime(filename)
     fname = os.path.join(rdata['rdir'], 'stats.csv')
     t1 = os.path.getmtime(os.path.expanduser(fname))
     if t0 > t1:
         output('using tentative stats!')
-        return sc.load_csv(filename, rdata=rdata)
+        return load_csv(filename, rdata=rdata)
 
 @profile1
 def load_mprofile(filename, rdata=None):
