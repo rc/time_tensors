@@ -2742,15 +2742,7 @@ def gen_unique_layouts():
 
 default_layouts = gen_unique_layouts()
 
-def get_evals_sfepy(options, term, eterm,
-                    dets, qsb, qsbg, qvb, qvbg, state, adc, backend_args):
-    if not options.mprof:
-        def profile(fun):
-            return fun
-
-    else:
-        profile = globals()['profile']
-
+def get_evals_sfepy():
     backends = {
         'numpy' : ['greedy', 'optimal'],
         'numpy_loop' : ['greedy', 'optimal'],
@@ -2807,20 +2799,21 @@ def get_evals_sfepy(options, term, eterm,
     evaluators = {
     }
 
-    @profile
-    def eval_sfepy_term():
+    def eval_sfepy_term(term, operands, options):
         return term.evaluate(mode=options.eval_mode,
                              diff_var=options.diff,
                              standalone=False, ret_status=True)
 
     evaluators['sfepy_term'] =  (eval_sfepy_term, 0, True)
 
-    def _make_evaluator(backend, optimize, layout, name, bkwargs):
-        def _eval_eterm():
+    def _make_evaluator(backend, optimize, layout, name):
+        def _eval_eterm(eterm, operands, options):
             if ('threads' in backend) or options.run_env == 'multi':
                 this = psutil.Process()
                 affinity = this.cpu_affinity()
                 this.cpu_affinity([])
+
+            bkwargs = options.backend_args.get(backend, {})
             eterm.set_backend(backend=backend, optimize=optimize, layout=layout,
                               **bkwargs)
             out = eterm.evaluate(mode=options.eval_mode,
@@ -2830,30 +2823,19 @@ def get_evals_sfepy(options, term, eterm,
             if 'threads' in backend:
                 this.cpu_affinity(affinity)
         _eval_eterm.__name__ = name
-        _eval_eterm = profile(_eval_eterm)
-
-        if options.timeout is not None:
-            _eval_eterm = tod.timeout(options.timeout)(_eval_eterm)
 
         return _eval_eterm
 
     can = ETermBase.can_backend
     for backend, optimizes in backends.items():
-        bkwargs = backend_args.get(backend, {})
-        if 'eval_fun' in bkwargs:
-            efuns = bkwargs['eval_fun']
+        efuns = eval_funs.get(backend, [None])
 
-        else:
-            efuns = eval_funs.get(backend, [None])
-
-        for optimize, efun, layout in product(optimizes, efuns, options.layouts):
-            bkw = bkwargs.copy()
+        for optimize, efun, layout in product(optimizes, efuns, default_layouts):
             if efun is not None:
                 name = 'eval_eterm_{}_{}_{}_{}'.format(abbrevs[backend],
                                                        abbrevs[efun],
                                                        abbrevs[optimize],
                                                        layout)
-                bkw['eval_fun'] = efun
 
             else:
                 name = 'eval_eterm_{}_{}_{}'.format(abbrevs[backend],
@@ -2864,10 +2846,16 @@ def get_evals_sfepy(options, term, eterm,
                 _, minimize = optimize.split(':')
                 optimize = oe.DynamicProgramming(minimize=minimize)
 
-            fun = _make_evaluator(backend, optimize, layout, name, bkw)
+            fun = _make_evaluator(backend, optimize, layout, name)
             evaluators[name[5:]] = (fun, 0, can[backend])
 
     return evaluators
+
+def save_ref_results(filename, res):
+    nm.save(filename, res)
+
+def load_ref_results(filename):
+    return nm.load(filename)
 
 def modify_variables(variables, variables0, ir=0):
     for var, var0 in zip(variables, variables0):
@@ -2915,6 +2903,8 @@ def run_evaluator(key, fun, arg_no, can_use, options, timer,
 helps = {
     'output_dir'
     : 'output directory',
+    'ref_res_dir'
+    : 'reference results directory',
     'n_cell'
     : 'the number of cells [default: %(default)s]',
     'refine'
@@ -2965,6 +2955,10 @@ def main():
     parser = ArgumentParser(description=__doc__.rstrip(),
                             formatter_class=RawDescriptionHelpFormatter)
     parser.add_argument('output_dir', help=helps['output_dir'])
+    parser.add_argument('--ref-res-dir',
+                        metavar='path',
+                        action='store', dest='ref_res_dir',
+                        default='ref-results', help=helps['ref_res_dir'])
     parser.add_argument('--n-cell', metavar='int', type=int,
                         action='store', dest='n_cell',
                         default=100, help=helps['n_cell'])
@@ -3193,27 +3187,41 @@ def main():
         )
 
     else:
-        evaluators = get_evals_sfepy(
-            options, term, eterm, dets, qsb, qsbg, qvb, qvbg, state, adc,
-            options.backend_args
-        )
+        evaluators = get_evals_sfepy()
 
-        if options.term_name == 'dw_convect':
-            evaluators.update(get_evals_dw_convect(
-                options, term, eterm, dets, qsb, qsbg, qvb, qvbg, state, adc
-            ))
+        # if options.term_name == 'dw_convect':
+        #     evaluators.update(get_evals_dw_convect())
 
-        elif options.term_name == 'dw_laplace':
-            evaluators.update(get_evals_dw_laplace(
-                options, term, eterm, dets, qsb, qsbg, qvb, qvbg, state, adc
-            ))
+        # elif options.term_name == 'dw_laplace':
+        #     evaluators.update(get_evals_dw_laplace())
 
     if options.select[0] == 'all':
         options.select = list(evaluators.keys())
 
+    if not options.mprof:
+        def profile(fun):
+            return fun
+
+    else:
+        profile = globals()['profile']
+
     all_stats = {}
     tentative_filename = os.path.join(options.output_dir, 'stats-tentative.csv')
     filename = os.path.join(options.output_dir, 'stats.csv')
+    ref_key = 'sfepy_term'
+    ref_res_filename = os.path.join(
+        options.ref_res_dir,
+        'res-{}-{}-{}-{}-{}-{}.npy'.format(
+            ref_key,
+            options.term_name,
+            options.diff if options.diff is not None else '_',
+            options.n_cell,
+            options.order,
+            options.refine,
+        ),
+    )
+    ensure_path(ref_res_filename)
+    output('reference results filename:', ref_res_filename)
 
     variables = term.get_variables()
     variables0 = []
@@ -3224,13 +3232,17 @@ def main():
             var0.data[0] = var.data[0].copy()
         variables0.append(var0)
 
-    if not options.micro:
-        key = 'sfepy_term'
-        fun, arg_no, can_use = evaluators.pop(key)
-        stats, ref_res = run_evaluator(key, fun, arg_no, can_use, options,
+    operands = (dets, qsb, qsbg, qvb, qvbg, state, adc)
+    select_match = re.compile('|'.join(options.select)).match
+    if (not options.micro) and (select_match(ref_key)):
+        fun, arg_no, can_use = evaluators.pop(ref_key)
+        fargs = (term, operands, options)
+        fun = partial(profile(fun), *fargs)
+        stats, ref_res = run_evaluator(ref_key, fun, arg_no, can_use, options,
                                        timer, variables=variables,
                                        variables0=variables0)
         all_stats.update(stats)
+        save_ref_results(ref_res_filename, ref_res)
 
         if options.mem_layout == 'F':
             for iv, arg in enumerate(eterm.args):
@@ -3246,9 +3258,12 @@ def main():
                         arg[0].datas[key][arg[1]] = nm.require(mat,
                                                                requirements='F')
     else:
-        ref_res = 0
+        try:
+            ref_res = load_ref_results(ref_res_filename)
 
-    select_match = re.compile('|'.join(options.select)).match
+        except FileNotFoundError:
+            ref_res = 0
+
     mem_matches = [re.compile(key).match for key in options.max_mem.keys()]
     max_mems = list(options.max_mem.values())
     for key, (fun, arg_no, can_use) in evaluators.items():
@@ -3269,6 +3284,14 @@ def main():
                     break
 
         if skip: continue
+
+        fargs = (eterm, operands, options)
+        if key.startswith('gen_'):
+            fun = profile(fun(*fargs))
+
+        else:
+            fun = profile(fun)
+            fun = partial(fun, *fargs)
 
         try:
             stats, _ = run_evaluator(key, fun, arg_no, can_use, options, timer,
