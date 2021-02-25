@@ -3157,9 +3157,10 @@ def main():
             df.index.rename('evaluation', inplace=True)
             df.to_csv(tentative_filename)
 
-    df = pd.DataFrame(all_stats)
-    df.index.rename('evaluation', inplace=True)
-    df.to_csv(filename)
+    if len(all_stats):
+        df = pd.DataFrame(all_stats)
+        df.index.rename('evaluation', inplace=True)
+        df.to_csv(filename)
 
 if __name__ == '__main__':
     main()
