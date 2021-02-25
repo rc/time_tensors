@@ -452,13 +452,10 @@ def setup_uniques(df, data=None):
 def check_rnorms(df, data=None):
     repeat = df['repeat'].min()
 
-    sdf = df.filter(regex='rnorm.*')
-    rnorms = sdf.values.tolist()
-    frnorms = [[rn[:repeat] for rn in rns if nm.isfinite(rn).all()]
-               for rns in rnorms]
-    frnorms = [nm.array(rns) for rns in frnorms if len(rns)]
-    rmax = nm.array([rns.max(0) for rns in frnorms]).max(0)
-    rmin = nm.array([rns.min(0) for rns in frnorms]).min(0)
+    rnorms = df['rnorm']
+    rnorms = [nm.array(rns[:repeat]) for rns in rnorms if len(rns)]
+    rmax = nm.array([rns.max(0) for rns in rnorms]).max(0)
+    rmin = nm.array([rns.min(0) for rns in rnorms]).min(0)
     output(rmax)
     output(rmin)
     output(rmax - rmin)
