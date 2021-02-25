@@ -519,8 +519,8 @@ def _create_ldf(df, data):
                             get_stats(ldf, 'mem', min_val=0.1)):
             ldf[key] = val
 
-    _insert_ldf_ranks(ldf, df, 'tmean', 'mmean')
-    _insert_ldf_ranks(ldf, df, 'twwmean', 'mwwmean')
+    _insert_ldf_ranks(ldf, 'tmean', 'mmean')
+    _insert_ldf_ranks(ldf, 'twwmean', 'mwwmean')
 
     return ldf
 
@@ -586,7 +586,7 @@ def _get_ranks(arr):
     return ranks
 
 @profile1
-def _insert_ldf_ranks(ldf, df, tmean_key, mmean_key):
+def _insert_ldf_ranks(ldf, tmean_key, mmean_key):
     """
     Modifies ldf inplace.
     """
@@ -602,23 +602,25 @@ def _insert_ldf_ranks(ldf, df, tmean_key, mmean_key):
         ldf[mrank_key] = len(ldf)
         ldf[rmmean_key] = nm.nan
 
-    df = df.set_index(['term_name', 'n_cell', 'order'])
-    gbf = ldf.groupby('fun_name')
-    ref_tmeans = gbf.get_group('sfepy_term')[tmean_key]
+    rgroup = ldf[ldf['fun_name'] == 'sfepy_term']
+    rgroup = rgroup.set_index(['term_name', 'n_cell', 'order'])
+    ref_tmeans = rgroup[tmean_key]
     if is_mem:
-        ref_mmeans = gbf.get_group('sfepy_term')[mmean_key]
+        ref_mmeans = rgroup[mmean_key]
 
-    for ig in range(len(df)):
-        mask = ldf['index'] == ig
+    gcols = ldf[['term_name', 'n_cell', 'order']]
+    groups = gcols.drop_duplicates()
+    for group in groups.itertuples(index=False):
+        mask = (gcols == group).all(axis=1)
         tmeans = ldf.loc[mask, tmean_key].values
         ranks = _get_ranks(tmeans)
         ldf.loc[mask, trank_key] = ranks
-        ldf.loc[mask, rtmean_key] = tmeans / ref_tmeans[ig]
+        ldf.loc[mask, rtmean_key] = tmeans / ref_tmeans[group]
         if is_mem:
             mmeans = ldf.loc[mask, mmean_key].values
             ranks = _get_ranks(mmeans)
             ldf.loc[mask, mrank_key] = ranks
-            ldf.loc[mask, rmmean_key] = mmeans / ref_mmeans[ig]
+            ldf.loc[mask, rmmean_key] = mmeans / ref_mmeans[group]
 
 def _get_lib(x):
     aux = x.split('_')
