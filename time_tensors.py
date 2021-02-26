@@ -85,6 +85,7 @@ def get_run_info():
 
     # Arguments allowed to be missing in soops-run calls.
     opt_args = {
+        '--ref-res-dir' : '--ref-res-dir={--ref-res-dir}',
         '--n-cell' : '--n-cell={--n-cell}',
         '--refine' : '--refine',
         '--order' : '--order={--order}',
