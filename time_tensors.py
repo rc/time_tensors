@@ -2873,7 +2873,7 @@ def main():
             refine=options.refine,
         )
 
-    eterm.verbosity = options.verbosity_eterm
+    eterm.set_verbosity(options.verbosity_eterm)
 
     timer = Timer('')
     timer.start()
