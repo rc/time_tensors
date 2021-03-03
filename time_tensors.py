@@ -1371,7 +1371,7 @@ def set_sol(uvar, mesh, timer):
 
 def create_terms(_create_term, timer):
     timer.start()
-    term = _create_term()
+    term = _create_term('w')
     term.setup()
     term.standalone_setup()
     output('create setup term: {} s'.format(timer.stop()))
@@ -1431,56 +1431,67 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect',
 
     def _create_term(prefix=''):
         if term_name == 'dw_convect':
-            term = Term.new('dw_{}convect(v, u)'.format(prefix),
+            term = Term.new('d{}_convect(v, u)'.format(prefix),
                             integral=integral,
                             region=omega, v=v, u=u)
 
         elif term_name == 'dw_laplace':
             if eval_mode == 'weak':
-                term = Term.new('dw_{}laplace(v, u)'.format(prefix),
+                term = Term.new('d{}_laplace(v, u)'.format(prefix),
                                 integral=integral,
                                 region=omega, v=v, u=u)
 
             else:
-                term = Term.new('dw_{}laplace(u, u)'.format(prefix),
+                term = Term.new('d{}_laplace(u, u)'.format(prefix),
                                 integral=integral,
                                 region=omega, u=u)
 
         elif term_name == 'dw_volume_dot':
             if eval_mode == 'weak':
                 if 'material' in variant:
-                    tstr = 'dw_{}volume_dot(m.val, v, u)'
+                    tstr = 'd{}_volume_dot(m.val, v, u)'
                     targs = {'m' : mat, 'v' : v, 'u' : u}
 
                 else:
-                    tstr = 'dw_{}volume_dot(v, u)'
+                    tstr = 'd{}_volume_dot(v, u)'
                     targs = {'v' : v, 'u' : u}
 
             else:
                 if 'material' in variant:
-                    tstr = 'dw_{}volume_dot(m.val, u, u)'
+                    tstr = 'd{}_volume_dot(m.val, u, u)'
                     targs = {'m' : mat, 'u' : u}
 
                 else:
-                    tstr = 'dw_{}volume_dot(u, u)'
+                    tstr = 'd{}_volume_dot(u, u)'
                     targs = {'u' : u}
 
             term = Term.new(tstr.format(prefix), integral=integral,
                             region=omega, **targs)
 
         elif term_name == 'dw_div':
-            term = Term.new('dw_{}div(v)'.format(prefix),
-                            integral=integral,
-                            region=omega, v=v)
+            if eval_mode == 'weak':
+                term = Term.new('d{}_div(v)'.format(prefix),
+                                integral=integral,
+                                region=omega, v=v)
+
+            elif prefix == 'e':
+                term = Term.new('de_div(u)',
+                                integral=integral,
+                                region=omega, u=u)
+
+            else:
+                term = Term.new('ev_div(u)',
+                                integral=integral,
+                                region=omega, u=u)
 
         elif term_name == 'dw_lin_elastic':
             if eval_mode == 'weak':
-                term = Term.new('dw_{}lin_elastic(m.D, v, u)'.format(prefix),
+                term = Term.new('d{}_lin_elastic(m.D, v, u)'.format(prefix),
                                 integral=integral,
                                 region=omega, m=mat, v=v, u=u)
 
             else:
-                term = Term.new('dw_{}lin_elastic(m.D, u, u)'.format(prefix),
+                term = Term.new('d{}_lin_elastic(m.D, u, u)'.format(prefix),
                                 integral=integral,
                                 region=omega, m=mat, u=u)
 
@@ -1489,7 +1500,8 @@ def setup_data(order, quad_order, n_cell, term_name='dw_convect',
                 raise ValueError(term_name, eval_mode)
 
             else:
-                term = Term.new('ev_{}cauchy_stress(m.D, u)'.format(prefix),
+                term = Term.new('{}_cauchy_stress(m.D, u)'
+                                .format({'w' : 'ev', 'e' : 'de'}[prefix]),
                                 integral=integral,
                                 region=omega, m=mat, u=u)
 
@@ -1549,23 +1561,23 @@ def setup_data_mixed(order1, order2, quad_order, n_cell, term_name='dw_stokes',
         if term_name == 'dw_stokes':
             if variant == 'div':
                 if eval_mode == 'weak':
-                    term = Term.new('dw_{}stokes(u1, v2)'.format(prefix),
+                    term = Term.new('d{}_stokes(u1, v2)'.format(prefix),
                                     integral=integral,
                                     region=omega, v2=v2, u1=u1)
 
                 else:
-                    term = Term.new('dw_{}stokes(u1, u2)'.format(prefix),
+                    term = Term.new('d{}_stokes(u1, u2)'.format(prefix),
                                     integral=integral,
                                     region=omega, u2=u2, u1=u1)
 
             else:
                 if eval_mode == 'weak':
-                    term = Term.new('dw_{}stokes(v1, u2)'.format(prefix),
+                    term = Term.new('d{}_stokes(v1, u2)'.format(prefix),
                                     integral=integral,
                                     region=omega, v1=v1, u2=u2)
 
                 else:
-                    term = Term.new('dw_{}stokes(u1, u2)'.format(prefix),
+                    term = Term.new('d{}_stokes(u1, u2)'.format(prefix),
                                     integral=integral,
                                     region=omega, u1=u1, u2=u2)
 
