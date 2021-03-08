@@ -144,8 +144,16 @@ def generate_pars(pars, gkeys, dconf, options):
         all_evaluators.update(get_evals_dw_laplace())
 
     select_match = re.compile('|'.join(pars.select)).match
-    evaluators = {key : val for key, val in all_evaluators.items()
-                  if select_match(key) is not None}
+    omit = pars.get('omit')
+    if omit is None:
+        evaluators = {key : val for key, val in all_evaluators.items()
+                      if select_match(key) is not None}
+
+    else:
+        omit_match = re.compile('|'.join(omit)).match
+        evaluators = {key : val for key, val in all_evaluators.items()
+                      if select_match(key) is not None
+                      and omit_match(key) is None}
 
     gconf = {}
     if '--select' in gkeys:
