@@ -109,9 +109,32 @@ def get_run_info():
     }
 
     output_dir_key = 'output_dir'
-    is_finished_basename = 'stats.csv'
 
-    return run_cmd, opt_args, output_dir_key, is_finished_basename
+    def is_finished(pars, options):
+        """
+        With --timeout soops-run option, 'output_log.txt' just needs to contain
+        'term evaluation function:' string to consider the run finished.
+        """
+        output_dir = pars[output_dir_key]
+        timeout = options.timeout
+        if timeout is None:
+            ok = os.path.exists(os.path.join(output_dir, 'stats.csv'))
+
+        else:
+            filename = os.path.join(output_dir, 'output_log.txt')
+            ok = os.path.exists(filename)
+            if ok:
+                with open(filename, 'r') as fd:
+                    for line in fd:
+                        if 'term evaluation function:' in line:
+                            break
+
+                    else:
+                        ok = False
+
+        return ok
+
+    return run_cmd, opt_args, output_dir_key, is_finished
 
 def generate_pars(pars, gkeys, dconf, options):
     all_evaluators = get_evals_sfepy()
