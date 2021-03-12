@@ -805,9 +805,8 @@ def report_rmean_stats(df, data=None, report_dir=None, number=40):
 
 @profile1
 def report_eval_fun_variants(df, data=None, report_dir=None):
-    df = df.set_index(['term_name', 'n_cell', 'order'])
-
-    ldf = data.ldf[data.ldf['variant'].notna()]
+    ldf = data.ldf[data.ldf['variant'] != 'default']
+    groups = ldf.groupby(['term_name', 'n_cell', 'order'])
 
     is_mem = 'mmean' in ldf
 
@@ -823,13 +822,12 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
     for ir, selection in enumerate(
             product(data.term_names, data.n_cell, data.orders)
     ):
-        if not selection in df.index: continue
+        if not selection in groups.indices: continue
 
         term_name, n_cell, order = selection
         output(term_name, n_cell, order)
 
-        ig = df.index.get_loc(selection)
-        sdf = ldf[(ldf['index'] == ig)]
+        sdf = ldf.iloc[groups.indices[selection]]
         if (not len(sdf)) or (not sdf.tmean.notna().any()):
             output('-> no data, skipped!')
             continue
@@ -1102,8 +1100,7 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
     import matplotlib.pyplot as plt
 
     ldf = data.ldf
-
-    df = df.set_index(['term_name', 'n_cell', 'order'])
+    groups = ldf.groupby(['term_name', 'n_cell', 'order'])
 
     select = {}
     select['fun_name'] = ldf['fun_name'].unique()
@@ -1119,18 +1116,18 @@ def plot_comparisons(df, data=None, colormap_name='tab10:qualitative',
     for ifig, selection in enumerate(
             product(data.term_names, data.n_cell, data.orders)
     ):
-        if not selection in df.index: continue
+        if not selection in groups.indices: continue
 
         term_name, n_cell, order = selection
         output(term_name, n_cell, order)
 
-        ig = df.index.get_loc(selection)
-        sdf = ldf[(ldf['index'] == ig)]
+        sdf = ldf.iloc[groups.indices[selection]]
+        ig = sdf['index'].iloc[0]
         if (not len(sdf)) or (not sdf.tmean.notna().any()):
             output('-> no data, skipped!')
             continue
 
-        n_dof = df.loc[selection, 'n_dof']
+        n_dof = sdf['n_dof'].iloc[0]
         if nm.isfinite(n_dof):
             n_dof = int(n_dof)
 
