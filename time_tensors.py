@@ -1237,7 +1237,7 @@ def plot_scatter(df, data=None, colormap_name='tab10:qualitative',
         output('no memory data!')
         return
 
-    ldf = data.ldf.copy()
+    ldf = data.ldf
     groups = ldf.groupby(['term_name', 'n_cell', 'order'])
 
     select = sps.select_by_keys(ldf, [color_key, marker_key])
@@ -1258,6 +1258,11 @@ def plot_scatter(df, data=None, colormap_name='tab10:qualitative',
     colors = sps.get_cat_style(select, color_key, styles, 'color')
     markers = sps.get_cat_style(select, marker_key, styles, 'marker')
 
+    if len(colors) < len(select[color_key]):
+        raise ValueError('colormap {} does not have {} colors for {}!'
+                         .format(colormap_name, len(select[color_key]),
+                                 color_key))
+
     lselect = select.copy()
     if len(lselect[color_key]) > max_color_legends:
         lselect.pop(color_key)
@@ -1276,7 +1281,7 @@ def plot_scatter(df, data=None, colormap_name='tab10:qualitative',
         term_name, n_cell, order = selection
         output(term_name, n_cell, order)
 
-        sdf = ldf.loc[groups.indices[selection]]
+        sdf = ldf.iloc[groups.indices[selection]]
         ig = sdf['index'].iloc[0]
         if (not len(sdf)) or (not sdf.tmean.notna().any()):
             output('-> no data, skipped!')
