@@ -690,6 +690,7 @@ def _create_fdf(ldf):
 def collect_stats(df, data=None):
     import soops.ioutils as io
 
+    df = df.dropna(subset=['fun_name', 't', 'norm', 'rnorm'])
     data._fun_names = sorted(set(sum(df['fun_name'].to_list(), [])))
 
     ldf = io.get_from_store(data.store_filename, 'plugin_ldf')
