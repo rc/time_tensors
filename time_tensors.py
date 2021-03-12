@@ -2535,7 +2535,11 @@ def gen_unique_layouts():
 
 default_layouts = gen_unique_layouts()
 
-def get_evals_sfepy():
+def get_evals_sfepy(layouts=None):
+
+    if layouts is None:
+        layouts = default_layouts
+
     backends = {
         'numpy' : ['greedy', 'optimal'],
         'numpy_loop' : ['greedy', 'optimal'],
@@ -2623,7 +2627,7 @@ def get_evals_sfepy():
     for backend, optimizes in backends.items():
         efuns = eval_funs.get(backend, [None])
 
-        for optimize, efun, layout in product(optimizes, efuns, default_layouts):
+        for optimize, efun, layout in product(optimizes, efuns, layouts):
             if efun is not None:
                 name = 'eval_eterm_{}_{}_{}_{}'.format(abbrevs[backend],
                                                        abbrevs[efun],
@@ -2980,7 +2984,7 @@ def main():
         )
 
     else:
-        evaluators = get_evals_sfepy()
+        evaluators = get_evals_sfepy(layouts=options.layouts)
 
         if options.term_name == 'dw_convect':
             evaluators.update(get_evals_dw_convect())
