@@ -3086,7 +3086,7 @@ def main():
 
         fargs = (eterm, operands, options)
         if fun.__name__.startswith('gen_'):
-            fun = profile(fun(*fargs))
+            fun = fun(*fargs)
 
         fun = profile(fun)
         fun = partial(fun, *fargs)
