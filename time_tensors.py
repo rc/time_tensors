@@ -407,8 +407,8 @@ def get_plugin_info():
 
     info = [
         setup_uniques,
-        check_rnorms,
         collect_stats,
+        check_rnorms,
         remove_raw_df_data,
         select_data,
         report_rank_stats,
@@ -480,17 +480,6 @@ def setup_uniques(df, data=None):
         output(key, val)
 
     return data
-
-def check_rnorms(df, data=None):
-    repeat = df['repeat'].min()
-
-    rnorms = df['rnorm']
-    rnorms = [nm.array(rns[:repeat]) for rns in rnorms if len(rns)]
-    rmax = nm.array([rns.max(0) for rns in rnorms]).max(0)
-    rmin = nm.array([rns.min(0) for rns in rnorms]).min(0)
-    output(rmax)
-    output(rmin)
-    output(rmax - rmin)
 
 @profile1
 def _create_ldf(df, data):
@@ -712,6 +701,16 @@ def collect_stats(df, data=None):
         io.put_to_store(data.store_filename, 'plugin_fdf', data._fdf)
 
     return data
+
+@profile1
+def check_rnorms(df, data=None):
+    ldf = data._ldf
+    rnorms = pd.DataFrame(ldf['rnorm'].to_list()).values
+    rmax = nm.nanmax(rnorms, axis=0)
+    rmin = nm.nanmin(rnorms, axis=0)
+    output(rmax)
+    output(rmin)
+    output(rmax - rmin)
 
 @profile1
 def remove_raw_df_data(df, data=None):
