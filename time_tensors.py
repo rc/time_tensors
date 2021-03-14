@@ -136,15 +136,15 @@ def get_run_info():
 
     return run_cmd, opt_args, output_dir_key, is_finished
 
-def generate_pars(pars, gkeys, dconf, options):
+def generate_pars(args, gkeys, dconf, options):
     all_evaluators = get_evals_sfepy()
-    if pars.get('term_name') == 'dw_convect':
+    if args.get('term_name') == 'dw_convect':
         all_evaluators.update(get_evals_dw_convect())
-    if pars.get('term_name') == 'dw_laplace':
+    if args.get('term_name') == 'dw_laplace':
         all_evaluators.update(get_evals_dw_laplace())
 
-    select_match = re.compile('|'.join(pars.select)).match
-    omit = pars.get('omit')
+    select_match = re.compile('|'.join(args.select)).match
+    omit = args.get('omit')
     if omit is None:
         evaluators = {key : val for key, val in all_evaluators.items()
                       if select_match(key) is not None}
@@ -172,12 +172,12 @@ class ComputePars(so.Struct):
     """
     Contract --order, --n-cell -> --repeat, sampling
     """
-    def __init__(self, pars, par_seqs, key_order, options):
+    def __init__(self, args, par_seqs, key_order, options):
         from soops.base import product
         import soops.run_parametric as rp
 
-        self.samplings = pars['sampling']
-        self.repeats = pars['--repeat']
+        self.samplings = args['sampling']
+        self.repeats = args['--repeat']
 
         dim = 3
         all_sizes = {}
