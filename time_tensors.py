@@ -173,6 +173,7 @@ class ComputePars(so.Struct):
     Contract --order, --n-cell -> --repeat, sampling
     """
     def __init__(self, pars, par_seqs, key_order, options):
+        from soops.base import product
         import soops.run_parametric as rp
 
         self.samplings = pars['sampling']
@@ -181,8 +182,8 @@ class ComputePars(so.Struct):
         dim = 3
         all_sizes = {}
         all_sizes2 = {}
-        for _all_pars in product(*par_seqs):
-            if not rp.check_contracted(_all_pars, options, key_order): continue
+        contracts = rp.get_contracts(options.contract, par_seqs, key_order)
+        for _all_pars in product(*par_seqs, contracts=contracts):
             _it, keys, vals = zip(*_all_pars)
             all_pars = dict(zip(keys, vals))
 
