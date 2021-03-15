@@ -709,7 +709,7 @@ def check_rnorms(df, data=None):
     output(rmax - rmin)
 
 @profile1
-def setup_uniques(df, data=None):
+def setup_uniques(df, data=None, threshold=20):
     import soops.scoop_outputs as sc
     ldf = data._ldf
 
@@ -718,7 +718,11 @@ def setup_uniques(df, data=None):
     data.uniques = sc.get_uniques(ldf, keys)
     output('parameterization:')
     for key, val in data.uniques.items():
-        output(key, val)
+        if len(val) > threshold:
+            output(key, pd.Series(val).values)
+
+        else:
+            output(key, val)
 
     return data
 
