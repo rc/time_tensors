@@ -407,9 +407,9 @@ def get_plugin_info():
     from soops.plugins import show_figures
 
     info = [
-        setup_uniques,
         collect_stats,
         check_rnorms,
+        setup_uniques,
         remove_raw_df_data,
         select_data,
         report_rank_stats,
@@ -473,15 +473,6 @@ def get_groupby_stats(gb, key):
                     keys=[prefix + '_' + ckey for ckey in ckeys])
     return gdf
 
-def setup_uniques(df, data=None):
-    data.uniques = {key : val for key, val in data.par_uniques.items()
-                    if key not in ['output_dir', 'max_mem']}
-    output('parameterization:')
-    for key, val in data.uniques.items():
-        output(key, val)
-
-    return data
-
 @profile1
 def _create_ldf(df, data):
     """
@@ -490,11 +481,8 @@ def _create_ldf(df, data):
     ww stats = stats without worst
     """
     df['index'] = df.index
-    omit = set(['debug', 'silent', 'layouts', 'micro', 'mprof', 'select',
-                'verbosity_eterm'])
-    add = set(['index', 'c_mtx_size_mb', 'c_vec_size_mb', 'dim',
-               'n_cdof', 'n_dof', 'n_en', 'n_qp'])
-    lkeys = sorted(set(data.uniques.keys()).difference(omit).union(add))
+    lkeys = sorted(set(data.par_uniques.keys())
+                   .difference(data.omit).union(data.dfadd))
 
     df['lexpressions'] = df[['fun_name', 'expressions']].apply(
         lambda x: [x[1].get(key, (None,) * 3) for key in x[0]],
@@ -522,6 +510,7 @@ def _create_ldf(df, data):
 
     aux = ldf['fun_name'].str.extract('eterm_([a-z]*)(?:_(.*))*_(.*)_(.*)')
     aux[[1, 2, 3]] = aux[[1, 2, 3]].fillna('default')
+    # Variant shadows options.variant! (but that is not needed in plots)
     ldf[['lib', 'variant', 'opt', 'layout']] = aux
     ii = ldf['lib'].isna()
     ldf.loc[ii, 'lib'] = ldf.loc[ii, 'fun_name'].apply(_get_lib)
@@ -683,6 +672,12 @@ def collect_stats(df, data=None):
     df = df.dropna(subset=['fun_name', 't', 'norm', 'rnorm'])
     data._fun_names = sorted(set(sum(df['fun_name'].to_list(), [])))
 
+    data.omit = set(['debug', 'silent', 'layouts', 'micro', 'mprof', 'select',
+                     'verbosity_eterm', 'ref_res_dir', 'output_dir', 'max_mem'])
+    data.dfadd = set(['index', 'c_mtx_size_mb', 'c_vec_size_mb', 'dim',
+                      'n_cdof', 'n_dof', 'n_en', 'n_qp'])
+    data.uadd = set(['lib', 'variant', 'opt', 'layout', 'expressions', 'paths',
+                     'spaths', 'sizes'])
     ldf = io.get_from_store(data.store_filename, 'plugin_ldf')
     if ldf is not None:
         output('using stored ldf')
@@ -712,6 +707,20 @@ def check_rnorms(df, data=None):
     output(rmax)
     output(rmin)
     output(rmax - rmin)
+
+@profile1
+def setup_uniques(df, data=None):
+    import soops.scoop_outputs as sc
+    ldf = data._ldf
+
+    keys = sorted(set(ldf.keys()).intersection(data.par_keys)
+                  .union(data.dfadd).union(data.uadd))
+    data.uniques = sc.get_uniques(ldf, keys)
+    output('parameterization:')
+    for key, val in data.uniques.items():
+        output(key, val)
+
+    return data
 
 @profile1
 def remove_raw_df_data(df, data=None):
