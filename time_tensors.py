@@ -533,6 +533,9 @@ def _create_ldf(df, data):
     _insert_ldf_ranks(ldf, 'tmean', 'mmean')
     _insert_ldf_ranks(ldf, 'twwmean', 'mwwmean')
 
+    # Work around old runs, nans cannot be compared in sps.get_row_style().
+    ldf['timeout'].replace({nm.nan : None}, inplace=True)
+
     return ldf
 
 @profile1
