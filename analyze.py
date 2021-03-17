@@ -51,7 +51,10 @@ def plot_layouts1(ax, ldf, data, xkey='rtwwmean', order=None, show_legend=False)
     if ax is None:
         _, ax = plt.subplots()
 
-    libs = data.uniques['lib']
+    libs = (ldf[['lib']]
+            .drop_duplicates()
+            .sort_values(['lib'], ignore_index=True)
+            ['lib'])
     ax.set_yticks(nm.arange(len(libs)))
     ax.set_yticklabels(libs)
     ax.grid(True)
