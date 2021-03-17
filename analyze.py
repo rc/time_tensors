@@ -30,7 +30,7 @@ def load_results(filename):
 
     return df, data
 
-def plot_layouts1(ax, ldf, xkey='rtwwmean', order=None, show_legend=False):
+def plot_layouts1(ax, ldf, data, xkey='rtwwmean', order=None, show_legend=False):
     """
     Notes
     -----
@@ -83,97 +83,104 @@ def plot_layouts1(ax, ldf, xkey='rtwwmean', order=None, show_legend=False):
 
     return ax
 
-df, data = load_results(filename)
-data = tt.select_data(df, data, omit_functions=['.*dat.*'])
+def main():
+    df, data = load_results(filename)
+    data = tt.select_data(df, data, omit_functions=['.*dat.*'])
 
-# data = tt.setup_styles(df, data)
+    # data = tt.setup_styles(df, data)
 
-ldf = data.ldf
-fdf = data.fdf
+    ldf = data.ldf
+    fdf = data.fdf
 
-ax = plot_layouts1(None, ldf, xkey='rtwwmean', order=3)
+    ax = plot_layouts1(None, ldf, data, xkey='rtwwmean', minor_ykey='spaths',
+                       order=3)
+    plt.show()
+    from soops import shell; shell()
 
-####### ... that spaths and opt are not 1:1...
+    ####### ... that spaths and opt are not 1:1...
 
-mii = pd.MultiIndex.from_arrays([ldf.lib, ldf.opt, ldf.spaths]).unique().sort_values()
-ldf.plot.scatter(x='opt', y='spaths')
+    mii = pd.MultiIndex.from_arrays([ldf.lib, ldf.opt, ldf.spaths]).unique().sort_values()
+    ldf.plot.scatter(x='opt', y='spaths')
 
-sdf = (ldf[['lib', 'opt', 'spaths']].drop_duplicates()
-       .sort_values(['lib', 'opt', 'spaths'], ignore_index=True))
+    sdf = (ldf[['lib', 'opt', 'spaths']].drop_duplicates()
+           .sort_values(['lib', 'opt', 'spaths'], ignore_index=True))
 
-cat = sdf['lib'].astype('category').cat
-sdf.plot.scatter(x='opt', y='spaths', color=cat.codes)
+    cat = sdf['lib'].astype('category').cat
+    sdf.plot.scatter(x='opt', y='spaths', color=cat.codes)
 
 
-sldf = ldf.sort_values('layout')
+    sldf = ldf.sort_values('layout')
 
-cat = sldf['lib'].astype('category').cat
+    cat = sldf['lib'].astype('category').cat
 
-sldf.plot.scatter(x='layout', y='rtwwmean', c=cat.codes, ls='None', marker='o', colormap='viridis')
+    sldf.plot.scatter(x='layout', y='rtwwmean', c=cat.codes, ls='None', marker='o', colormap='viridis')
 
-#######
+    #######
 
-sldf = ldf.sort_values(['lib', 'rtwwmean'])
+    sldf = ldf.sort_values(['lib', 'rtwwmean'])
 
-select = sps.select_by_keys(ldf, ['lib'])
-styles = {'lib' : {'color' : 'viridis'}}
-styles = sps.setup_plot_styles(select, styles)
-#colors = sps.get_cat_style(select, 'lib', styles, 'color')
+    select = sps.select_by_keys(ldf, ['lib'])
+    styles = {'lib' : {'color' : 'viridis'}}
+    styles = sps.setup_plot_styles(select, styles)
+    #colors = sps.get_cat_style(select, 'lib', styles, 'color')
 
-fig, ax = plt.subplots()
-used = None
-for ii, lib in enumerate(data.uniques['lib']):
-    sdf = sldf[sldf['lib'] == lib]
-    style_kwargs, indices = sps.get_row_style(
-        sdf.iloc[0], select, {}, styles
-    )
-    used = sps.update_used(used, indices)
-    ax.plot(sdf['layout'], sdf['rtwwmean'], ls='None', marker='o', alpha=0.6,
-            **style_kwargs)
+    fig, ax = plt.subplots()
+    used = None
+    for ii, lib in enumerate(data.uniques['lib']):
+        sdf = sldf[sldf['lib'] == lib]
+        style_kwargs, indices = sps.get_row_style(
+            sdf.iloc[0], select, {}, styles
+        )
+        used = sps.update_used(used, indices)
+        ax.plot(sdf['layout'], sdf['rtwwmean'], ls='None', marker='o', alpha=0.6,
+                **style_kwargs)
 
-sps.add_legend(ax, select, styles, used)
+    sps.add_legend(ax, select, styles, used)
 
-order = data.orders[0]
-fig, ax = plt.subplots()
-used = None
-for ii, lib in enumerate(data.uniques['lib']):
-    sdf = sldf[(sldf['lib'] == lib) &
-               (sldf['order'] == order)]
-    if not len(sdf): continue
+    order = data.orders[0]
+    fig, ax = plt.subplots()
+    used = None
+    for ii, lib in enumerate(data.uniques['lib']):
+        sdf = sldf[(sldf['lib'] == lib) &
+                   (sldf['order'] == order)]
+        if not len(sdf): continue
 
-    style_kwargs, indices = sps.get_row_style(
-        sdf.iloc[0], select, {}, styles
-    )
-    used = sps.update_used(used, indices)
-    ax.plot(sdf['layout'], sdf['rtwwmean'], ls='None', marker='o', alpha=0.6,
-            **style_kwargs)
+        style_kwargs, indices = sps.get_row_style(
+            sdf.iloc[0], select, {}, styles
+        )
+        used = sps.update_used(used, indices)
+        ax.plot(sdf['layout'], sdf['rtwwmean'], ls='None', marker='o', alpha=0.6,
+                **style_kwargs)
 
-sps.add_legend(ax, select, styles, used)
+    sps.add_legend(ax, select, styles, used)
 
-#######
+    #######
 
-plt.figure()
-colors = ldf['lib'].astype('category').cat.codes
-#markers = tuple(ldf['lib'].astype('category').values)
-ldf.plot.scatter(x='rtwwmean', y='rmmean', c=colors, colorbar=True, colormap='viridis', logx=True)
+    plt.figure()
+    colors = ldf['lib'].astype('category').cat.codes
+    #markers = tuple(ldf['lib'].astype('category').values)
+    ldf.plot.scatter(x='rtwwmean', y='rmmean', c=colors, colorbar=True, colormap='viridis', logx=True)
 
-plt.figure()
-colors = ldf['spaths'].astype('category').cat.codes
-ldf.plot.scatter(x='rtwwmean', y='rmmean', c=colors, colorbar=True, colormap='viridis', logx=True)
+    plt.figure()
+    colors = ldf['spaths'].astype('category').cat.codes
+    ldf.plot.scatter(x='rtwwmean', y='rmmean', c=colors, colorbar=True, colormap='viridis', logx=True)
 
-gb1 = ldf.groupby(['lib'])
-gb2 = ldf.groupby(['spaths'])
-gb3 = ldf.groupby(['variant'])
-gb1.groups
+    gb1 = ldf.groupby(['lib'])
+    gb2 = ldf.groupby(['spaths'])
+    gb3 = ldf.groupby(['variant'])
+    gb1.groups
 
-plt.figure()
-out1 = gb1['rtwwmean'].plot(ls='None', marker='o')
-plt.legend()
+    plt.figure()
+    out1 = gb1['rtwwmean'].plot(ls='None', marker='o')
+    plt.legend()
 
-plt.figure()
-out2 = gb2['rtwwmean'].plot(ls='None', marker='o')
-plt.legend()
+    plt.figure()
+    out2 = gb2['rtwwmean'].plot(ls='None', marker='o')
+    plt.legend()
 
-plt.figure()
-out3 = gb3['rtwwmean'].plot(ls='None', marker='o')
-plt.legend()
+    plt.figure()
+    out3 = gb3['rtwwmean'].plot(ls='None', marker='o')
+    plt.legend()
+
+if __name__ == '__main__':
+    main()
