@@ -83,6 +83,67 @@ def plot_layouts1(ax, ldf, data, xkey='rtwwmean', order=None, show_legend=False)
 
     return ax
 
+def plot_layouts2(ax, ldf, data, xkey='rtwwmean', minor_ykey='spaths',
+                  order=None, show_legend=False):
+    """
+    Notes
+    -----
+    Includes libs missing due to timeout/memory requirements as empty rows.
+    """
+    if order is None:
+        order = data.orders[0]
+
+    else:
+        assert(order in data.orders)
+
+    sldf = ldf.sort_values(['lib', xkey])
+
+    select = sps.select_by_keys(ldf, ['layout'])
+    styles = {'layout' : {'color' : 'viridis'}}
+    styles = sps.setup_plot_styles(select, styles)
+
+    if ax is None:
+        _, ax = plt.subplots()
+
+    lib_minors = (ldf[['lib', minor_ykey]]
+                  .drop_duplicates()
+                  .sort_values(['lib', minor_ykey], ignore_index=True))
+    yticklabels = lib_minors.apply(lambda x: ': '.join(x), axis=1)
+    groups = lib_minors.groupby('lib').groups
+    yticks = nm.concatenate([ii + nm.linspace(0, 1, len(group) + 1)[:-1]
+                             for ii, group in enumerate(groups.values())])
+    ax.set_yticks(yticks)
+    ax.set_yticklabels(yticklabels)
+    ax.grid(True)
+    used = None
+    for layout in data.uniques['layout']:
+        sdf = sldf[(sldf['layout'] == layout) &
+                   (sldf['order'] == order)]
+        if not len(sdf): continue
+
+        style_kwargs, indices, used = sps.get_row_style_used(
+            sdf.iloc[0], select, {}, styles, used
+        )
+        if layout == 'cqgvd0':
+            style_kwargs.update({
+                'color' : 'r',
+                'zorder' : 100,
+                'marker' : 'x',
+            })
+        else:
+            style_kwargs.update({
+                'alpha' : 0.6,
+                'marker' : 'o',
+            })
+        labels = sdf[['lib', minor_ykey]].apply(lambda x: ': '.join(x), axis=1)
+        ax.plot(sdf[xkey], yticks[nm.searchsorted(yticklabels, labels)],
+                ls='None', **style_kwargs)
+
+    if show_legend:
+        sps.add_legend(ax, select, styles, used)
+
+    return ax
+
 def main():
     df, data = load_results(filename)
     data = tt.select_data(df, data, omit_functions=['.*dat.*'])
@@ -92,7 +153,8 @@ def main():
     ldf = data.ldf
     fdf = data.fdf
 
-    ax = plot_layouts1(None, ldf, data, xkey='rtwwmean', minor_ykey='spaths',
+    ax = plot_layouts1(None, ldf, data, xkey='rtwwmean', order=3)
+    ax = plot_layouts2(None, ldf, data, xkey='rtwwmean', minor_ykey='spaths',
                        order=3)
     plt.show()
     from soops import shell; shell()
