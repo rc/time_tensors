@@ -18,19 +18,80 @@ filename = 'output/matrix-dw_laplace-8192-layouts-reports/results.h5'
 #filename = 'output/tmp-plot-scatter/results.h5'
 output_dir = 'output/tmp'
 
-df = io.get_from_store(filename, 'df')
-par_keys = set(io.get_from_store(filename, 'par_keys').to_list())
+def load_results(filename):
 
-data = so.init_plugin_data(df, par_keys, output_dir, filename)
-data = tt.collect_stats(df, data)
-tt.check_rnorms(df, data)
-data = tt.setup_uniques(df, data)
-# data = tt.select_data(df, data, orders=[1])
+    df = io.get_from_store(filename, 'df')
+    par_keys = set(io.get_from_store(filename, 'par_keys').to_list())
+
+    data = so.init_plugin_data(df, par_keys, output_dir, filename)
+    data = tt.collect_stats(df, data)
+    tt.check_rnorms(df, data)
+    data = tt.setup_uniques(df, data)
+
+    return df, data
+
+def plot_layouts1(ax, ldf, xkey='rtwwmean', order=None, show_legend=False):
+    """
+    Notes
+    -----
+    Includes libs missing due to timeout/memory requirements as empty rows.
+    """
+    if order is None:
+        order = data.orders[0]
+
+    else:
+        assert(order in data.orders)
+
+    sldf = ldf.sort_values(['lib', xkey])
+
+    select = sps.select_by_keys(ldf, ['layout'])
+    styles = {'layout' : {'color' : 'viridis'}}
+    styles = sps.setup_plot_styles(select, styles)
+
+    if ax is None:
+        _, ax = plt.subplots()
+
+    libs = data.uniques['lib']
+    ax.set_yticks(nm.arange(len(libs)))
+    ax.set_yticklabels(libs)
+    ax.grid(True)
+    used = None
+    for layout in data.uniques['layout']:
+        sdf = sldf[(sldf['layout'] == layout) &
+                   (sldf['order'] == order)]
+        if not len(sdf): continue
+
+        style_kwargs, indices, used = sps.get_row_style_used(
+            sdf.iloc[0], select, {}, styles, used
+        )
+        if layout == 'cqgvd0':
+            style_kwargs.update({
+                'color' : 'r',
+                'zorder' : 100,
+                'marker' : 'x',
+            })
+        else:
+            style_kwargs.update({
+                'alpha' : 0.6,
+                'marker' : 'o',
+            })
+        ax.plot(sdf[xkey], nm.searchsorted(libs, sdf['lib']), ls='None',
+                **style_kwargs)
+
+    if show_legend:
+        sps.add_legend(ax, select, styles, used)
+
+    return ax
+
+df, data = load_results(filename)
 data = tt.select_data(df, data, omit_functions=['.*dat.*'])
-data = tt.setup_styles(df, data)
+
+# data = tt.setup_styles(df, data)
 
 ldf = data.ldf
 fdf = data.fdf
+
+ax = plot_layouts1(None, ldf, xkey='rtwwmean', order=3)
 
 ####### ... that spaths and opt are not 1:1...
 
@@ -90,39 +151,6 @@ for ii, lib in enumerate(data.uniques['lib']):
 sps.add_legend(ax, select, styles, used)
 
 #######
-
-# includes libs missing due to timeout/memory requirements as empty rows.
-
-sldf = ldf.sort_values(['lib', 'rtwwmean'])
-
-select = sps.select_by_keys(ldf, ['layout'])
-styles = {'layout' : {'color' : 'viridis'}}
-styles = sps.setup_plot_styles(select, styles)
-
-order = data.orders[2]
-fig, ax = plt.subplots()
-used = None
-libs = data.uniques['lib']
-ax.set_yticks(nm.arange(len(libs)))
-ax.set_yticklabels(libs)
-ax.grid(True)
-for ii, layout in enumerate(data.uniques['layout']):
-    sdf = sldf[(sldf['layout'] == layout) &
-               (sldf['order'] == order)]
-    if not len(sdf): continue
-
-    style_kwargs, indices, used = sps.get_row_style_used(
-        sdf.iloc[0], select, {}, styles, used
-    )
-    if layout == 'cqgvd0':
-        style_kwargs['color'] = 'r'
-        style_kwargs['zorder'] = 100
-    ax.plot(sdf['rtwwmean'], nm.searchsorted(libs, sdf['lib']), ls='None',
-            marker='o', alpha=0.6, **style_kwargs)
-
-# sps.add_legend(ax, select, styles, used)
-
-aa
 
 plt.figure()
 colors = ldf['lib'].astype('category').cat.codes
