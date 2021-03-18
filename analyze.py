@@ -194,8 +194,14 @@ def main():
     ldf = data.ldf
     fdf = data.fdf
 
-    ax = plot_layouts1(None, ldf, data, xkey='rtwwmean', order=3)
-    ax = plot_layouts2(None, ldf, data, xkey='rtwwmean', minor_ykey='spaths',
+    ax = plot_per_lib1(None, ldf[ldf['order'] == 3], data, xkey='layout',
+                       style_key='rtwwmean', mark=None, order=3)
+    ax = plot_per_lib1(None, ldf, data, style_key='layout', xkey='rtwwmean',
+                       order=3)
+    ax = plot_per_lib2(None, ldf[ldf['order'] == 3], data, xkey='layout',
+                       style_key='rtwwmean', mark=None,  minor_ykey='spaths',
+                       order=3)
+    ax = plot_per_lib2(None, ldf, data, xkey='rtwwmean', minor_ykey='spaths',
                        order=3)
     plt.show()
     from soops import shell; shell()
