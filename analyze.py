@@ -105,8 +105,9 @@ def plot_per_lib1(ax, ldf, data, style_key='layout', mark='cqgvd0',
 
     return ax
 
-def plot_layouts2(ax, ldf, data, xkey='rtwwmean', minor_ykey='spaths',
-                  order=None, show_legend=False):
+def plot_per_lib2(ax, ldf, data, style_key='layout', mark='cqgvd0',
+                  xkey='rtwwmean', minor_ykey='spaths', order=None,
+                  show_legend=False):
     """
     Notes
     -----
@@ -119,13 +120,24 @@ def plot_layouts2(ax, ldf, data, xkey='rtwwmean', minor_ykey='spaths',
         assert(order in data.orders)
 
     sldf = ldf.sort_values(['lib', xkey])
+    style_vals = (sldf[[style_key]]
+                  .drop_duplicates()
+                  .sort_values(style_key)[style_key])
 
-    select = sps.select_by_keys(ldf, ['layout'])
-    styles = {'layout' : {'color' : 'viridis'}}
+    select = sps.select_by_keys(ldf, [style_key])
+    styles = {style_key : {'color' : 'viridis'}}
     styles = sps.setup_plot_styles(select, styles)
 
     if ax is None:
         _, ax = plt.subplots()
+
+    xvals = (ldf[[xkey]]
+             .drop_duplicates()
+             .sort_values([xkey], ignore_index=True)
+             [xkey])
+    if xvals.dtype == 'object':
+        ax.set_xticks(nm.arange(len(xvals)))
+        ax.set_xticklabels(xvals)
 
     lib_minors = (ldf[['lib', minor_ykey]]
                   .drop_duplicates()
@@ -136,17 +148,18 @@ def plot_layouts2(ax, ldf, data, xkey='rtwwmean', minor_ykey='spaths',
                              for ii, group in enumerate(groups.values())])
     ax.set_yticks(yticks)
     ax.set_yticklabels(yticklabels)
+
     ax.grid(True)
     used = None
-    for layout in data.uniques['layout']:
-        sdf = sldf[(sldf['layout'] == layout) &
+    for style_val in style_vals:
+        sdf = sldf[(sldf[style_key] == style_val) &
                    (sldf['order'] == order)]
         if not len(sdf): continue
 
         style_kwargs, indices, used = sps.get_row_style_used(
             sdf.iloc[0], select, {}, styles, used
         )
-        if layout == 'cqgvd0':
+        if style_val == mark:
             style_kwargs.update({
                 'color' : 'r',
                 'zorder' : 100,
@@ -158,8 +171,14 @@ def plot_layouts2(ax, ldf, data, xkey='rtwwmean', minor_ykey='spaths',
                 'marker' : 'o',
             })
         labels = sdf[['lib', minor_ykey]].apply(lambda x: ': '.join(x), axis=1)
-        ax.plot(sdf[xkey], yticks[nm.searchsorted(yticklabels, labels)],
-                ls='None', **style_kwargs)
+        if xvals.dtype == 'object':
+            xs = nm.searchsorted(xvals, sdf[xkey])
+
+        else:
+            xs = sdf[xkey]
+
+        ax.plot(xs, yticks[nm.searchsorted(yticklabels, labels)], ls='None',
+                **style_kwargs)
 
     if show_legend:
         sps.add_legend(ax, select, styles, used)
