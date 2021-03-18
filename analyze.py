@@ -30,7 +30,8 @@ def load_results(filename):
 
     return df, data
 
-def plot_layouts1(ax, ldf, data, xkey='rtwwmean', order=None, show_legend=False):
+def plot_per_lib1(ax, ldf, data, style_key='layout', mark='cqgvd0',
+                  xkey='rtwwmean', order=None, show_legend=False):
     """
     Notes
     -----
@@ -43,13 +44,24 @@ def plot_layouts1(ax, ldf, data, xkey='rtwwmean', order=None, show_legend=False)
         assert(order in data.orders)
 
     sldf = ldf.sort_values(['lib', xkey])
+    style_vals = (sldf[[style_key]]
+                  .drop_duplicates()
+                  .sort_values(style_key)[style_key])
 
-    select = sps.select_by_keys(ldf, ['layout'])
-    styles = {'layout' : {'color' : 'viridis'}}
+    select = sps.select_by_keys(ldf, [style_key])
+    styles = {style_key : {'color' : 'viridis'}}
     styles = sps.setup_plot_styles(select, styles)
 
     if ax is None:
         _, ax = plt.subplots()
+
+    xvals = (ldf[[xkey]]
+             .drop_duplicates()
+             .sort_values([xkey], ignore_index=True)
+             [xkey])
+    if xvals.dtype == 'object':
+        ax.set_xticks(nm.arange(len(xvals)))
+        ax.set_xticklabels(xvals)
 
     libs = (ldf[['lib']]
             .drop_duplicates()
@@ -57,17 +69,18 @@ def plot_layouts1(ax, ldf, data, xkey='rtwwmean', order=None, show_legend=False)
             ['lib'])
     ax.set_yticks(nm.arange(len(libs)))
     ax.set_yticklabels(libs)
+
     ax.grid(True)
     used = None
-    for layout in data.uniques['layout']:
-        sdf = sldf[(sldf['layout'] == layout) &
+    for style_val in style_vals:
+        sdf = sldf[(sldf[style_key] == style_val) &
                    (sldf['order'] == order)]
         if not len(sdf): continue
 
         style_kwargs, indices, used = sps.get_row_style_used(
             sdf.iloc[0], select, {}, styles, used
         )
-        if layout == 'cqgvd0':
+        if style_val == mark:
             style_kwargs.update({
                 'color' : 'r',
                 'zorder' : 100,
@@ -78,7 +91,13 @@ def plot_layouts1(ax, ldf, data, xkey='rtwwmean', order=None, show_legend=False)
                 'alpha' : 0.6,
                 'marker' : 'o',
             })
-        ax.plot(sdf[xkey], nm.searchsorted(libs, sdf['lib']), ls='None',
+        if xvals.dtype == 'object':
+            xs = nm.searchsorted(xvals, sdf[xkey])
+
+        else:
+            xs = sdf[xkey]
+
+        ax.plot(xs, nm.searchsorted(libs, sdf['lib']), ls='None',
                 **style_kwargs)
 
     if show_legend:
