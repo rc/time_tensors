@@ -181,17 +181,24 @@ def main():
     ldf = data.ldf
     fdf = data.fdf
 
-    ax = plot_per_lib1(None, ldf[ldf['order'] == 3], data, xkey='layout',
-                       style_key='rtwwmean', mark=None, order=3)
-    ax = plot_per_lib1(None, ldf, data, style_key='layout', xkey='rtwwmean',
-                       order=3)
-    ax = plot_per_lib2(None, ldf[ldf['order'] == 3], data, xkey='layout',
-                       style_key='rtwwmean', mark=None,  minor_ykey='spaths',
-                       order=3)
-    ax = plot_per_lib2(None, ldf, data, xkey='rtwwmean', minor_ykey='spaths',
-                       order=3)
-    plt.show()
     from soops import shell; shell()
+    ax = plot_per_lib1(None, ldf[ldf['order'] == 3], data, xkey='layout',
+                       style_key='rtwwmean', mark=None)
+    ax = plot_per_lib1(None, ldf[ldf['order'] == 3], data, style_key='layout',
+                       xkey='rtwwmean')
+    ax = plot_per_lib2(None, ldf[ldf['order'] == 3], data, xkey='layout',
+                       style_key='rtwwmean', mark=None,  minor_ykey='spaths')
+    ax = plot_per_lib2(None, ldf[ldf['order'] == 3], data, xkey='rtwwmean',
+                       minor_ykey='spaths')
+    plt.show()
+    ax = plot_per_lib2(None, ldf[(ldf['order'] == 3) & (ldf['lib'] == 'oe')] ,
+                       data, xkey='rtwwmean', style_key='layout',
+                       minor_ykey=['variant', 'opt ', 'spaths'])
+    ax = plot_per_lib2(None,
+                       ldf[(ldf['order'] == 3)
+                           & (ldf['lib'].isin(['oel', 'sfepy', 'oe']))],
+                       data, xkey='rtwwmean', style_key='layout',
+                       minor_ykey=['variant', 'opt', 'spaths'])
 
     ####### ... that spaths and opt are not 1:1...
 
