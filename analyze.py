@@ -139,9 +139,11 @@ def plot_per_lib2(ax, ldf, data, style_key='layout', mark='cqgvd0',
         ax.set_xticks(nm.arange(len(xvals)))
         ax.set_xticklabels(xvals)
 
-    lib_minors = (ldf[['lib', minor_ykey]]
+    if isinstance(minor_ykey, str):
+        minor_ykey = [minor_ykey]
+    lib_minors = (ldf[['lib'] + minor_ykey]
                   .drop_duplicates()
-                  .sort_values(['lib', minor_ykey], ignore_index=True))
+                  .sort_values(['lib'] + minor_ykey, ignore_index=True))
     yticklabels = lib_minors.apply(lambda x: ': '.join(x), axis=1)
     groups = lib_minors.groupby('lib').groups
     yticks = nm.concatenate([ii + nm.linspace(0, 1, len(group) + 1)[:-1]
@@ -170,7 +172,7 @@ def plot_per_lib2(ax, ldf, data, style_key='layout', mark='cqgvd0',
                 'alpha' : 0.6,
                 'marker' : 'o',
             })
-        labels = sdf[['lib', minor_ykey]].apply(lambda x: ': '.join(x), axis=1)
+        labels = sdf[['lib'] + minor_ykey].apply(lambda x: ': '.join(x), axis=1)
         if xvals.dtype == 'object':
             xs = nm.searchsorted(xvals, sdf[xkey])
 
