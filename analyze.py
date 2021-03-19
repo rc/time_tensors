@@ -31,18 +31,12 @@ def load_results(filename):
     return df, data
 
 def plot_per_lib1(ax, ldf, data, style_key='layout', mark='cqgvd0',
-                  xkey='rtwwmean', order=None, show_legend=False):
+                  xkey='rtwwmean', show_legend=False):
     """
     Notes
     -----
     Includes libs missing due to timeout/memory requirements as empty rows.
     """
-    if order is None:
-        order = data.orders[0]
-
-    else:
-        assert(order in data.orders)
-
     sldf = ldf.sort_values(['lib', xkey])
     style_vals = (sldf[[style_key]]
                   .drop_duplicates()
@@ -73,8 +67,7 @@ def plot_per_lib1(ax, ldf, data, style_key='layout', mark='cqgvd0',
     ax.grid(True)
     used = None
     for style_val in style_vals:
-        sdf = sldf[(sldf[style_key] == style_val) &
-                   (sldf['order'] == order)]
+        sdf = sldf[(sldf[style_key] == style_val)]
         if not len(sdf): continue
 
         style_kwargs, indices, used = sps.get_row_style_used(
@@ -106,19 +99,12 @@ def plot_per_lib1(ax, ldf, data, style_key='layout', mark='cqgvd0',
     return ax
 
 def plot_per_lib2(ax, ldf, data, style_key='layout', mark='cqgvd0',
-                  xkey='rtwwmean', minor_ykey='spaths', order=None,
-                  show_legend=False):
+                  xkey='rtwwmean', minor_ykey='spaths', show_legend=False):
     """
     Notes
     -----
     Includes libs missing due to timeout/memory requirements as empty rows.
     """
-    if order is None:
-        order = data.orders[0]
-
-    else:
-        assert(order in data.orders)
-
     sldf = ldf.sort_values(['lib', xkey])
     style_vals = (sldf[[style_key]]
                   .drop_duplicates()
@@ -154,8 +140,7 @@ def plot_per_lib2(ax, ldf, data, style_key='layout', mark='cqgvd0',
     ax.grid(True)
     used = None
     for style_val in style_vals:
-        sdf = sldf[(sldf[style_key] == style_val) &
-                   (sldf['order'] == order)]
+        sdf = sldf[(sldf[style_key] == style_val)]
         if not len(sdf): continue
 
         style_kwargs, indices, used = sps.get_row_style_used(
