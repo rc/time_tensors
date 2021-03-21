@@ -220,6 +220,8 @@ def format_labels(key, iv, val):
 
 def main():
     df, data = load_results(filename)
+    data._ldf['lgroup'] = data._ldf['layout'].apply(get_layout_group)
+
     data = tt.select_data(df, data, omit_functions=['.*dat.*'])
 
     # data = tt.setup_styles(df, data)
@@ -228,6 +230,23 @@ def main():
     fdf = data.fdf
 
     from soops import shell; shell()
+    style = {
+        'color' : ['k', 'b', 'g', 'c', 'r', 'm', 'y', 'tab:orange'],
+        'mew' : 2,
+        'marker' : ['+', 'o', 'v', '^', '<', '>', 's', 'd'],
+        'alpha' : 0.8,
+        'mfc' : 'None',
+        'markersize' : 8,
+    }
+    ax = plot_per_lib2(
+        None, ldf[ldf['order'] == 3], data, xkey='rtwwmean',
+        style_key='lgroup', style=style, mark='0cqgvd0',
+        minor_ykey='spaths', format_labels=format_labels,
+        show_legend=True,
+    )
+
+    # ldf.lgroup.hist()
+
     ax = plot_per_lib1(None, ldf[ldf['order'] == 3], data, xkey='layout',
                        style_key='rtwwmean', mark=None)
     ax = plot_per_lib1(None, ldf[ldf['order'] == 3], data, style_key='layout',
@@ -239,12 +258,19 @@ def main():
     plt.show()
     ax = plot_per_lib2(None, ldf[(ldf['order'] == 3) & (ldf['lib'] == 'oe')] ,
                        data, xkey='rtwwmean', style_key='layout',
-                       minor_ykey=['variant', 'opt ', 'spaths'])
+                       minor_ykey=['variant', 'opt', 'spaths'])
     ax = plot_per_lib2(None,
                        ldf[(ldf['order'] == 3)
                            & (ldf['lib'].isin(['oel', 'sfepy', 'oe']))],
                        data, xkey='rtwwmean', style_key='layout',
                        minor_ykey=['variant', 'opt', 'spaths'])
+    ax = analyze.plot_per_lib2(None,
+                               ldf[(ldf['order'] == 2) &
+                                   (ldf['lib'].isin(['np', 'oe'])) &
+                                   (ldf['variant'].isin(['default', 'o']))],
+                               data,
+                               xkey='rtwwmean', style_key='layout',
+                               minor_ykey=['opt', 'spaths', 'variant'])
 
     ####### ... that spaths and opt are not 1:1...
 
@@ -257,6 +283,11 @@ def main():
     cat = sdf['lib'].astype('category').cat
     sdf.plot.scatter(x='opt', y='spaths', color=cat.codes)
 
+    # but spaths and (lib, opt) are 1:1
+    sdf['lib-opt'] = sdf['lib'] + '-' + sdf['opt']
+    sdf.plot.scatter(x='lib-opt', y='spaths', color=cat.codes)
+    ax = sdf.plot.scatter(x='lib-opt', y='spaths', color=cat.codes)
+    ax.grid()
 
     sldf = ldf.sort_values('layout')
 
@@ -330,6 +361,8 @@ def main():
     plt.figure()
     out3 = gb3['rtwwmean'].plot(ls='None', marker='o')
     plt.legend()
+
+    nm.mean([len(ii) for ii in ldf.groupby(['opt', 'order','lib'])['spaths'].unique()])
 
 if __name__ == '__main__':
     main()
