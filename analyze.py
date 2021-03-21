@@ -1,10 +1,16 @@
 #!/usr/bin/env python
+"""
+"""
+from argparse import ArgumentParser, RawDescriptionHelpFormatter
 import os.path as op
+from functools import partial
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as nm
 
-import soops.scoop_outputs as so
+import soops as so
+from soops.base import output, product, Struct
+import soops.scoop_outputs as sc
 import soops.ioutils as io
 import soops.plot_selected as sps
 
@@ -14,16 +20,12 @@ if 'sfepy' not in sys.path:
 
 import time_tensors as tt
 
-filename = 'output/matrix-dw_laplace-8192-layouts-reports/results.h5'
-#filename = 'output/tmp-plot-scatter/results.h5'
-output_dir = 'output/tmp'
-
-def load_results(filename):
+def load_results(filename, output_dir):
 
     df = io.get_from_store(filename, 'df')
     par_keys = set(io.get_from_store(filename, 'par_keys').to_list())
 
-    data = so.init_plugin_data(df, par_keys, output_dir, filename)
+    data = sc.init_plugin_data(df, par_keys, output_dir, filename)
     data = tt.collect_stats(df, data)
     tt.check_rnorms(df, data)
     data = tt.setup_uniques(df, data)
@@ -218,8 +220,74 @@ def get_layout_group(layout):
 def format_labels(key, iv, val):
     return val[1:]
 
+helps = {
+    'output_dir'
+    : 'output directory',
+    'results'
+    : 'soops-scoop results',
+    'analysis' : '',
+    'no_show'
+    : 'do not call matplotlib show()',
+    'silent'
+    : 'do not print messages to screen',
+    'shell'
+    : 'run ipython shell after all computations',
+}
+
 def main():
-    df, data = load_results(filename)
+    opts = Struct(
+        suffix = '.png',
+        limits = 'rtwwmean=4',
+    )
+
+    parser = ArgumentParser(description=__doc__.rstrip(),
+                            formatter_class=RawDescriptionHelpFormatter)
+    parser.add_argument('output_dir', help=helps['output_dir'])
+    parser.add_argument('results', help=helps['results'])
+    parser.add_argument('--analysis', action='store', dest='analysis',
+                        choices=['layouts'],
+                        default='layouts',
+                        help=helps['analysis'])
+    for key, val in opts.items():
+        helps[key] = '[default: %(default)s]'
+        action = 'store'
+        if val is True:
+            action = 'store_false'
+
+        elif val is False:
+            action = 'store_true'
+
+        if action == 'store':
+            parser.add_argument('--' + key.replace('_', '-'),
+                                type=type(val),
+                                action=action, dest=key,
+                                default=val, help=helps[key])
+        else:
+            parser.add_argument('--' + key.replace('_', '-'),
+                                action=action, dest=key,
+                                default=val, help=helps[key])
+    parser.add_argument('-n', '--no-show',
+                        action='store_false', dest='show',
+                        default=True, help=helps['no_show'])
+    parser.add_argument('--silent',
+                        action='store_true', dest='silent',
+                        default=False, help=helps['silent'])
+    parser.add_argument('--shell',
+                        action='store_true', dest='shell',
+                        default=False, help=helps['shell'])
+    options = parser.parse_args()
+
+    options.limits = so.parse_as_dict(options.limits)
+
+    output_dir = options.output_dir
+    indir = partial(op.join, output_dir)
+
+    output.prefix = 'analyze:'
+    filename = indir('output_log.txt')
+    sc.ensure_path(filename)
+    output.set_output(filename=filename, combined=options.silent == False)
+
+    df, data = load_results(options.results, output_dir)
     data._ldf['lgroup'] = data._ldf['layout'].apply(get_layout_group)
 
     data = tt.select_data(df, data, omit_functions=['.*dat.*'])
@@ -229,140 +297,159 @@ def main():
     ldf = data.ldf
     fdf = data.fdf
 
-    from soops import shell; shell()
-    style = {
-        'color' : ['k', 'b', 'g', 'c', 'r', 'm', 'y', 'tab:orange'],
-        'mew' : 2,
-        'marker' : ['+', 'o', 'v', '^', '<', '>', 's', 'd'],
-        'alpha' : 0.8,
-        'mfc' : 'None',
-        'markersize' : 8,
-    }
-    ax = plot_per_lib2(
-        None, ldf[ldf['order'] == 3], data, xkey='rtwwmean',
-        style_key='lgroup', style=style, mark='0cqgvd0',
-        minor_ykey='spaths', format_labels=format_labels,
-        show_legend=True,
-    )
+    if options.analysis == 'layouts':
+        style = {
+            'color' : ['k', 'b', 'g', 'c', 'r', 'm', 'y', 'tab:orange'],
+            'mew' : 2,
+            'marker' : ['+', 'o', 'v', '^', '<', '>', 's', 'd'],
+            'alpha' : 0.8,
+            'mfc' : 'None',
+            'markersize' : 8,
+        }
+        xkeys = ['rtwwmean', 'rmmean']
+        limit = options.limits.get('rtwwmean', ldf['rtwwmean'].max())
+        for order, xkey in product(data.orders, xkeys):
+            sdf = ldf[(ldf['order'] == order) & (ldf['rtwwmean'] <= limit)]
+            ax = plot_per_lib2(
+                None, sdf, data, xkey=xkey,
+                style_key='lgroup', mark='0cqgvd0',
+                minor_ykey='spaths', all_ldf=ldf, style=style,
+                format_labels=format_labels, show_legend=True,
+            )
+            fig = ax.figure
+            plt.tight_layout()
+            figname = ('{}-layout-n{}-o{}-{}{}'
+                       .format(sdf['term_name'].iloc[0],
+                               sdf['n_cell'].iloc[0],
+                               order, xkey,
+                               options.suffix))
+            fig.savefig(indir(figname), bbox_inches='tight')
 
-    # ldf.lgroup.hist()
+    else:
+        # ldf.lgroup.hist()
 
-    ax = plot_per_lib1(None, ldf[ldf['order'] == 3], data, xkey='layout',
-                       style_key='rtwwmean', mark=None)
-    ax = plot_per_lib1(None, ldf[ldf['order'] == 3], data, style_key='layout',
-                       xkey='rtwwmean')
-    ax = plot_per_lib2(None, ldf[ldf['order'] == 3], data, xkey='layout',
-                       style_key='rtwwmean', mark=None,  minor_ykey='spaths')
-    ax = plot_per_lib2(None, ldf[ldf['order'] == 3], data, xkey='rtwwmean',
-                       minor_ykey='spaths')
-    plt.show()
-    ax = plot_per_lib2(None, ldf[(ldf['order'] == 3) & (ldf['lib'] == 'oe')] ,
-                       data, xkey='rtwwmean', style_key='layout',
-                       minor_ykey=['variant', 'opt', 'spaths'])
-    ax = plot_per_lib2(None,
-                       ldf[(ldf['order'] == 3)
-                           & (ldf['lib'].isin(['oel', 'sfepy', 'oe']))],
-                       data, xkey='rtwwmean', style_key='layout',
-                       minor_ykey=['variant', 'opt', 'spaths'])
-    ax = analyze.plot_per_lib2(None,
-                               ldf[(ldf['order'] == 2) &
-                                   (ldf['lib'].isin(['np', 'oe'])) &
-                                   (ldf['variant'].isin(['default', 'o']))],
-                               data,
-                               xkey='rtwwmean', style_key='layout',
-                               minor_ykey=['opt', 'spaths', 'variant'])
+        ax = plot_per_lib1(None, ldf[ldf['order'] == 3], data, xkey='layout',
+                           style_key='rtwwmean', mark=None)
+        ax = plot_per_lib1(None, ldf[ldf['order'] == 3], data, style_key='layout',
+                           xkey='rtwwmean')
+        ax = plot_per_lib2(None, ldf[ldf['order'] == 3], data, xkey='layout',
+                           style_key='rtwwmean', mark=None,  minor_ykey='spaths')
+        ax = plot_per_lib2(None, ldf[ldf['order'] == 3], data, xkey='rtwwmean',
+                           minor_ykey='spaths')
+        plt.show()
+        ax = plot_per_lib2(None, ldf[(ldf['order'] == 3) & (ldf['lib'] == 'oe')] ,
+                           data, xkey='rtwwmean', style_key='layout',
+                           minor_ykey=['variant', 'opt', 'spaths'])
+        ax = plot_per_lib2(None,
+                           ldf[(ldf['order'] == 3)
+                               & (ldf['lib'].isin(['oel', 'sfepy', 'oe']))],
+                           data, xkey='rtwwmean', style_key='layout',
+                           minor_ykey=['variant', 'opt', 'spaths'])
+        ax = analyze.plot_per_lib2(None,
+                                   ldf[(ldf['order'] == 2) &
+                                       (ldf['lib'].isin(['np', 'oe'])) &
+                                       (ldf['variant'].isin(['default', 'o']))],
+                                   data,
+                                   xkey='rtwwmean', style_key='layout',
+                                   minor_ykey=['opt', 'spaths', 'variant'])
 
-    ####### ... that spaths and opt are not 1:1...
+        ####### ... that spaths and opt are not 1:1...
 
-    mii = pd.MultiIndex.from_arrays([ldf.lib, ldf.opt, ldf.spaths]).unique().sort_values()
-    ldf.plot.scatter(x='opt', y='spaths')
+        mii = pd.MultiIndex.from_arrays([ldf.lib, ldf.opt, ldf.spaths]).unique().sort_values()
+        ldf.plot.scatter(x='opt', y='spaths')
 
-    sdf = (ldf[['lib', 'opt', 'spaths']].drop_duplicates()
-           .sort_values(['lib', 'opt', 'spaths'], ignore_index=True))
+        sdf = (ldf[['lib', 'opt', 'spaths']].drop_duplicates()
+               .sort_values(['lib', 'opt', 'spaths'], ignore_index=True))
 
-    cat = sdf['lib'].astype('category').cat
-    sdf.plot.scatter(x='opt', y='spaths', color=cat.codes)
+        cat = sdf['lib'].astype('category').cat
+        sdf.plot.scatter(x='opt', y='spaths', color=cat.codes)
 
-    # but spaths and (lib, opt) are 1:1
-    sdf['lib-opt'] = sdf['lib'] + '-' + sdf['opt']
-    sdf.plot.scatter(x='lib-opt', y='spaths', color=cat.codes)
-    ax = sdf.plot.scatter(x='lib-opt', y='spaths', color=cat.codes)
-    ax.grid()
+        # but spaths and (lib, opt) are 1:1
+        sdf['lib-opt'] = sdf['lib'] + '-' + sdf['opt']
+        sdf.plot.scatter(x='lib-opt', y='spaths', color=cat.codes)
+        ax = sdf.plot.scatter(x='lib-opt', y='spaths', color=cat.codes)
+        ax.grid()
 
-    sldf = ldf.sort_values('layout')
+        sldf = ldf.sort_values('layout')
 
-    cat = sldf['lib'].astype('category').cat
+        cat = sldf['lib'].astype('category').cat
 
-    sldf.plot.scatter(x='layout', y='rtwwmean', c=cat.codes, ls='None', marker='o', colormap='viridis')
+        sldf.plot.scatter(x='layout', y='rtwwmean', c=cat.codes, ls='None', marker='o', colormap='viridis')
 
-    #######
+        #######
 
-    sldf = ldf.sort_values(['lib', 'rtwwmean'])
+        sldf = ldf.sort_values(['lib', 'rtwwmean'])
 
-    select = sps.select_by_keys(ldf, ['lib'])
-    styles = {'lib' : {'color' : 'viridis'}}
-    styles = sps.setup_plot_styles(select, styles)
-    #colors = sps.get_cat_style(select, 'lib', styles, 'color')
+        select = sps.select_by_keys(ldf, ['lib'])
+        styles = {'lib' : {'color' : 'viridis'}}
+        styles = sps.setup_plot_styles(select, styles)
+        #colors = sps.get_cat_style(select, 'lib', styles, 'color')
 
-    fig, ax = plt.subplots()
-    used = None
-    for ii, lib in enumerate(data.uniques['lib']):
-        sdf = sldf[sldf['lib'] == lib]
-        style_kwargs, indices = sps.get_row_style(
-            sdf.iloc[0], select, {}, styles
-        )
-        used = sps.update_used(used, indices)
-        ax.plot(sdf['layout'], sdf['rtwwmean'], ls='None', marker='o', alpha=0.6,
-                **style_kwargs)
+        fig, ax = plt.subplots()
+        used = None
+        for ii, lib in enumerate(data.uniques['lib']):
+            sdf = sldf[sldf['lib'] == lib]
+            style_kwargs, indices = sps.get_row_style(
+                sdf.iloc[0], select, {}, styles
+            )
+            used = sps.update_used(used, indices)
+            ax.plot(sdf['layout'], sdf['rtwwmean'], ls='None', marker='o', alpha=0.6,
+                    **style_kwargs)
 
-    sps.add_legend(ax, select, styles, used)
+        sps.add_legend(ax, select, styles, used)
 
-    order = data.orders[0]
-    fig, ax = plt.subplots()
-    used = None
-    for ii, lib in enumerate(data.uniques['lib']):
-        sdf = sldf[(sldf['lib'] == lib) &
-                   (sldf['order'] == order)]
-        if not len(sdf): continue
+        order = data.orders[0]
+        fig, ax = plt.subplots()
+        used = None
+        for ii, lib in enumerate(data.uniques['lib']):
+            sdf = sldf[(sldf['lib'] == lib) &
+                       (sldf['order'] == order)]
+            if not len(sdf): continue
 
-        style_kwargs, indices = sps.get_row_style(
-            sdf.iloc[0], select, {}, styles
-        )
-        used = sps.update_used(used, indices)
-        ax.plot(sdf['layout'], sdf['rtwwmean'], ls='None', marker='o', alpha=0.6,
-                **style_kwargs)
+            style_kwargs, indices = sps.get_row_style(
+                sdf.iloc[0], select, {}, styles
+            )
+            used = sps.update_used(used, indices)
+            ax.plot(sdf['layout'], sdf['rtwwmean'], ls='None', marker='o', alpha=0.6,
+                    **style_kwargs)
 
-    sps.add_legend(ax, select, styles, used)
+        sps.add_legend(ax, select, styles, used)
 
-    #######
+        #######
 
-    plt.figure()
-    colors = ldf['lib'].astype('category').cat.codes
-    #markers = tuple(ldf['lib'].astype('category').values)
-    ldf.plot.scatter(x='rtwwmean', y='rmmean', c=colors, colorbar=True, colormap='viridis', logx=True)
+        plt.figure()
+        colors = ldf['lib'].astype('category').cat.codes
+        #markers = tuple(ldf['lib'].astype('category').values)
+        ldf.plot.scatter(x='rtwwmean', y='rmmean', c=colors, colorbar=True, colormap='viridis', logx=True)
 
-    plt.figure()
-    colors = ldf['spaths'].astype('category').cat.codes
-    ldf.plot.scatter(x='rtwwmean', y='rmmean', c=colors, colorbar=True, colormap='viridis', logx=True)
+        plt.figure()
+        colors = ldf['spaths'].astype('category').cat.codes
+        ldf.plot.scatter(x='rtwwmean', y='rmmean', c=colors, colorbar=True, colormap='viridis', logx=True)
 
-    gb1 = ldf.groupby(['lib'])
-    gb2 = ldf.groupby(['spaths'])
-    gb3 = ldf.groupby(['variant'])
-    gb1.groups
+        gb1 = ldf.groupby(['lib'])
+        gb2 = ldf.groupby(['spaths'])
+        gb3 = ldf.groupby(['variant'])
+        gb1.groups
 
-    plt.figure()
-    out1 = gb1['rtwwmean'].plot(ls='None', marker='o')
-    plt.legend()
+        plt.figure()
+        out1 = gb1['rtwwmean'].plot(ls='None', marker='o')
+        plt.legend()
 
-    plt.figure()
-    out2 = gb2['rtwwmean'].plot(ls='None', marker='o')
-    plt.legend()
+        plt.figure()
+        out2 = gb2['rtwwmean'].plot(ls='None', marker='o')
+        plt.legend()
 
-    plt.figure()
-    out3 = gb3['rtwwmean'].plot(ls='None', marker='o')
-    plt.legend()
+        plt.figure()
+        out3 = gb3['rtwwmean'].plot(ls='None', marker='o')
+        plt.legend()
 
-    nm.mean([len(ii) for ii in ldf.groupby(['opt', 'order','lib'])['spaths'].unique()])
+        nm.mean([len(ii) for ii in ldf.groupby(['opt', 'order','lib'])['spaths'].unique()])
+
+    if options.show and options.analysis.endswith('2d'):
+        plt.show()
+
+    if options.shell:
+        from soops.base import shell; shell()
 
 if __name__ == '__main__':
     main()
