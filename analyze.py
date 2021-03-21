@@ -190,6 +190,34 @@ def plot_per_lib2(ax, ldf, data, style_key='layout', mark='cqgvd0',
 
     return ax
 
+def get_layout_group(layout):
+    if layout == 'cqgvd0':
+        return '0cqgvd0'
+
+    elif layout.startswith('cq'):
+        return '1cq*'
+
+    elif layout.startswith('qc'):
+        return '4qc*'
+
+    elif layout.endswith('cq'):
+        return '3*cq'
+
+    elif layout.endswith('qc'):
+        return '6*qc'
+
+    elif ('c' in layout) and (layout.index('c') < layout.index('q')):
+        return '2*c*q*'
+
+    elif ('c' in layout) and (layout.index('c') > layout.index('q')):
+        return '5*q*c*'
+
+    else:
+        return '7default'
+
+def format_labels(key, iv, val):
+    return val[1:]
+
 def main():
     df, data = load_results(filename)
     data = tt.select_data(df, data, omit_functions=['.*dat.*'])
