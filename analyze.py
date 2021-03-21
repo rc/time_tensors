@@ -107,7 +107,7 @@ def plot_per_lib1(ax, ldf, data, style_key='layout', mark='cqgvd0',
 
 def plot_per_lib2(ax, ldf, data, style_key='layout', mark='cqgvd0',
                   xkey='rtwwmean', minor_ykey='spaths', all_ldf=None,
-                  show_legend=False):
+                  style=None, format_labels=None, show_legend=False):
     """
     Notes
     -----
@@ -122,7 +122,14 @@ def plot_per_lib2(ax, ldf, data, style_key='layout', mark='cqgvd0',
                   .sort_values(style_key)[style_key])
 
     select = sps.select_by_keys(ldf, [style_key])
-    styles = {style_key : {'color' : 'viridis'}}
+    if style is None:
+        style = {
+            'color' : 'viridis',
+            'alpha' : 0.6,
+            'marker' : 'o',
+            'mfc' : 'None',
+        }
+    styles = {style_key : style}
     styles = sps.setup_plot_styles(select, styles)
 
     if ax is None:
@@ -164,26 +171,22 @@ def plot_per_lib2(ax, ldf, data, style_key='layout', mark='cqgvd0',
                 'zorder' : 100,
                 'marker' : '+',
                 'markersize' : 10,
-                'mew' : 1,
+                'mew' : 2,
             })
-        else:
-            style_kwargs.update({
-                'alpha' : 0.6,
-                'marker' : 'o',
-                'mfc' : 'None',
-            })
-        labels = sdf[['lib'] + minor_ykey].apply(lambda x: ': '.join(x), axis=1)
+
         if xvals.dtype == 'object':
             xs = nm.searchsorted(xvals, sdf[xkey])
 
         else:
             xs = sdf[xkey]
 
+        labels = sdf[['lib'] + minor_ykey].apply(lambda x: ': '.join(x), axis=1)
         ax.plot(xs, yticks[nm.searchsorted(yticklabels, labels)], ls='None',
                 **style_kwargs)
 
     if show_legend:
-        sps.add_legend(ax, select, styles, used)
+        sps.add_legend(ax, select, styles, used, format_labels=format_labels,
+                       loc='lower right', frame_alpha=0.8)
 
     return ax
 
