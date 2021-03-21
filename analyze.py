@@ -236,6 +236,7 @@ helps = {
 
 def main():
     opts = Struct(
+        omit_functions = "'.*dat.*', '.*npq.*', '.*oeq.*'",
         suffix = '.png',
         limits = 'rtwwmean=4',
     )
@@ -277,6 +278,7 @@ def main():
                         default=False, help=helps['shell'])
     options = parser.parse_args()
 
+    options.omit_functions = so.parse_as_list(options.omit_functions)
     options.limits = so.parse_as_dict(options.limits)
 
     output_dir = options.output_dir
@@ -290,7 +292,7 @@ def main():
     df, data = load_results(options.results, output_dir)
     data._ldf['lgroup'] = data._ldf['layout'].apply(get_layout_group)
 
-    data = tt.select_data(df, data, omit_functions=['.*dat.*'])
+    data = tt.select_data(df, data, omit_functions=options.omit_functions)
 
     # data = tt.setup_styles(df, data)
 
