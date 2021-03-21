@@ -31,12 +31,15 @@ def load_results(filename):
     return df, data
 
 def plot_per_lib1(ax, ldf, data, style_key='layout', mark='cqgvd0',
-                  xkey='rtwwmean', show_legend=False):
+                  xkey='rtwwmean', all_ldf=None, show_legend=False):
     """
     Notes
     -----
     Includes libs missing due to timeout/memory requirements as empty rows.
     """
+    if all_ldf is None:
+        all_ldf = ldf
+
     sldf = ldf.sort_values(['lib', xkey])
     style_vals = (sldf[[style_key]]
                   .drop_duplicates()
@@ -49,7 +52,8 @@ def plot_per_lib1(ax, ldf, data, style_key='layout', mark='cqgvd0',
     if ax is None:
         _, ax = plt.subplots()
 
-    xvals = (ldf[[xkey]]
+    ax.set_xlabel(xkey)
+    xvals = (all_ldf[[xkey]]
              .drop_duplicates()
              .sort_values([xkey], ignore_index=True)
              [xkey])
@@ -57,7 +61,7 @@ def plot_per_lib1(ax, ldf, data, style_key='layout', mark='cqgvd0',
         ax.set_xticks(nm.arange(len(xvals)))
         ax.set_xticklabels(xvals)
 
-    libs = (ldf[['lib']]
+    libs = (all_ldf[['lib']]
             .drop_duplicates()
             .sort_values(['lib'], ignore_index=True)
             ['lib'])
@@ -75,14 +79,17 @@ def plot_per_lib1(ax, ldf, data, style_key='layout', mark='cqgvd0',
         )
         if style_val == mark:
             style_kwargs.update({
-                'color' : 'r',
+                'color' : 'k',
                 'zorder' : 100,
-                'marker' : 'x',
+                'marker' : '+',
+                'markersize' : 10,
+                'mew' : 1,
             })
         else:
             style_kwargs.update({
                 'alpha' : 0.6,
                 'marker' : 'o',
+                'mfc' : 'None',
             })
         if xvals.dtype == 'object':
             xs = nm.searchsorted(xvals, sdf[xkey])
@@ -99,12 +106,16 @@ def plot_per_lib1(ax, ldf, data, style_key='layout', mark='cqgvd0',
     return ax
 
 def plot_per_lib2(ax, ldf, data, style_key='layout', mark='cqgvd0',
-                  xkey='rtwwmean', minor_ykey='spaths', show_legend=False):
+                  xkey='rtwwmean', minor_ykey='spaths', all_ldf=None,
+                  show_legend=False):
     """
     Notes
     -----
     Includes libs missing due to timeout/memory requirements as empty rows.
     """
+    if all_ldf is None:
+        all_ldf = ldf
+
     sldf = ldf.sort_values(['lib', xkey])
     style_vals = (sldf[[style_key]]
                   .drop_duplicates()
@@ -117,7 +128,8 @@ def plot_per_lib2(ax, ldf, data, style_key='layout', mark='cqgvd0',
     if ax is None:
         _, ax = plt.subplots()
 
-    xvals = (ldf[[xkey]]
+    ax.set_xlabel(xkey)
+    xvals = (all_ldf[[xkey]]
              .drop_duplicates()
              .sort_values([xkey], ignore_index=True)
              [xkey])
@@ -127,7 +139,7 @@ def plot_per_lib2(ax, ldf, data, style_key='layout', mark='cqgvd0',
 
     if isinstance(minor_ykey, str):
         minor_ykey = [minor_ykey]
-    lib_minors = (ldf[['lib'] + minor_ykey]
+    lib_minors = (all_ldf[['lib'] + minor_ykey]
                   .drop_duplicates()
                   .sort_values(['lib'] + minor_ykey, ignore_index=True))
     yticklabels = lib_minors.apply(lambda x: ': '.join(x), axis=1)
@@ -148,14 +160,17 @@ def plot_per_lib2(ax, ldf, data, style_key='layout', mark='cqgvd0',
         )
         if style_val == mark:
             style_kwargs.update({
-                'color' : 'r',
+                'color' : 'k',
                 'zorder' : 100,
-                'marker' : 'x',
+                'marker' : '+',
+                'markersize' : 10,
+                'mew' : 1,
             })
         else:
             style_kwargs.update({
                 'alpha' : 0.6,
                 'marker' : 'o',
+                'mfc' : 'None',
             })
         labels = sdf[['lib'] + minor_ykey].apply(lambda x: ': '.join(x), axis=1)
         if xvals.dtype == 'object':
