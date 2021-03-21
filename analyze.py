@@ -237,8 +237,10 @@ helps = {
 def main():
     opts = Struct(
         omit_functions = "'.*dat.*', '.*npq.*', '.*oeq.*'",
-        suffix = '.png',
         limits = 'rtwwmean=4',
+        xscale = 'log',
+        xlim = 'auto=True',
+        suffix = '.png',
     )
 
     parser = ArgumentParser(description=__doc__.rstrip(),
@@ -280,6 +282,7 @@ def main():
 
     options.omit_functions = so.parse_as_list(options.omit_functions)
     options.limits = so.parse_as_dict(options.limits)
+    options.xlim = so.parse_as_dict(options.xlim)
 
     output_dir = options.output_dir
     indir = partial(op.join, output_dir)
@@ -318,6 +321,9 @@ def main():
                 minor_ykey='spaths', all_ldf=ldf, style=style,
                 format_labels=format_labels, show_legend=True,
             )
+            xlim = options.xlim.get(xkey, {'auto' : True})
+            ax.set_xlim(**xlim)
+            ax.set_xscale(options.xscale)
             fig = ax.figure
             plt.tight_layout()
             figname = ('{}-layout-n{}-o{}-{}{}'
