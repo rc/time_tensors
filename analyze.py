@@ -6,6 +6,7 @@ import os.path as op
 from functools import partial
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.ticker import LogFormatter
 import numpy as nm
 
 import soops as so
@@ -220,6 +221,12 @@ def get_layout_group(layout):
 def format_labels(key, iv, val):
     return val[1:]
 
+def make_patch_spines_invisible(ax):
+    ax.set_frame_on(True)
+    ax.patch.set_visible(False)
+    for sp in ax.spines.values():
+        sp.set_visible(False)
+
 helps = {
     'output_dir'
     : 'output directory',
@@ -316,6 +323,7 @@ def main():
             'markersize' : 8,
         }
         xkeys = ['rtwwmean', 'rmmean']
+        upxkeys = ['twwmean [s]', 'mmean [MB]']
         limit = options.limits.get('rtwwmean', ldf['rtwwmean'].max())
         for n_cell, order, xkey, upxkey in product(
                 data.n_cell, data.orders, xkeys, upxkeys,
@@ -333,13 +341,34 @@ def main():
             xlim = options.xlim.get(xkey, {'auto' : True})
             ax.set_xlim(**xlim)
             ax.set_xscale(options.xscale)
+            ax.xaxis.set_minor_formatter(LogFormatter())
+            xlim = nm.array(ax.get_xlim())
+            # xts = sorted([xlim[0], nm.mean(xlim), xlim[1]])
+            # ax.set_xticks(xts)
+            # ax.set_xticklabels(['{:.1e}'.format(xt) for xt in xts])
             ax.axvline(1, color='r')
-            fig = ax.figure
+
+            pax = ax.twiny()
+            pax.xaxis.set_ticks_position('bottom')
+            pax.xaxis.set_label_position('bottom')
+            pax.spines['bottom'].set_position(('axes', -0.15))
+            make_patch_spines_invisible(pax)
+            pax.spines['bottom'].set_visible(True)
+
+            pxkey = upxkey.split()[0]
+            pax.set_xlabel(upxkey)
+            coef = sdf[pxkey].iloc[0] / sdf[xkey].iloc[0]
+            pax.set_xlim(*(coef * xlim))
+            pax.set_xscale(options.xscale)
+            pax.set_xticks(ax.get_xticks())
+            pax.xaxis.set_minor_formatter(LogFormatter())
+
             plt.tight_layout()
             figname = ('{}-layout-n{}-o{}-{}{}'
                        .format(sdf['term_name'].iloc[0],
                                n_cell, order, xkey,
                                options.suffix))
+            fig = ax.figure
             fig.savefig(indir(figname), bbox_inches='tight')
 
     else:
