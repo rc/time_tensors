@@ -236,7 +236,7 @@ helps = {
 
 def main():
     opts = Struct(
-        omit_functions = "'.*dat.*', '.*npq.*', '.*oeq.*'",
+        omit_functions = "'.*dat.*', '.*npq.*', '.*oeq.*', '.*_[01234]_.*'",
         limits = 'rtwwmean=4',
         xscale = 'log',
         xlim = 'auto=True',
@@ -302,9 +302,13 @@ def main():
     ldf = data.ldf
     fdf = data.fdf
 
+    output('ldf shape:', ldf.shape)
+    output('fdf shape:', fdf.shape)
+
     if options.analysis == 'layouts':
         style = {
-            'color' : ['k', 'b', 'g', 'c', 'r', 'm', 'y', 'tab:orange'],
+            'color' : 'viridis',
+            # 'color' : ['k', 'b', 'g', 'c', 'r', 'm', 'y', 'tab:orange'],
             'mew' : 2,
             'marker' : ['+', 'o', 'v', '^', '<', '>', 's', 'd'],
             'alpha' : 0.8,
@@ -324,6 +328,7 @@ def main():
             xlim = options.xlim.get(xkey, {'auto' : True})
             ax.set_xlim(**xlim)
             ax.set_xscale(options.xscale)
+            ax.axvline(1, color='r')
             fig = ax.figure
             plt.tight_layout()
             figname = ('{}-layout-n{}-o{}-{}{}'
