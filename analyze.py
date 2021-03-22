@@ -317,8 +317,13 @@ def main():
         }
         xkeys = ['rtwwmean', 'rmmean']
         limit = options.limits.get('rtwwmean', ldf['rtwwmean'].max())
-        for order, xkey in product(data.orders, xkeys):
-            sdf = ldf[(ldf['order'] == order) & (ldf['rtwwmean'] <= limit)]
+        for n_cell, order, xkey, upxkey in product(
+                data.n_cell, data.orders, xkeys, upxkeys,
+                contracts=[(2, 3)],
+        ):
+            sdf = ldf[(ldf['n_cell'] == n_cell) &
+                      (ldf['order'] == order) &
+                      (ldf['rtwwmean'] <= limit)]
             ax = plot_per_lib2(
                 None, sdf, data, xkey=xkey,
                 style_key='lgroup', mark='0cqgvd0',
@@ -333,8 +338,7 @@ def main():
             plt.tight_layout()
             figname = ('{}-layout-n{}-o{}-{}{}'
                        .format(sdf['term_name'].iloc[0],
-                               sdf['n_cell'].iloc[0],
-                               order, xkey,
+                               n_cell, order, xkey,
                                options.suffix))
             fig.savefig(indir(figname), bbox_inches='tight')
 
