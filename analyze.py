@@ -458,7 +458,7 @@ def main():
 
         nm.mean([len(ii) for ii in ldf.groupby(['opt', 'order','lib'])['spaths'].unique()])
 
-    if options.show and options.analysis.endswith('2d'):
+    if options.show:
         plt.show()
 
     if options.shell:
