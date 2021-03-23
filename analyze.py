@@ -6,7 +6,7 @@ import os.path as op
 from functools import partial
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib.ticker import LogFormatter
+import matplotlib.ticker as mt
 import numpy as nm
 
 import soops as so
@@ -341,11 +341,13 @@ def main():
             xlim = options.xlim.get(xkey, {'auto' : True})
             ax.set_xlim(**xlim)
             ax.set_xscale(options.xscale)
-            ax.xaxis.set_minor_formatter(LogFormatter())
+            ax.xaxis.set_major_locator(mt.LogLocator(subs=(0.5, 1),
+                                                     numticks=2))
+            ax.xaxis.set_major_formatter(mt.StrMethodFormatter('{x:.2f}'))
+            ax.xaxis.set_minor_locator(mt.LogLocator(subs=(0.5, 1),
+                                                     numticks=2))
+            ax.xaxis.set_minor_formatter(mt.StrMethodFormatter('{x:.2f}'))
             xlim = nm.array(ax.get_xlim())
-            # xts = sorted([xlim[0], nm.mean(xlim), xlim[1]])
-            # ax.set_xticks(xts)
-            # ax.set_xticklabels(['{:.1e}'.format(xt) for xt in xts])
             ax.axvline(1, color='r')
 
             pax = ax.twiny()
@@ -360,8 +362,12 @@ def main():
             coef = sdf[pxkey].iloc[0] / sdf[xkey].iloc[0]
             pax.set_xlim(*(coef * xlim))
             pax.set_xscale(options.xscale)
-            pax.set_xticks(ax.get_xticks())
-            pax.xaxis.set_minor_formatter(LogFormatter())
+            pax.xaxis.set_major_locator(mt.LogLocator(subs=(0.5, 1),
+                                                      numticks=2))
+            pax.xaxis.set_major_formatter(mt.StrMethodFormatter('{x:.2f}'))
+            pax.xaxis.set_minor_locator(mt.LogLocator(subs=(0.5, 1),
+                                                      numticks=2))
+            pax.xaxis.set_minor_formatter(mt.StrMethodFormatter('{x:.2f}'))
 
             plt.tight_layout()
             figname = ('{}-layout-n{}-o{}-{}{}'
