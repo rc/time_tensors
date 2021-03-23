@@ -534,7 +534,11 @@ def _create_ldf(df, data):
     _insert_ldf_ranks(ldf, 'twwmean', 'mwwmean')
 
     # Work around old runs, nans cannot be compared in sps.get_row_style().
-    ldf['timeout'].replace({nm.nan : None}, inplace=True)
+    if 'timeout' in ldf:
+        ldf['timeout'].replace({nm.nan : None}, inplace=True)
+
+    else:
+        ldf['timeout'] = None
 
     return ldf
 
