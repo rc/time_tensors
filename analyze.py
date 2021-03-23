@@ -414,17 +414,26 @@ def main():
         mii = pd.MultiIndex.from_arrays([ldf.lib, ldf.opt, ldf.spaths]).unique().sort_values()
         ldf.plot.scatter(x='opt', y='spaths')
 
-        sdf = (ldf[['lib', 'opt', 'spaths']].drop_duplicates()
+        #ldf['lib-opt'] = ldf['lib'] + '-' + ldf['opt']
+        sldf = ldf[ldf['order'] == 1]
+        sdf = (sldf[['lib', 'opt', 'spaths']].drop_duplicates()
                .sort_values(['lib', 'opt', 'spaths'], ignore_index=True))
-
         cat = sdf['lib'].astype('category').cat
-        sdf.plot.scatter(x='opt', y='spaths', color=cat.codes)
+
+        # sdf.plot.scatter(x='opt', y='spaths', color=cat.codes)
 
         # but spaths and (lib, opt) are 1:1
         sdf['lib-opt'] = sdf['lib'] + '-' + sdf['opt']
-        sdf.plot.scatter(x='lib-opt', y='spaths', color=cat.codes)
+        #sdf.plot.scatter(x='lib-opt', y='spaths', color=cat.codes)
         ax = sdf.plot.scatter(x='lib-opt', y='spaths', color=cat.codes)
         ax.grid()
+
+        sdf = (ldf[['n_cell', 'order', 'lib', 'opt', 'spaths']]
+               .drop_duplicates()
+               .sort_values(['n_cell', 'order', 'lib', 'opt', 'spaths'],
+                            ignore_index=True))
+        gb = sdf.groupby(['n_cell', 'order', 'lib', 'opt'])
+        gb['spaths'].apply(lambda x: len(x))
 
         sldf = ldf.sort_values('layout')
 
