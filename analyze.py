@@ -245,6 +245,7 @@ def main():
     opts = Struct(
         omit_functions = "'.*dat.*', '.*npq.*', '.*oeq.*', '.*_[01234]_.*'",
         limits = 'rtwwmean=4',
+        plot_rc_params = "'text.usetex'=False",
         xscale = 'log',
         xlim = 'auto=True',
         suffix = '.png',
@@ -289,6 +290,7 @@ def main():
 
     options.omit_functions = so.parse_as_list(options.omit_functions)
     options.limits = so.parse_as_dict(options.limits)
+    options.plot_rc_params = so.parse_as_dict(options.plot_rc_params)
     options.xlim = so.parse_as_dict(options.xlim)
 
     output_dir = options.output_dir
@@ -311,6 +313,8 @@ def main():
 
     output('ldf shape:', ldf.shape)
     output('fdf shape:', fdf.shape)
+
+    plt.rcParams.update(options.plot_rc_params)
 
     if options.analysis == 'layouts':
         style = {
