@@ -246,6 +246,7 @@ def main():
         omit_functions = "'.*dat.*', '.*npq.*', '.*oeq.*', '.*_[01234]_.*'",
         limits = 'rtwwmean=4',
         plot_rc_params = "'text.usetex'=False",
+        shorten_spaths = False,
         xscale = 'log',
         xlim = 'auto=True',
         suffix = '.png',
@@ -303,6 +304,15 @@ def main():
 
     df, data = load_results(options.results, output_dir)
     data._ldf['lgroup'] = data._ldf['layout'].apply(get_layout_group)
+    if options.shorten_spaths:
+        subs = {val : (str(ii) if val != '-' else val)
+                for ii, val in enumerate(sorted(data._ldf['spaths'].unique()))}
+        data._ldf['short_spaths'] = data._ldf['spaths'].replace(subs)
+
+        name = ('{}-short-spaths-table.inc'
+                .format(data._ldf['term_name'].iloc[0]))
+        with open(indir(name), 'w') as fd:
+            fd.write(pd.Series(subs).to_latex())
 
     data = tt.select_data(df, data, omit_functions=options.omit_functions)
 
@@ -329,6 +339,7 @@ def main():
         xkeys = ['rtwwmean', 'rmmean']
         upxkeys = ['twwmean [s]', 'mmean [MB]']
         limit = options.limits.get('rtwwmean', ldf['rtwwmean'].max())
+        minor_ykey = 'spaths' if not options.shorten_spaths else 'short_spaths'
         for n_cell, order, xkey, upxkey in product(
                 data.n_cell, data.orders, xkeys, upxkeys,
                 contracts=[(2, 3)],
@@ -339,7 +350,7 @@ def main():
             ax = plot_per_lib2(
                 None, sdf, data, xkey=xkey,
                 style_key='lgroup', mark='0cqgvd0',
-                minor_ykey='spaths', all_ldf=ldf, style=style,
+                minor_ykey=minor_ykey, all_ldf=ldf, style=style,
                 format_labels=format_labels, show_legend=True,
             )
             xlim = options.xlim.get(xkey, {'auto' : True})
