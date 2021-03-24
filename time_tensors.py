@@ -168,6 +168,22 @@ def generate_pars(args, gkeys, dconf, options):
 
     return gconf
 
+def generate_term_names(args, gkeys, dconf, options):
+    gconf = {}
+
+    aux = [name.split(':') for name in args.term_names]
+
+    term_names, variants = zip(
+        *[val if len(val) == 2 else [val[0], '@undefined'] for val in aux]
+    )
+    if '--term-name' in gkeys:
+        gconf['--term-name'] = list(term_names)
+
+    if '--variant' in gkeys:
+        gconf['--variant'] =  list(variants)
+
+    return gconf
+
 class ComputePars(so.Struct):
     """
     Contract --order, --n-cell -> --repeat, sampling
