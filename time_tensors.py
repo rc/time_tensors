@@ -139,7 +139,8 @@ def get_run_info():
 def generate_pars(args, gkeys, dconf, options):
     gconf = {}
     if '--select' in gkeys:
-        all_evaluators = get_evals_sfepy()
+        layouts = args.get('layouts')
+        all_evaluators = get_evals_sfepy(layouts=layouts)
         if args.get('term_name') == 'dw_convect':
             all_evaluators.update(get_evals_dw_convect())
         if args.get('term_name') == 'dw_laplace':
@@ -160,13 +161,17 @@ def generate_pars(args, gkeys, dconf, options):
         gconf['--select'] = list(evaluators.keys())
 
         if '--layouts' in gkeys:
-            df = pd.DataFrame({'fun_name' : gconf['--select']})
-            aux = df['fun_name'].str.extract(
-                'eterm_([a-z]*)(?:_(.*))*_(.*)_(.*)'
-            )
-            aux[[1, 2, 3]] = aux[[1, 2, 3]].fillna('default')
-            df[['lib', 'variant', 'opt', 'layout']] = aux
-            gconf['--layouts'] = df['layout'].tolist()
+            if layouts is None:
+                df = pd.DataFrame({'fun_name' : gconf['--select']})
+                aux = df['fun_name'].str.extract(
+                    'eterm_([a-z]*)(?:_(.*))*_(.*)_(.*)'
+                )
+                aux[[1, 2, 3]] = aux[[1, 2, 3]].fillna('default')
+                df[['lib', 'variant', 'opt', 'layout']] = aux
+                gconf['--layouts'] = df['layout'].tolist()
+
+            else:
+                gconf['--layouts'] = list(layouts)
 
     if '--term-name' in gkeys:
         aux = [name.split(':') for name in args.term_names]
@@ -178,6 +183,12 @@ def generate_pars(args, gkeys, dconf, options):
 
         if '--variant' in gkeys:
             gconf['--variant'] =  list(variants)
+
+    output('generate_pars():')
+    for key, val in gconf.items():
+        output('  number of {} values: {}'.format(key, len(val)))
+    for key, val in gconf.items():
+        output('  {} values: {}'.format(key, val))
 
     return gconf
 
