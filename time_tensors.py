@@ -512,6 +512,11 @@ def _create_ldf(df, data):
         lambda x: [x[1].get(key, (None,) * 3) for key in x[0]],
         axis=1,
     )
+    tvariant = df['variant'].apply(
+        lambda x: ''.join(word[0] for word in x.split('-'))
+        if len(x) else ''
+    )
+    df['term_name'] = df['term_name'].str.cat(tvariant, sep=':')
 
     ekeys = ['fun_name', 'lexpressions', 't', 'norm', 'rnorm']
     if 'func_timestamp' in df:
