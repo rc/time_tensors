@@ -137,50 +137,47 @@ def get_run_info():
     return run_cmd, opt_args, output_dir_key, is_finished
 
 def generate_pars(args, gkeys, dconf, options):
-    all_evaluators = get_evals_sfepy()
-    if args.get('term_name') == 'dw_convect':
-        all_evaluators.update(get_evals_dw_convect())
-    if args.get('term_name') == 'dw_laplace':
-        all_evaluators.update(get_evals_dw_laplace())
-
-    select_match = re.compile('|'.join(args.select)).match
-    omit = args.get('omit')
-    if omit is None:
-        evaluators = {key : val for key, val in all_evaluators.items()
-                      if select_match(key) is not None}
-
-    else:
-        omit_match = re.compile('|'.join(omit)).match
-        evaluators = {key : val for key, val in all_evaluators.items()
-                      if select_match(key) is not None
-                      and omit_match(key) is None}
-
     gconf = {}
     if '--select' in gkeys:
+        all_evaluators = get_evals_sfepy()
+        if args.get('term_name') == 'dw_convect':
+            all_evaluators.update(get_evals_dw_convect())
+        if args.get('term_name') == 'dw_laplace':
+            all_evaluators.update(get_evals_dw_laplace())
+
+        select_match = re.compile('|'.join(args.select)).match
+        omit = args.get('omit')
+        if omit is None:
+            evaluators = {key : val for key, val in all_evaluators.items()
+                          if select_match(key) is not None}
+
+        else:
+            omit_match = re.compile('|'.join(omit)).match
+            evaluators = {key : val for key, val in all_evaluators.items()
+                          if select_match(key) is not None
+                          and omit_match(key) is None}
+
         gconf['--select'] = list(evaluators.keys())
 
-    if '--layouts' in gkeys:
-        df = pd.DataFrame({'fun_name' : gconf['--select']})
-        aux = df['fun_name'].str.extract('eterm_([a-z]*)(?:_(.*))*_(.*)_(.*)')
-        aux[[1, 2, 3]] = aux[[1, 2, 3]].fillna('default')
-        df[['lib', 'variant', 'opt', 'layout']] = aux
-        gconf['--layouts'] = df['layout'].tolist()
+        if '--layouts' in gkeys:
+            df = pd.DataFrame({'fun_name' : gconf['--select']})
+            aux = df['fun_name'].str.extract(
+                'eterm_([a-z]*)(?:_(.*))*_(.*)_(.*)'
+            )
+            aux[[1, 2, 3]] = aux[[1, 2, 3]].fillna('default')
+            df[['lib', 'variant', 'opt', 'layout']] = aux
+            gconf['--layouts'] = df['layout'].tolist()
 
-    return gconf
-
-def generate_term_names(args, gkeys, dconf, options):
-    gconf = {}
-
-    aux = [name.split(':') for name in args.term_names]
-
-    term_names, variants = zip(
-        *[val if len(val) == 2 else [val[0], '@undefined'] for val in aux]
-    )
     if '--term-name' in gkeys:
+        aux = [name.split(':') for name in args.term_names]
+
+        term_names, variants = zip(
+            *[val if len(val) == 2 else [val[0], '@undefined'] for val in aux]
+        )
         gconf['--term-name'] = list(term_names)
 
-    if '--variant' in gkeys:
-        gconf['--variant'] =  list(variants)
+        if '--variant' in gkeys:
+            gconf['--variant'] =  list(variants)
 
     return gconf
 
