@@ -516,7 +516,8 @@ def _create_ldf(df, data):
         lambda x: ''.join(word[0] for word in x.split('-'))
         if len(x) else ''
     )
-    df['term_name'] = df['term_name'].str.cat(tvariant, sep=':')
+    tdiff = df['diff'].apply(lambda x: x if x else '')
+    df['term_name'] = df['term_name'].str.cat([tvariant, tdiff], sep=':')
 
     ekeys = ['fun_name', 'lexpressions', 't', 'norm', 'rnorm']
     if 'func_timestamp' in df:
