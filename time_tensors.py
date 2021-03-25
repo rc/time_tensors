@@ -700,7 +700,9 @@ def _create_fdf(ldf):
 def collect_stats(df, data=None):
     import soops.ioutils as io
 
-    df = df.dropna(subset=['fun_name', 't', 'norm', 'rnorm'])
+    df = (df.dropna(subset=['fun_name', 't', 'norm', 'rnorm'])
+          .reset_index()
+          .rename(columns={'index' : 'index-orig'}))
     data._fun_names = sorted(set(sum(df['fun_name'].to_list(), [])))
 
     data.omit = set(['debug', 'silent', 'layouts', 'micro', 'mprof', 'select',
