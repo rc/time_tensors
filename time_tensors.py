@@ -786,7 +786,7 @@ def remove_raw_df_data(df, data=None):
 @profile1
 def select_data(df, data=None, term_names=None, n_cell=None, orders=None,
                 functions=None, omit_functions=None):
-    data.term_names = (data.par_uniques['term_name']
+    data.term_names = (data._ldf['term_name'].unique().tolist()
                        if term_names is None else term_names)
     data.n_cell = data.par_uniques['n_cell'] if n_cell is None else n_cell
     data.orders = data.par_uniques['order'] if orders is None else orders
