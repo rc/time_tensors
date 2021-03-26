@@ -182,7 +182,35 @@ def generate_pars(args, gkeys, dconf, options):
         gconf['--term-name'] = list(term_names)
 
         if '--variant' in gkeys:
-            gconf['--variant'] =  list(variants)
+            gconf['--variant'] = list(variants)
+
+        if '--diff' in gkeys:
+            gconf['--diff'] = []
+            for diff in args.diffs:
+                if diff:
+                    diffs = []
+                    for term_name in args.term_names:
+                        if term_name == 'dw_stokes:div':
+                            diff = 'u1'
+
+                        elif term_name == 'dw_stokes:grad':
+                            diff = 'u2'
+
+                        else:
+                            diff = 'u'
+
+                        diffs.append(diff)
+
+                    gconf['--diff'].extend(diffs)
+
+                else:
+                    gconf['--diff'].extend(['@undefined']
+                                           * len(gconf['--term-name']))
+
+            num = (len(gconf['--diff']) // len(gconf['--term-name']))
+            gconf['--term-name'] *= num
+            if '--variant' in gkeys:
+                gconf['--variant'] *= num
 
     output('generate_pars():')
     for key, val in gconf.items():
