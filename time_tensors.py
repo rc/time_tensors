@@ -1275,6 +1275,25 @@ def mscatter(ax, x, y, m=None, **kw):
         sc.set_paths(paths)
     return sc
 
+def _gen_symbols(num):
+    import string
+    symbols = string.ascii_lowercase
+    digits = string.digits
+    if num <= len(symbols):
+        for ii in range(num):
+            yield from symbols
+
+    else:
+        ic = 0
+        ir = 0
+        for ii in range(num):
+            if ic == len(symbols):
+                ir += 1
+                ic = 0
+
+            yield symbols[ic] + '_' + digits[ir]
+            ic += 1
+
 @profile1
 def plot_scatter(df, data=None, colormap_name='tab10:qualitative',
                  alpha=0.8, size=100,
@@ -1302,8 +1321,8 @@ def plot_scatter(df, data=None, colormap_name='tab10:qualitative',
         'alpha' : alpha,
     }
     styles[marker_key] = {
-        'marker' : ['${}$'.format(chr(ii))
-                    for ii in range(65, 65 + len(select[marker_key]))],
+        'marker' : ['${}$'.format(ii)
+                    for ii in _gen_symbols(len(select[marker_key]))],
         'ls' : 'None',
     }
 
