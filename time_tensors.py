@@ -881,6 +881,7 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
         output(term_name, n_cell, order)
 
         sdf = ldf.iloc[groups.indices[selection]]
+        sopts = sdf['opt'].unique()
         if (not len(sdf)) or (not sdf.tmean.notna().any()):
             output('-> no data, skipped!')
             continue
@@ -891,7 +892,7 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
         stats = sdf[keys]
 
         spaths = sdf['paths']
-        for opt in opts:
+        for opt in sopts:
             path = spaths[stats.opt==opt].iloc[0]
             paths[opt][selection] = path
 
@@ -908,7 +909,7 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
             sst = sst.reset_index()
             sst['r_to_best'] = (sst[key] - vmin[key]) / vmin[key]
             sst = sst.sort_values(['opt', key])
-            for opt in opts:
+            for opt in sopts:
                 iopt = sst['opt'] == opt
 
                 aux = sst[iopt][['variant', 'r_to_best']]
@@ -927,14 +928,14 @@ def report_eval_fun_variants(df, data=None, report_dir=None):
                 vmax = gbvopt['r_to_best'].max()
                 mtbs = max_to_best[key]
                 for ik in max_to_best[key].keys():
-                    for opt in opts:
+                    for opt in sopts:
                         v0 = mtbs[ik].setdefault(opt, -1)
                         v1 = vmax.loc[ik, opt]
                         if v1 > v0:
                             mtbs[ik][opt] = v1
 
                 for ik in max_to_best[key].keys():
-                    for opt in opts:
+                    for opt in sopts:
                         if mtbs[ik][opt] == -1:
                             mtbs[ik][opt] = nm.nan
 
