@@ -307,7 +307,7 @@ class ComputePars(so.Struct):
 
         out = {'sampling' : self.samplings[i0], '--repeat' : self.repeats[i1]}
 
-        output(order, n_cell, out)
+        output('computed parameters:', order, n_cell, out)
 
         return out
 
