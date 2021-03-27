@@ -305,14 +305,17 @@ def main():
     df, data = load_results(options.results, output_dir)
     data._ldf['lgroup'] = data._ldf['layout'].apply(get_layout_group)
     if options.shorten_spaths:
-        subs = {val : (str(ii) if val != '-' else val)
+        subs = {val : ('{:02d}'.format(ii) if val != '-' else val)
                 for ii, val in enumerate(sorted(data._ldf['spaths'].unique()))}
         data._ldf['short_spaths'] = data._ldf['spaths'].replace(subs)
 
         name = ('{}-short-spaths-table.inc'
                 .format(data._ldf['term_name'].iloc[0]))
         with open(indir(name), 'w') as fd:
-            fd.write(pd.Series(subs).to_latex())
+            fd.write(pd.Series(subs)
+                     .reset_index()
+                     .to_latex(header=['contraction paths', 'abbreviations'],
+                               index=False))
 
     data = tt.select_data(df, data, omit_functions=options.omit_functions)
 
