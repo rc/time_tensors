@@ -115,6 +115,8 @@ def plot_per_lib2(ax, ldf, data, style_key='layout', mark='cqgvd0',
     Notes
     -----
     Includes libs missing due to timeout/memory requirements as empty rows.
+
+    Assumes a single term.
     """
     if all_ldf is None:
         all_ldf = ldf
@@ -152,12 +154,19 @@ def plot_per_lib2(ax, ldf, data, style_key='layout', mark='cqgvd0',
     lib_minors = (all_ldf[['lib'] + minor_ykey]
                   .drop_duplicates()
                   .sort_values(['lib'] + minor_ykey, ignore_index=True))
-    yticklabels = lib_minors.apply(lambda x: ': '.join(x), axis=1)
+    yticks = nm.arange(len(lib_minors))
     groups = lib_minors.groupby('lib').groups
-    yticks = nm.concatenate([ii + nm.linspace(0, 1, len(group) + 1)[:-1]
-                             for ii, group in enumerate(groups.values())])
+    ysplits, ylibs = zip(*[(group[-1] + 0.5, group[len(group)//2])
+                           for group in groups.values()])
+    def _get_yticklabels(x):
+        label = ': '.join(x[minor_ykey])
+        return (x['lib'] + ': ' + label) if x.name in ylibs else label
+    yticklabels = lib_minors.apply(_get_yticklabels, axis=1)
+    ysearch_labels = lib_minors.apply(lambda x: ': '.join(x), axis=1)
     ax.set_yticks(yticks)
     ax.set_yticklabels(yticklabels)
+    for vy in ysplits:
+        ax.axhline(vy, color='k', ls=':')
 
     ax.grid(True)
     used = None
@@ -184,7 +193,7 @@ def plot_per_lib2(ax, ldf, data, style_key='layout', mark='cqgvd0',
             xs = sdf[xkey]
 
         labels = sdf[['lib'] + minor_ykey].apply(lambda x: ': '.join(x), axis=1)
-        ax.plot(xs, yticks[nm.searchsorted(yticklabels, labels)], ls='None',
+        ax.plot(xs, yticks[nm.searchsorted(ysearch_labels, labels)], ls='None',
                 **style_kwargs)
 
     if show_legend:
