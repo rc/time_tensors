@@ -3111,9 +3111,10 @@ def main():
     ref_key = 'sfepy_term'
     ref_res_filename = os.path.join(
         options.ref_res_dir,
-        'res-{}-{}-{}-{}-{}-{}.npy'.format(
+        'res-{}-{}-{}-{}-{}-{}-{}.npy'.format(
             ref_key,
             options.term_name,
+            options.variant,
             options.diff if options.diff is not None else '_',
             options.n_cell,
             options.order,
