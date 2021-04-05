@@ -266,7 +266,7 @@ def main():
     parser.add_argument('output_dir', help=helps['output_dir'])
     parser.add_argument('results', help=helps['results'])
     parser.add_argument('--analysis', action='store', dest='analysis',
-                        choices=['layouts'],
+                        choices=['layouts', 'all-terms'],
                         default='layouts',
                         help=helps['analysis'])
     for key, val in opts.items():
@@ -403,6 +403,11 @@ def main():
                                options.suffix))
             fig = ax.figure
             fig.savefig(indir(figname), bbox_inches='tight')
+
+    elif options.analysis == 'all-terms':
+        gbt = ldf.groupby('term_name')
+        thist = {key : len(val) for key, val in gbt.groups.items()}
+        output(Struct(thist))
 
     else:
         # ldf.lgroup.hist()
