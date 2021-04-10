@@ -438,10 +438,20 @@ def main():
             fig.savefig(indir(figname), bbox_inches='tight')
 
     elif options.analysis == 'all-terms':
+        ldf = ldf[ldf['term_name'].isin({
+            'dw_laplace::', 'dw_volume_dot:v:', 'dw_volume_dot:vm:',
+            'dw_convect::', 'dw_lin_elastic::', 'dw_laplace::u',
+            'dw_volume_dot:v:u', 'dw_volume_dot:vm:u', 'dw_convect::u',
+            'dw_lin_elastic::u'
+        })]
+
         gbt = ldf.groupby('term_name')
         thist = {key : len(val) for key, val in gbt.groups.items()}
         output(Struct(thist))
 
+        pdf = get_spaths_per_opt(ldf, data)
+        if options.shorten_spaths:
+            pdf = pdf.replace(subs)
     else:
         # ldf.lgroup.hist()
 
