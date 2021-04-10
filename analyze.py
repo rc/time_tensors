@@ -236,6 +236,30 @@ def make_patch_spines_invisible(ax):
     for sp in ax.spines.values():
         sp.set_visible(False)
 
+def get_spaths_per_opt(ldf, data):
+    groups = ldf.groupby(['term_name', 'n_cell', 'order'])
+
+    opts = ldf['opt'].unique()
+    paths = {ii : {} for ii in opts}
+    for ir, selection in enumerate(
+            product(data.term_names, data.n_cell, data.orders)
+    ):
+        if not selection in groups.indices: continue
+
+        sdf = ldf.iloc[groups.indices[selection]]
+        spaths = sdf['spaths']
+        sopts = sdf['opt'].unique()
+        if (not len(sdf)) or (not sdf.tmean.notna().any()):
+            output('-> no data, skipped!')
+            continue
+
+        for opt in sopts:
+            path = spaths[sdf['opt'] == opt].iloc[0]
+            paths[opt][selection] = path
+
+    pdf = pd.DataFrame(paths)
+    return pdf
+
 helps = {
     'output_dir'
     : 'output directory',
