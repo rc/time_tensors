@@ -260,6 +260,14 @@ def get_spaths_per_opt(ldf, data):
     pdf = pd.DataFrame(paths)
     return pdf
 
+def sort_spaths(spaths):
+    ml = max(map(len, spaths))
+    aux = [('00' * (ml - len(ii))) + ii for ii in spaths]
+    ii = nm.argsort(aux)
+    sspaths = spaths[ii]
+
+    return sspaths
+
 helps = {
     'output_dir'
     : 'output directory',
@@ -339,7 +347,8 @@ def main():
     data._ldf['lgroup'] = data._ldf['layout'].apply(get_layout_group)
     if options.shorten_spaths:
         subs = {val : ('{:02d}'.format(ii) if val != '-' else val)
-                for ii, val in enumerate(sorted(data._ldf['spaths'].unique()))}
+                for ii, val
+                in enumerate(sort_spaths(data._ldf['spaths'].unique()))}
         data._ldf['short_spaths'] = data._ldf['spaths'].replace(subs)
 
         name = ('{}-short-spaths-table.inc'
