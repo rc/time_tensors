@@ -202,6 +202,92 @@ def plot_per_lib2(ax, ldf, data, style_key='layout', mark='cqgvd0',
 
     return ax
 
+def plot_per_n_cell(ax, ldf, marker_key='lib', color_key='spaths',
+                    xkey='rtwwmean', all_ldf=None, marker_style=None,
+                    format_labels=None, show_legend=False):
+    if all_ldf is None:
+        all_ldf = ldf
+
+    sldf = ldf.sort_values(['n_cell', 'order'])
+
+    style_keys = [marker_key, color_key]
+    style_vals = (sldf[style_keys]
+                  .drop_duplicates()
+                  .sort_values(style_keys).values)
+
+    if marker_style is None:
+        marker_style = {
+            'mew' : 2,
+            'marker' : ['+', 'o', 'v', '^', '<', '>', 's', 'd'],
+            'alpha' : 0.8,
+            'mfc' : 'None',
+            'markersize' : 8,
+        }
+
+    select = sps.select_by_keys(ldf, style_keys)
+    styles = {marker_key : marker_style, color_key : {'color' : 'viridis',}}
+    styles = sps.setup_plot_styles(select, styles)
+
+    if ax is None:
+        _, ax = plt.subplots()
+
+    if ax is None:
+        _, ax = plt.subplots()
+
+    ax.set_xlabel(xkey)
+    xvals = (all_ldf[[xkey]]
+             .drop_duplicates()
+             .sort_values([xkey], ignore_index=True)
+             [xkey])
+    if xvals.dtype == 'object':
+        ax.set_xticks(nm.arange(len(xvals)))
+        ax.set_xticklabels(xvals)
+
+    ydf = (all_ldf[['n_cell', 'order']]
+           .drop_duplicates()
+           .sort_values(['n_cell', 'order'], ignore_index=True))
+    yticks = nm.arange(len(ydf))
+    groups = ydf.groupby('n_cell').groups
+    ysplits, ymajors = zip(*[(group[-1] + 0.5, group[len(group)//2])
+                             for group in groups.values()])
+    def _get_yticklabels(x):
+        label = str(x['order'])
+        return ((str(x['n_cell']) + ': ' + label) if x.name in ymajors
+                else label)
+    yticklabels = ydf.apply(_get_yticklabels, axis=1)
+    ylabel_fun = lambda x: tuple(x)
+    ysearch_labels = ydf.apply(ylabel_fun, axis=1)
+    ax.set_yticks(yticks)
+    ax.set_yticklabels(yticklabels)
+    for vy in ysplits:
+        ax.axhline(vy, color='k', ls=':')
+
+    ax.grid(True)
+    used = None
+    for style_val in style_vals:
+        sdf = sldf[(sldf[style_keys].values == style_val).all(axis=1)]
+        if not len(sdf): continue
+
+        style_kwargs, indices, used = sps.get_row_style_used(
+            sdf.iloc[0], select, {}, styles, used
+        )
+
+        if xvals.dtype == 'object':
+            xs = nm.searchsorted(xvals, sdf[xkey])
+
+        else:
+            xs = sdf[xkey]
+
+        labels = sdf[['n_cell', 'order']].apply(ylabel_fun, axis=1)
+        ax.plot(xs, yticks[nm.searchsorted(ysearch_labels, labels)], ls='None',
+                **style_kwargs)
+
+    if show_legend:
+        sps.add_legend(ax, select, styles, used, format_labels=format_labels,
+                       loc='lower right', frame_alpha=0.8)
+
+    return ax
+
 def get_layout_group(layout):
     if layout == 'cqgvd0':
         return '0cqgvd0'
@@ -452,6 +538,15 @@ def main():
         pdf = get_spaths_per_opt(ldf, data)
         if options.shorten_spaths:
             pdf = pdf.replace(subs)
+
+        for term_name in data.term_names:
+            sdf = ldf[(ldf['term_name'] == term_name)]
+
+            ax = plot_per_n_cell(
+                None, sdf, marker_key='lib', color_key='spaths',
+                xkey='rtwwmean', all_ldf=None,
+                format_labels=None, show_legend=True
+            )
     else:
         # ldf.lgroup.hist()
 
