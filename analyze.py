@@ -202,13 +202,15 @@ def plot_per_lib2(ax, ldf, data, style_key='layout', mark='cqgvd0',
 
     return ax
 
-def plot_per_n_cell(ax, ldf, marker_key='lib', color_key='spaths',
+def plot_per_n_cell(ax, ldf, ykeys=('n_cell', 'order'),
+                    marker_key='lib', color_key='spaths',
                     xkey='rtwwmean', all_ldf=None, marker_style=None,
                     format_labels=None, show_legend=False):
     if all_ldf is None:
         all_ldf = ldf
 
-    sldf = ldf.sort_values(['n_cell', 'order'])
+    ykeys = list(ykeys)
+    sldf = ldf.sort_values(ykeys)
 
     style_keys = [marker_key, color_key]
     style_vals = (sldf[style_keys]
@@ -218,7 +220,7 @@ def plot_per_n_cell(ax, ldf, marker_key='lib', color_key='spaths',
     if marker_style is None:
         marker_style = {
             'mew' : 2,
-            'marker' : ['+', 'o', 'v', '^', '<', '>', 's', 'd'],
+            'marker' : ['+', 'o', 'v', '^', '<', '>', 's', 'x', 'd'],
             'alpha' : 0.8,
             'mfc' : 'None',
             'markersize' : 8,
@@ -227,9 +229,6 @@ def plot_per_n_cell(ax, ldf, marker_key='lib', color_key='spaths',
     select = sps.select_by_keys(ldf, style_keys)
     styles = {marker_key : marker_style, color_key : {'color' : 'viridis',}}
     styles = sps.setup_plot_styles(select, styles)
-
-    if ax is None:
-        _, ax = plt.subplots()
 
     if ax is None:
         _, ax = plt.subplots()
@@ -243,16 +242,16 @@ def plot_per_n_cell(ax, ldf, marker_key='lib', color_key='spaths',
         ax.set_xticks(nm.arange(len(xvals)))
         ax.set_xticklabels(xvals)
 
-    ydf = (all_ldf[['n_cell', 'order']]
+    ydf = (all_ldf[ykeys]
            .drop_duplicates()
-           .sort_values(['n_cell', 'order'], ignore_index=True))
+           .sort_values(ykeys, ignore_index=True))
     yticks = nm.arange(len(ydf))
-    groups = ydf.groupby('n_cell').groups
+    groups = ydf.groupby(ykeys[0]).groups
     ysplits, ymajors = zip(*[(group[-1] + 0.5, group[len(group)//2])
                              for group in groups.values()])
     def _get_yticklabels(x):
-        label = str(x['order'])
-        return ((str(x['n_cell']) + ': ' + label) if x.name in ymajors
+        label = str(x[ykeys[1]])
+        return ((str(x[ykeys[0]]) + ': ' + label) if x.name in ymajors
                 else label)
     yticklabels = ydf.apply(_get_yticklabels, axis=1)
     ylabel_fun = lambda x: tuple(x)
@@ -278,7 +277,7 @@ def plot_per_n_cell(ax, ldf, marker_key='lib', color_key='spaths',
         else:
             xs = sdf[xkey]
 
-        labels = sdf[['n_cell', 'order']].apply(ylabel_fun, axis=1)
+        labels = sdf[ykeys].apply(ylabel_fun, axis=1)
         ax.plot(xs, yticks[nm.searchsorted(ysearch_labels, labels)], ls='None',
                 **style_kwargs)
 
