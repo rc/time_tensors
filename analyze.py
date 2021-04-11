@@ -315,6 +315,9 @@ def get_layout_group(layout):
 def format_labels(key, iv, val):
     return val[1:]
 
+def format_labels2(key, iv, val):
+    return val
+
 def make_patch_spines_invisible(ax):
     ax.set_frame_on(True)
     ax.patch.set_visible(False)
@@ -537,15 +540,39 @@ def main():
         pdf = get_spaths_per_opt(ldf, data)
         if options.shorten_spaths:
             pdf = pdf.replace(subs)
+        output(pdf)
 
-        for term_name in data.term_names:
-            sdf = ldf[(ldf['term_name'] == term_name)]
+        xkeys = ['rtwwmean', 'rmmean']
+        limit = options.limits.get('rtwwmean', ldf['rtwwmean'].max())
+        for term_name, xkey in product(data.term_names, xkeys):
+            sdf = ldf[(ldf['term_name'] == term_name) &
+                      (ldf['rtwwmean'] <= limit)]
 
             ax = plot_per_n_cell(
-                None, sdf, marker_key='lib', color_key='spaths',
-                xkey='rtwwmean', all_ldf=None,
-                format_labels=None, show_legend=True
+                None, sdf, ykeys=('order', 'n_cell'),
+                marker_key='lib', color_key='spaths',
+                xkey=xkey, all_ldf=ldf,
+                format_labels=format_labels2, show_legend=True
             )
+            xlim = options.xlim.get(xkey, {'auto' : True})
+            ax.set_xlim(**xlim)
+            ax.set_xscale(options.xscale)
+            ax.xaxis.set_major_locator(mt.LogLocator(subs=(0.5, 1),
+                                                     numticks=2))
+            ax.xaxis.set_major_formatter(mt.StrMethodFormatter('{x:.2f}'))
+            ax.xaxis.set_minor_locator(mt.LogLocator(subs=(0.5, 1),
+                                                     numticks=2))
+            ax.xaxis.set_minor_formatter(mt.StrMethodFormatter('{x:.2f}'))
+            ax.axvline(1, color='r')
+
+            plt.tight_layout()
+            figname = ('{}-n_cell-order-{}{}'
+                       .format(term_name,
+                               xkey,
+                               options.suffix))
+            fig = ax.figure
+            fig.savefig(indir(figname), bbox_inches='tight')
+
     else:
         # ldf.lgroup.hist()
 
