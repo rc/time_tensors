@@ -434,18 +434,22 @@ def main():
     df, data = load_results(options.results, output_dir)
     data._ldf['lgroup'] = data._ldf['layout'].apply(get_layout_group)
     if options.shorten_spaths:
-        subs = {val : ('{:02d}'.format(ii) if val != '-' else val)
-                for ii, val
-                in enumerate(sort_spaths(data._ldf['spaths'].unique()))}
-        data._ldf['short_spaths'] = data._ldf['spaths'].replace(subs)
+        term_names = data._ldf['term_name'].unique()
+        for term_name in term_names:
+            isel = data._ldf['term_name'] == term_name
+            subs = {val : ('{:02d}'.format(ii) if val != '-' else val)
+                    for ii, val
+                    in enumerate(sort_spaths(data._ldf.loc[isel, 'spaths']
+                                             .unique()))}
+            aux = data._ldf.loc[isel, 'spaths'].replace(subs)
+            data._ldf.loc[isel, 'short_spaths'] = aux
 
-        name = ('{}-short-spaths-table.inc'
-                .format(data._ldf['term_name'].iloc[0]))
-        with open(indir(name), 'w') as fd:
-            fd.write(pd.Series(subs)
-                     .reset_index()
-                     .to_latex(header=['contraction paths', 'abbreviations'],
-                               index=False))
+            name = '{}-short-spaths-table.inc'.format(term_name)
+            with open(indir(name), 'w') as fd:
+                fd.write(pd.Series(subs)
+                         .reset_index()
+                         .to_latex(header=['contraction paths', 'abbreviations'],
+                                   index=False))
 
     data = tt.select_data(df, data, omit_functions=options.omit_functions)
 
