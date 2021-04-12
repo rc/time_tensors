@@ -526,12 +526,11 @@ def main():
             fig.savefig(indir(figname), bbox_inches='tight')
 
     elif options.analysis == 'all-terms':
-        ldf = ldf[ldf['term_name'].isin({
-            'dw_laplace::', 'dw_volume_dot:v:', 'dw_volume_dot:vm:',
-            'dw_convect::', 'dw_lin_elastic::', 'dw_laplace::u',
-            'dw_volume_dot:v:u', 'dw_volume_dot:vm:u', 'dw_convect::u',
-            'dw_lin_elastic::u'
-        })]
+        term_names = ['dw_laplace::', 'dw_volume_dot:v:', 'dw_volume_dot:vm:',
+                      'dw_convect::', 'dw_lin_elastic::', 'dw_laplace::u',
+                      'dw_volume_dot:v:u', 'dw_volume_dot:vm:u', 'dw_convect::u',
+                      'dw_lin_elastic::u']
+        ldf = ldf[ldf['term_name'].isin(term_names)]
 
         gbt = ldf.groupby('term_name')
         thist = {key : len(val) for key, val in gbt.groups.items()}
@@ -544,7 +543,7 @@ def main():
 
         xkeys = ['rtwwmean', 'rmmean']
         limit = options.limits.get('rtwwmean', ldf['rtwwmean'].max())
-        for term_name, xkey in product(data.term_names, xkeys):
+        for term_name, xkey in product(term_names, xkeys):
             sdf = ldf[(ldf['term_name'] == term_name) &
                       (ldf['rtwwmean'] <= limit)]
 
