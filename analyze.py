@@ -551,20 +551,31 @@ def main():
             sdf = ldf[(ldf['term_name'] == term_name) &
                       (ldf['rtwwmean'] <= limit)]
 
+            if term_name == 'dw_convect::u':
+                color_key = ('spaths' if not options.shorten_spaths else
+                             'short_spaths')
+
+            else:
+                color_key = 'spaths'
+
             ax = plot_per_n_cell(
                 None, sdf, ykeys=('order', 'n_cell'),
-                marker_key='lib', color_key='spaths',
+                marker_key='lib', color_key=color_key,
                 xkey=xkey, all_ldf=ldf,
                 format_labels=format_labels2, show_legend=True
             )
             xlim = options.xlim.get(xkey, {'auto' : True})
             ax.set_xlim(**xlim)
             ax.set_xscale(options.xscale)
-            ax.xaxis.set_major_locator(mt.LogLocator(subs=(0.5, 1),
-                                                     numticks=2))
+            if xkey == 'rtwwmean':
+                ax.xaxis.set_major_locator(mt.FixedLocator([0.5, 1, 2, 3, 4, 5]))
+
+            else:
+                ax.xaxis.set_major_locator(mt.LogLocator(subs=(0.5, 1),
+                                                         numticks=5))
             ax.xaxis.set_major_formatter(mt.StrMethodFormatter('{x:.2f}'))
             ax.xaxis.set_minor_locator(mt.LogLocator(subs=(0.5, 1),
-                                                     numticks=2))
+                                                     numticks=3))
             ax.xaxis.set_minor_formatter(mt.StrMethodFormatter('{x:.2f}'))
             ax.axvline(1, color='r')
 
