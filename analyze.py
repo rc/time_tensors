@@ -462,7 +462,7 @@ def main():
     parser.add_argument('output_dir', help=helps['output_dir'])
     parser.add_argument('results', help=helps['results'])
     parser.add_argument('--analysis', action='store', dest='analysis',
-                        choices=['layouts', 'all-terms'],
+                        choices=['layouts', 'all-terms', 'all-terms-rate'],
                         default='layouts',
                         help=helps['analysis'])
     for key, val in opts.items():
@@ -662,6 +662,57 @@ def main():
                                options.suffix))
             fig = ax.figure
             fig.savefig(indir(figname), bbox_inches='tight')
+
+    elif options.analysis == 'all-terms-rate':
+        term_names = ['dw_laplace::', 'dw_volume_dot:v:', 'dw_volume_dot:vm:',
+                      'dw_convect::', 'dw_lin_elastic::', 'dw_laplace::u',
+                      'dw_volume_dot:v:u', 'dw_volume_dot:vm:u', 'dw_convect::u',
+                      'dw_lin_elastic::u']
+        # times: n_cell / s, memory: n_cell / MB
+        # keys = ['tmean', 'twwmean', 'mmean', 'mwwmean']
+        keys = ['twwmean', 'mmean']
+        for key in keys:
+            ldf[key + '_rate'] = ldf['n_cell'] / ldf[key]
+
+        ldf = ldf[ldf['term_name'].isin(term_names)]
+
+        def get_max(x):
+            k0 = x.keys()[0]
+            ii = nm.argmax(x[k0])
+            return x.iloc[ii]
+
+        gbt = ldf.groupby(['term_name', 'n_cell', 'order', 'lib'])
+
+        for key in [key + '_rate' for key in keys]:
+            aux = [key, 'spaths']
+            if options.shorten_spaths: aux += ['short_spaths']
+            rdf = gbt[aux].apply(get_max).reset_index()
+
+            for term_name in term_names:
+                sdf = rdf[(rdf['term_name'] == term_name)]
+
+                if term_name == 'dw_convect::u':
+                    color_key = ('spaths' if not options.shorten_spaths else
+                                 'short_spaths')
+
+                else:
+                    color_key = 'spaths'
+
+                ax = plot_per_n_cell_t(
+                    None, sdf, ykeys=('order', 'n_cell'),
+                    marker_key='lib', color_key=color_key,
+                    xkey=key, all_ldf=rdf,
+                    format_labels=format_labels2, show_legend=True
+                )
+                ax.set_yscale(options.xscale)
+
+                plt.tight_layout()
+                figname = ('{}-rate-n_cell-order-{}{}'
+                           .format(term_name,
+                                   key,
+                                   options.suffix))
+                fig = ax.figure
+                fig.savefig(indir(figname), bbox_inches='tight')
 
     else:
         # ldf.lgroup.hist()
