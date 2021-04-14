@@ -303,7 +303,9 @@ def plot_per_n_cell_t(ax, ldf, ykeys=('order', 'n_cell'),
     sldf = ldf.sort_values(ykeys)
 
     style_keys = [marker_key, color_key]
-    libs = sorted(ldf['lib'].unique())
+    style_vals = (sldf[style_keys]
+                  .drop_duplicates()
+                  .sort_values(style_keys).values)
 
     if marker_style is None:
         marker_style = {
@@ -344,8 +346,8 @@ def plot_per_n_cell_t(ax, ldf, ykeys=('order', 'n_cell'),
 
     ax.grid(True)
     used = None
-    for lib in libs:
-        sdf = sldf[(sldf['lib'] == lib)]
+    for style_val in style_vals:
+        sdf = sldf[(sldf[style_keys].values == style_val).all(axis=1)]
         if not len(sdf): continue
 
         style_kwargs, indices, used = sps.get_row_style_used(
