@@ -13,6 +13,7 @@ import soops as so
 from soops.base import output, product, Struct
 import soops.scoop_outputs as sc
 import soops.ioutils as io
+import soops.formatting as sof
 import soops.plot_selected as sps
 
 import sys
@@ -284,6 +285,81 @@ def plot_per_n_cell(ax, ldf, ykeys=('n_cell', 'order'),
     if show_legend:
         sps.add_legend(ax, select, styles, used, format_labels=format_labels,
                        loc='lower right', frame_alpha=0.8)
+
+    return ax
+
+def plot_per_n_cell_t(ax, ldf, ykeys=('order', 'n_cell'),
+                      marker_key='lib', color_key='spaths',
+                      xkey='twwmean_rate', all_ldf=None, marker_style=None,
+                      format_labels=None, show_legend=False):
+    """
+    Transposed plot_per_n_cell() for plotting cell rates, but same
+    argument/variable names!
+    """
+    if all_ldf is None:
+        all_ldf = ldf
+
+    ykeys = list(ykeys)
+    sldf = ldf.sort_values(ykeys)
+
+    style_keys = [marker_key, color_key]
+    libs = sorted(ldf['lib'].unique())
+
+    if marker_style is None:
+        marker_style = {
+            'mew' : 2,
+            'marker' : ['+', 'o', 'v', '^', '<', '>', 's', 'x', 'd'],
+            'alpha' : 0.8,
+            'mfc' : 'None',
+            'markersize' : 8,
+        }
+
+    select = sps.select_by_keys(ldf, style_keys)
+    styles = {marker_key : marker_style, color_key : {'color' : 'viridis',}}
+    styles = sps.setup_plot_styles(select, styles)
+
+    if ax is None:
+        _, ax = plt.subplots()
+
+    ax.set_ylabel(sof.escape_latex(xkey))
+
+    ydf = (all_ldf[ykeys]
+           .drop_duplicates()
+           .sort_values(ykeys, ignore_index=True))
+    yticks = nm.arange(len(ydf))
+    groups = ydf.groupby(ykeys[0]).groups
+    ysplits, ymajors = zip(*[(group[-1] + 0.5, group[len(group)//2])
+                             for group in groups.values()])
+    def _get_yticklabels(x):
+        label = str(x[ykeys[1]])
+        return ((str(x[ykeys[0]]) + ': ' + label) if x.name in ymajors
+                else label)
+    yticklabels = ydf.apply(_get_yticklabels, axis=1)
+    ylabel_fun = lambda x: tuple(x)
+    ysearch_labels = ydf.apply(ylabel_fun, axis=1)
+    ax.set_xticks(yticks)
+    ax.set_xticklabels(yticklabels, rotation=90)
+    for vy in ysplits:
+        ax.axvline(vy, color='k', ls=':')
+
+    ax.grid(True)
+    used = None
+    for lib in libs:
+        sdf = sldf[(sldf['lib'] == lib)]
+        if not len(sdf): continue
+
+        style_kwargs, indices, used = sps.get_row_style_used(
+            sdf.iloc[0], select, {}, styles, used
+        )
+
+        xs = sdf[xkey]
+        labels = sdf[ykeys].apply(ylabel_fun, axis=1)
+        ax.plot(yticks[nm.searchsorted(ysearch_labels, labels)], xs, ls='None',
+                **style_kwargs)
+
+    if show_legend:
+        sps.add_legend(ax, select, styles, used, format_labels=format_labels,
+                       loc='upper right', frame_alpha=0.8)
 
     return ax
 
