@@ -673,22 +673,35 @@ def main():
         # times: n_cell / s, memory: n_cell / MB
         # keys = ['tmean', 'twwmean', 'mmean', 'mwwmean']
         keys = ['twwmean', 'mmean']
-        for key in keys:
-            ldf[key + '_rate'] = ldf['n_cell'] / ldf[key]
+
+        mode = 'cell-counts'
+        if mode == 'cell-counts':
+            for key in keys:
+                ldf[key + '_rate'] = ldf['n_cell'] / ldf[key]
+
+            def get_extreme(x):
+                k0 = x.keys()[0]
+                ii = nm.argmax(x[k0])
+                return x.iloc[ii]
+
+        else:
+            for key in keys:
+                ldf[key + '_rate'] = ldf[key] / ldf['n_cell']
+
+            def get_extreme(x):
+                k0 = x.keys()[0]
+                ii = nm.argmin(x[k0])
+                return x.iloc[ii]
 
         ldf = ldf[ldf['term_name'].isin(term_names)]
 
-        def get_max(x):
-            k0 = x.keys()[0]
-            ii = nm.argmax(x[k0])
-            return x.iloc[ii]
 
         gbt = ldf.groupby(['term_name', 'n_cell', 'order', 'lib'])
 
         for key in [key + '_rate' for key in keys]:
             aux = [key, 'spaths']
             if options.shorten_spaths: aux += ['short_spaths']
-            rdf = gbt[aux].apply(get_max).reset_index()
+            rdf = gbt[aux].apply(get_extreme).reset_index()
 
             for term_name in term_names:
                 sdf = rdf[(rdf['term_name'] == term_name)]
