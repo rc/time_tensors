@@ -360,8 +360,12 @@ def plot_per_n_cell_t(ax, ldf, ykeys=('order', 'n_cell'),
                 **style_kwargs)
 
     if show_legend:
-        sps.add_legend(ax, select, styles, used, format_labels=format_labels,
-                       loc='upper right', frame_alpha=0.8)
+        sps.add_legend(ax, select, styles, used, per_parameter=True,
+                       format_labels=format_labels,
+                       loc=['lower left', 'upper right'],
+                       frame_alpha=0.8, ncol=1,
+                       handlelength=1, handletextpad=0.4, columnspacing=0.2,
+                       labelspacing=0.4)
 
     return ax
 
