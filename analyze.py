@@ -472,7 +472,8 @@ def main():
     parser.add_argument('output_dir', help=helps['output_dir'])
     parser.add_argument('results', help=helps['results'])
     parser.add_argument('--analysis', action='store', dest='analysis',
-                        choices=['layouts', 'all-terms', 'all-terms-rate'],
+                        choices=['layouts', 'all-terms', 'all-terms-rate',
+                                 'n-dofs'],
                         default='layouts',
                         help=helps['analysis'])
     for key, val in opts.items():
@@ -736,6 +737,37 @@ def main():
                                    options.suffix))
                 fig = ax.figure
                 fig.savefig(indir(figname), bbox_inches='tight')
+
+    elif options.analysis == 'n-dofs':
+        sdf = (ldf[['term_name', 'n_cell', 'order', 'n_qp', 'n_dof']]
+               .drop_duplicates(ignore_index=True)
+               .sort_values(['term_name', 'n_cell', 'order']))
+        cdf = (sdf[sdf['term_name'] == 'dw_laplace::']
+               [['n_cell', 'order', 'n_qp', 'n_dof']]
+               .reset_index(drop=True))
+        # aux = (sdf[sdf['term_name'] == 'dw_lin_elastic::']
+        #        [['n_dof']]
+        #        .reset_index(drop=True))
+        # cdf['n_dof_v'] = aux
+        cdf = cdf.astype(int)
+        nc = cdf['n_cell'].to_list()
+        nnc = []
+        last = None
+        for ic in nc:
+            if ic != last:
+                nnc.append('{:,}'.format(ic))
+                last = ic
+
+            else:
+                nnc.append('')
+
+        cdf['n_cell'] = nnc
+        filename = indir('table-cdc.inc')
+        # header = ['#cells', 'order', '#QP', 'scalar #DOFs', 'vector #DOFs']
+        header = ['#cells', 'order', '#QP', '#DOFs/component']
+        cdf.to_latex(filename, index=False, sparsify=True,
+                     formatters=['{}'.format] + (['{:,}'.format] * 3),
+                     header=header, column_format='rrrrr')
 
     else:
         # ldf.lgroup.hist()
