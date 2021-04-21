@@ -739,17 +739,25 @@ def main():
                 fig.savefig(indir(figname), bbox_inches='tight')
 
     elif options.analysis == 'n-dofs':
-        sdf = (ldf[['term_name', 'n_cell', 'order', 'n_qp', 'n_dof']]
+        sdf = (ldf[['term_name', 'n_cell', 'order', 'n_qp', 'n_dof', 'repeat',
+                    'c_vec_size_mb', 'c_mtx_size_mb']]
                .drop_duplicates(ignore_index=True)
                .sort_values(['term_name', 'n_cell', 'order']))
         cdf = (sdf[sdf['term_name'] == 'dw_laplace::']
-               [['n_cell', 'order', 'n_qp', 'n_dof']]
+               [['n_cell', 'order', 'n_qp', 'n_dof', 'repeat',
+                 'c_vec_size_mb', 'c_mtx_size_mb']]
                .reset_index(drop=True))
-        # aux = (sdf[sdf['term_name'] == 'dw_lin_elastic::']
-        #        [['n_dof']]
-        #        .reset_index(drop=True))
+        aux = (sdf[sdf['term_name'] == 'dw_lin_elastic::']
+               [['c_vec_size_mb', 'c_mtx_size_mb']]
+               .reset_index(drop=True))
+        for key in ['c_vec_size_mb', 'c_mtx_size_mb']:
+            cdf[key + '_v'] = aux[key]
+
         # cdf['n_dof_v'] = aux
-        cdf = cdf.astype(int)
+        cdf = cdf.astype({'n_cell' : int, 'order' : int, 'n_qp' : int,
+                          'n_dof' : int, 'repeat' : int,
+                          'c_vec_size_mb' : float, 'c_mtx_size_mb' : float,
+                          'c_vec_size_mb_v' : float, 'c_mtx_size_mb_v' : float})
         nc = cdf['n_cell'].to_list()
         nnc = []
         last = None
@@ -764,10 +772,12 @@ def main():
         cdf['n_cell'] = nnc
         filename = indir('table-cdc.inc')
         # header = ['#cells', 'order', '#QP', 'scalar #DOFs', 'vector #DOFs']
-        header = ['#cells', 'order', '#QP', '#DOFs/component']
-        cdf.to_latex(filename, index=False, sparsify=True,
-                     formatters=['{}'.format] + (['{:,}'.format] * 3),
-                     header=header, column_format='rrrrr')
+        header = ['\#cells', 'order', '\#QP', '\#DOFs/comp.', 'repeat',
+                  '$r_s$ [MB]', '$M_s$ [MB]', '$r_v$ [MB]', '$M_v$ [MB]']
+        cdf.to_latex(filename, index=False, sparsify=True, escape=False,
+                     formatters=(['{}'.format] + (['{:,}'.format] * 4)
+                                 + ['{:,.1f}'.format] * 4),
+                     header=header, column_format='rrrrrrrrr')
 
     else:
         # ldf.lgroup.hist()
