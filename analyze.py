@@ -220,9 +220,10 @@ def plot_per_n_cell(ax, ldf, ykeys=('n_cell', 'order'),
 
     if marker_style is None:
         marker_style = {
-            'mew' : 2,
+            'lw' : 0.2,
+            'mew' : 1.0,
             'marker' : ['o', '^', 'v', '<', 'x', '>', 's', '+', 'd'],
-            'alpha' : 0.8,
+            'alpha' : 1.0,
             'mfc' : 'None',
             'markersize' : 8,
         }
@@ -279,7 +280,7 @@ def plot_per_n_cell(ax, ldf, ykeys=('n_cell', 'order'),
             xs = sdf[xkey]
 
         labels = sdf[ykeys].apply(ylabel_fun, axis=1)
-        ax.plot(xs, yticks[nm.searchsorted(ysearch_labels, labels)], ls='None',
+        ax.plot(xs, yticks[nm.searchsorted(ysearch_labels, labels)],
                 **style_kwargs)
 
     if show_legend:
@@ -313,9 +314,10 @@ def plot_per_n_cell_t(ax, ldf, ykeys=('order', 'n_cell'),
 
     if marker_style is None:
         marker_style = {
-            'mew' : 2,
-            'marker' : ['o', '^', 'v', '<', 'x', '>', 's', '+', 'd'],
-            'alpha' : 0.8,
+            'lw' : 0.2,
+            'mew' : 1.0,
+            'marker' : ['o', '^', 'v', '<', 'x', '>', 's', '+', '.'],
+            'alpha' : 1.0,
             'mfc' : 'None',
             'markersize' : 8,
         }
@@ -360,7 +362,7 @@ def plot_per_n_cell_t(ax, ldf, ykeys=('order', 'n_cell'),
 
         xs = sdf[xkey]
         labels = sdf[ykeys].apply(ylabel_fun, axis=1)
-        ax.plot(yticks[nm.searchsorted(ysearch_labels, labels)], xs, ls='None',
+        ax.plot(yticks[nm.searchsorted(ysearch_labels, labels)], xs,
                 **style_kwargs)
 
     if show_legend:
