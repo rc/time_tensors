@@ -489,7 +489,7 @@ def main():
     parser.add_argument('results', help=helps['results'])
     parser.add_argument('--analysis', action='store', dest='analysis',
                         choices=['layouts', 'all-terms', 'all-terms-rate',
-                                 'n-dofs'],
+                                 'n-dofs', 'fastest-times'],
                         default='layouts',
                         help=helps['analysis'])
     for key, val in opts.items():
@@ -798,6 +798,55 @@ def main():
                      formatters=(['{}'.format] + (['{:,}'.format] * 4)
                                  + ['{:,.1f}'.format] * 4),
                      header=header, column_format='rrrrrrrrr')
+
+    elif options.analysis == 'fastest-times':
+        def get_extreme(x):
+            k0 = x.keys()[0]
+            ii = nm.argmin(x[k0])
+            return x.iloc[ii]
+
+        tn2key = {
+            'dw_laplace::' : 'Laplacian' ,
+            'dw_volume_dot:v:' : 'dot' ,
+            'dw_volume_dot:vm:' : 'weighted dot',
+            'dw_convect::' : 'NS convective',
+            'dw_lin_elastic::' : 'elasticity',
+            'dw_laplace::u' : 'Laplacian' ,
+            'dw_volume_dot:v:u' : 'dot' ,
+            'dw_volume_dot:vm:u' : 'weighted dot',
+            'dw_convect::u' : 'NS convective',
+            'dw_lin_elastic::u' : 'elasticity',
+        }
+        term_names = list(tn2key.keys())
+        for ii, fname in enumerate(('table-fts-r.inc', 'table-fts-m.inc')):
+            fts = {}
+            for tn in term_names[5*ii:5*ii+5]:
+                tdf = ldf[ldf['term_name'] == tn]
+                rdf = tdf[tdf['lib'] == 'sfepy']
+                rgb = rdf.groupby(['n_cell', 'order'])
+                rmin = rgb['twwmean'].min()
+
+                sdf = tdf[tdf['lib'] != 'sfepy']
+                sgb = sdf.groupby(['n_cell', 'order'])
+                smin = sgb[['twwmean', 'lib']].apply(get_extreme)
+
+                aux = pd.concat((rmin, smin), axis=1)
+                key = tn2key[tn]
+                fts[key] = aux.apply(
+                    lambda x: '{} ({} {:.1f})'.format(
+                        sof.format_float_latex(x[1], 1),
+                        x[2],
+                        x[1] / x[0],
+                    ),
+                    axis=1,
+                )
+
+            ftdf = pd.concat(fts, axis=1).reset_index()
+            ftdf['n_cell'] = sparsify_n_cell(ftdf['n_cell'].to_list())
+            filename = indir(fname)
+            header = ['\#cells', 'order'] + list(ftdf.keys())[2:]
+            ftdf.to_latex(filename, index=False, escape=False, header=header,
+                          column_format='rrlllll')
 
     else:
         # ldf.lgroup.hist()
