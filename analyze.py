@@ -444,6 +444,19 @@ def sort_spaths(spaths):
 
     return sspaths
 
+def sparsify_n_cell(nc):
+    nnc = []
+    last = None
+    for ic in nc:
+        if ic != last:
+            nnc.append('{:,}'.format(ic))
+            last = ic
+
+        else:
+            nnc.append('')
+
+    return nnc
+
 helps = {
     'output_dir'
     : 'output directory',
@@ -776,23 +789,12 @@ def main():
                           'n_dof' : int, 'repeat' : int,
                           'c_vec_size_mb' : float, 'c_mtx_size_mb' : float,
                           'c_vec_size_mb_v' : float, 'c_mtx_size_mb_v' : float})
-        nc = cdf['n_cell'].to_list()
-        nnc = []
-        last = None
-        for ic in nc:
-            if ic != last:
-                nnc.append('{:,}'.format(ic))
-                last = ic
-
-            else:
-                nnc.append('')
-
-        cdf['n_cell'] = nnc
+        cdf['n_cell'] = sparsify_n_cell(cdf['n_cell'].to_list())
         filename = indir('table-cdc.inc')
         # header = ['#cells', 'order', '#QP', 'scalar #DOFs', 'vector #DOFs']
         header = ['\#cells', 'order', '\#QP', '\#DOFs/comp.', 'repeat',
                   '$r_s$ [MB]', '$M_s$ [MB]', '$r_v$ [MB]', '$M_v$ [MB]']
-        cdf.to_latex(filename, index=False, sparsify=True, escape=False,
+        cdf.to_latex(filename, index=False, escape=False,
                      formatters=(['{}'.format] + (['{:,}'.format] * 4)
                                  + ['{:,.1f}'.format] * 4),
                      header=header, column_format='rrrrrrrrr')
