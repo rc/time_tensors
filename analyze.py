@@ -462,6 +462,7 @@ def main():
         limits = 'rtwwmean=4',
         plot_rc_params = "'text.usetex'=False",
         shorten_spaths = False,
+        rate_mode = 'cell-counts',
         xscale = 'log',
         xlim = 'auto=True',
         suffix = '.png',
@@ -683,8 +684,7 @@ def main():
         # keys = ['tmean', 'twwmean', 'mmean', 'mwwmean']
         keys = ['twwmean', 'mmean']
 
-        mode = 'cell-counts'
-        if mode == 'cell-counts':
+        if options.rate_mode == 'cell-counts':
             for key in keys:
                 ldf[key + '_rate'] = ldf['n_cell'] / ldf[key]
 
@@ -693,13 +693,26 @@ def main():
                 ii = nm.argmax(x[k0])
                 return x.iloc[ii]
 
-        else:
+        elif options.rate_mode == 'cell-times':
             for key in keys:
                 ldf[key + '_rate'] = ldf[key] / ldf['n_cell']
 
             def get_extreme(x):
                 k0 = x.keys()[0]
                 ii = nm.argmin(x[k0])
+                return x.iloc[ii]
+
+        elif options.rate_mode == 'result-sizes':
+            size = nm.where(ldf['diff'].isna(),
+                            ldf['c_vec_size_mb'],
+                            ldf['c_mtx_size_mb'])
+
+            for key in keys:
+                ldf[key + '_rate'] = size / ldf[key]
+
+            def get_extreme(x):
+                k0 = x.keys()[0]
+                ii = nm.argmax(x[k0])
                 return x.iloc[ii]
 
         ldf = ldf[ldf['term_name'].isin(term_names)]
@@ -731,8 +744,9 @@ def main():
                 ax.set_yscale(options.xscale)
 
                 plt.tight_layout()
-                figname = ('{}-rate-n_cell-order-{}{}'
+                figname = ('{}-{}-rate-n_cell-order-{}{}'
                            .format(term_name,
+                                   options.rate_mode,
                                    key,
                                    options.suffix))
                 fig = ax.figure
