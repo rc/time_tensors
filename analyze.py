@@ -221,7 +221,7 @@ def plot_per_n_cell(ax, ldf, ykeys=('n_cell', 'order'),
     if marker_style is None:
         marker_style = {
             'mew' : 2,
-            'marker' : ['+', 'o', 'v', '^', '<', '>', 's', 'x', 'd'],
+            'marker' : ['o', '^', 'v', '<', 'x', '>', 's', '+', 'd'],
             'alpha' : 0.8,
             'mfc' : 'None',
             'markersize' : 8,
@@ -314,7 +314,7 @@ def plot_per_n_cell_t(ax, ldf, ykeys=('order', 'n_cell'),
     if marker_style is None:
         marker_style = {
             'mew' : 2,
-            'marker' : ['+', 'o', 'v', '^', '<', '>', 's', 'x', 'd'],
+            'marker' : ['o', '^', 'v', '<', 'x', '>', 's', '+', 'd'],
             'alpha' : 0.8,
             'mfc' : 'None',
             'markersize' : 8,
