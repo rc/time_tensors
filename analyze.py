@@ -834,7 +834,7 @@ def main():
                 key = tn2key[tn]
                 fts[key] = aux.apply(
                     lambda x: '{} ({} {:.1f})'.format(
-                        sof.format_float_latex(x[1], 1),
+                        sof.format_float_latex(x[1], '5.2f'),
                         x[2],
                         x[1] / x[0],
                     ),
