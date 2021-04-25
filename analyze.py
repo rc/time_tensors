@@ -222,14 +222,15 @@ def plot_per_n_cell(ax, ldf, ykeys=('n_cell', 'order'),
         marker_style = {
             'lw' : 0.2,
             'mew' : 1.0,
-            'marker' : ['o', '^', 'v', '<', 'x', '>', 's', '+', 'd'],
+            'marker' : ['o', '^', 'v', '<', 'x', '>', 's', '+', '.'],
             'alpha' : 1.0,
             'mfc' : 'None',
             'markersize' : 8,
         }
 
     select = sps.select_by_keys(ldf, style_keys)
-    styles = {marker_key : marker_style, color_key : {'color' : 'viridis',}}
+    styles = {marker_key : marker_style,
+              color_key : {'color' : 'nipy_spectral:max=0.95',}}
     styles = sps.setup_plot_styles(select, styles)
 
     if ax is None:
@@ -323,7 +324,8 @@ def plot_per_n_cell_t(ax, ldf, ykeys=('order', 'n_cell'),
         }
 
     select = sps.select_by_keys(ldf, style_keys)
-    styles = {marker_key : marker_style, color_key : {'color' : 'viridis',}}
+    styles = {marker_key : marker_style,
+              color_key : {'color' : 'nipy_spectral:max=0.95',}}
     styles = sps.setup_plot_styles(select, styles)
 
     if ax is None:
