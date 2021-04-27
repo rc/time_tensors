@@ -493,7 +493,7 @@ def main():
     parser.add_argument('--analysis', action='store', dest='analysis',
                         choices=['layouts', 'all-terms', 'all-terms-rate',
                                  'n-dofs', 'fastest-times',
-                                 'mem-usages-in-limit'],
+                                 'mem-usages-in-limit', 'times-mems-single-fun'],
                         default='layouts',
                         help=helps['analysis'])
     for key, val in opts.items():
@@ -912,6 +912,106 @@ def main():
             header = ['\#cells', 'order'] + list(ftdf.keys())[2:]
             ftdf.to_latex(filename, index=False, escape=False, header=header,
                           column_format='rrlllll')
+
+    elif options.analysis == 'times-mems-single-fun':
+
+        marker_style = {
+            'lw' : 0.5,
+            'mew' : 1.0,
+            'marker' : ['o', '^', 'v', 'D', 's'],
+            'alpha' : 1.0,
+            'mfc' : 'None',
+            'markersize' : 8,
+        }
+
+        xscale = 'log'
+        yscale = 'log'
+
+        tn2key = {
+            'dw_laplace::' : 'Laplacian' ,
+            'dw_volume_dot:v:' : 'vector dot' ,
+            'dw_volume_dot:vm:' : 'weighted vec. dot',
+            'dw_convect::' : 'NS convective',
+            'dw_lin_elastic::' : 'elasticity',
+            'dw_laplace::u' : 'Laplacian' ,
+            'dw_volume_dot:v:u' : 'vector dot' ,
+            'dw_volume_dot:vm:u' : 'weighted vec. dot',
+            'dw_convect::u' : 'NS convective',
+            'dw_lin_elastic::u' : 'elasticity',
+        }
+        term_names = list(tn2key.keys())
+        def format_labels(key, iv, val):
+            if key == 'order':
+                return val
+
+            else:
+                return tn2key[val]
+
+        for key, diff in product(['twwmean', 'mmean'], [False, True]):
+            fig, ax = plt.subplots()
+
+            tns = term_names[5*diff:5*diff+5]
+
+            select = sps.select_by_keys(ldf, ['order'])
+            select.update({'term_name' : tns})
+            styles = {'term_name' : marker_style,
+                      'order' : {'color' : 'tab10:kind=qualitative',}}
+            styles = sps.setup_plot_styles(select, styles)
+
+            ax.grid(True)
+            used = None
+            maxs = {ii : (0, 0) for ii in select['order']}
+            for term_name, order, fun_name in product(
+                    tns, data.orders, options.fun_names,
+            ):
+                is_diff = ldf['diff'].notna if diff else ldf['diff'].isna
+                sdf = ldf[(ldf['term_name'] == term_name) &
+                          (ldf['order'] == order) &
+                          (ldf['fun_name'] == fun_name) &
+                          (is_diff())]
+                if not len(sdf): continue
+
+                style_kwargs, indices, used = sps.get_row_style_used(
+                    sdf.iloc[0], select, {}, styles, used
+                )
+                vx = sdf.n_cell.values
+                means = sdf[key].values
+                ax.plot(vx, means, **style_kwargs)
+
+                imax = sdf[key].idxmax()
+                if sdf.loc[imax, key] > maxs[order][1]:
+                    maxs[order] = (sdf.loc[imax, 'n_cell'], sdf.loc[imax, key])
+
+            sps.add_legend(ax, select, styles, used, per_parameter=True,
+                           format_labels=format_labels,
+                           loc=['center right', 'lower right'],
+                           frame_alpha=0.8, ncol=1,
+                           handlelength=1, handletextpad=0.4, columnspacing=0.2,
+                           labelspacing=0.4)
+
+            ax.set_xscale(xscale)
+            ax.set_yscale(yscale)
+            ax.set_title('matrix mode' if diff else 'residual mode')
+            ax.set_xlabel('n_cell')
+            ax.set_ylabel(key)
+
+            for order, (mx, my) in maxs.items():
+                fmt = '{:.2f}' if my < 1 else '{:.1f}'
+                ax.annotate(fmt.format(my), xy=(mx, my), xytext=(0, 15),
+                            textcoords='offset points',
+                            arrowprops=dict(facecolor='black',
+                                            arrowstyle='->',
+                                            shrinkA=0,
+                                            shrinkB=0))
+
+            plt.tight_layout()
+            figname = ('{}-{}-{}{}'
+                       .format(fun_name,
+                               sdf['diff'].iloc[0] if diff else '-',
+                               key,
+                               options.suffix))
+            fig = ax.figure
+            fig.savefig(indir(figname), bbox_inches='tight')
 
     else:
         # ldf.lgroup.hist()
