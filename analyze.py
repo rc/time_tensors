@@ -476,6 +476,7 @@ helps = {
 def main():
     opts = Struct(
         omit_functions = "'.*dat.*', '.*npq.*', '.*oeq.*', '.*_[01234]_.*'",
+        fun_names="'sfepy'",
         limits = 'rtwwmean=4',
         plot_rc_params = "'text.usetex'=False",
         shorten_spaths = False,
@@ -525,6 +526,7 @@ def main():
     options = parser.parse_args()
 
     options.omit_functions = so.parse_as_list(options.omit_functions)
+    options.fun_names = so.parse_as_list(options.fun_names)
     options.limits = so.parse_as_dict(options.limits)
     options.plot_rc_params = so.parse_as_dict(options.plot_rc_params)
     options.xlim = so.parse_as_dict(options.xlim)
