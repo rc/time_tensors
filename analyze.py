@@ -491,7 +491,8 @@ def main():
     parser.add_argument('results', help=helps['results'])
     parser.add_argument('--analysis', action='store', dest='analysis',
                         choices=['layouts', 'all-terms', 'all-terms-rate',
-                                 'n-dofs', 'fastest-times'],
+                                 'n-dofs', 'fastest-times',
+                                 'mem-usages-in-limit'],
                         default='layouts',
                         help=helps['analysis'])
     for key, val in opts.items():
@@ -839,6 +840,66 @@ def main():
                         sof.format_float_latex(x[1], '5.2f'),
                         x[2],
                         x[1] / x[0],
+                    ),
+                    axis=1,
+                )
+
+            ftdf = pd.concat(fts, axis=1).reset_index()
+            ftdf['n_cell'] = sparsify_n_cell(ftdf['n_cell'].to_list())
+            filename = indir(fname)
+            header = ['\#cells', 'order'] + list(ftdf.keys())[2:]
+            ftdf.to_latex(filename, index=False, escape=False, header=header,
+                          column_format='rrlllll')
+
+    elif options.analysis == 'mem-usages-in-limit':
+        def get_min(x):
+            k0 = x.keys()[0]
+            ii = nm.argmin(x[k0])
+            return x.iloc[ii]
+
+        def get_max(x):
+            k0 = x.keys()[0]
+            ii = nm.argmax(x[k0])
+            return x.iloc[ii]
+
+        tn2key = {
+            'dw_laplace::' : 'Laplacian' ,
+            'dw_volume_dot:v:' : 'dot' ,
+            'dw_volume_dot:vm:' : 'weighted dot',
+            'dw_convect::' : 'NS convective',
+            'dw_lin_elastic::' : 'elasticity',
+            'dw_laplace::u' : 'Laplacian' ,
+            'dw_volume_dot:v:u' : 'dot' ,
+            'dw_volume_dot:vm:u' : 'weighted dot',
+            'dw_convect::u' : 'NS convective',
+            'dw_lin_elastic::u' : 'elasticity',
+        }
+        term_names = list(tn2key.keys())
+        limit = options.limits.get('rtwwmean', ldf['rtwwmean'].max())
+        for ii, fname in enumerate((
+                'table-mus-min-r.inc', 'table-mus-min-m.inc',
+                'table-mus-max-r.inc', 'table-mus-max-m.inc',
+        )):
+            fts = {}
+            i2 = ii % 2
+            for tn in term_names[5*i2:5*i2+5]:
+                tdf = ldf[(ldf['term_name'] == tn) &
+                          (ldf['rtwwmean'] <= limit)]
+
+                sdf = tdf[tdf['lib'] != 'sfepy']
+                sgb = sdf.groupby(['n_cell', 'order'])
+                if 'min' in fname:
+                    mdf = sgb[['mmean', 'rmmean', 'lib']].apply(get_min)
+
+                else:
+                    mdf = sgb[['mmean', 'rmmean', 'lib']].apply(get_max)
+
+                key = tn2key[tn]
+                fts[key] = mdf.apply(
+                    lambda x: '{} ({} {:.1f})'.format(
+                        sof.format_float_latex(x[0], '7.2f'),
+                        x[2],
+                        x[1],
                     ),
                     axis=1,
                 )
