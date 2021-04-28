@@ -662,41 +662,41 @@ def _get_ranks(arr):
     return ranks
 
 @profile1
-def _insert_ldf_ranks(ldf, tmean_key, mmean_key):
+def _insert_ldf_ranks(ldf, tstat_key, mstat_key):
     """
     Modifies ldf inplace.
     """
-    is_mem = 'mmean' in ldf
+    is_mem = 'mstat' in ldf
 
-    trank_key = tmean_key.replace('mean', 'rank')
-    rtmean_key = 'r' + tmean_key
+    trank_key = tstat_key.replace('stat', 'rank')
+    rtstat_key = 'r' + tstat_key
     ldf[trank_key] = len(ldf)
-    ldf[rtmean_key] = nm.nan
+    ldf[rtstat_key] = nm.nan
     if is_mem:
-        mrank_key = mmean_key.replace('mean', 'rank')
-        rmmean_key = 'r' + mmean_key
+        mrank_key = mstat_key.replace('stat', 'rank')
+        rmstat_key = 'r' + mstat_key
         ldf[mrank_key] = len(ldf)
-        ldf[rmmean_key] = nm.nan
+        ldf[rmstat_key] = nm.nan
 
     rgroup = ldf[ldf['fun_name'] == 'sfepy_term']
     rgroup = rgroup.set_index(['term_name', 'n_cell', 'order'])
-    ref_tmeans = rgroup[tmean_key]
+    ref_tstats = rgroup[tstat_key]
     if is_mem:
-        ref_mmeans = rgroup[mmean_key]
+        ref_mstats = rgroup[mstat_key]
 
     gcols = ldf[['term_name', 'n_cell', 'order']]
     groups = gcols.drop_duplicates()
     for group in groups.itertuples(index=False):
         mask = (gcols == group).all(axis=1)
-        tmeans = ldf.loc[mask, tmean_key].values
-        ranks = _get_ranks(tmeans)
+        tstats = ldf.loc[mask, tstat_key].values
+        ranks = _get_ranks(tstats)
         ldf.loc[mask, trank_key] = ranks
-        ldf.loc[mask, rtmean_key] = tmeans / ref_tmeans[group]
+        ldf.loc[mask, rtstat_key] = tstats / ref_tstats[group]
         if is_mem:
-            mmeans = ldf.loc[mask, mmean_key].values
-            ranks = _get_ranks(mmeans)
+            mstats = ldf.loc[mask, mstat_key].values
+            ranks = _get_ranks(mstats)
             ldf.loc[mask, mrank_key] = ranks
-            ldf.loc[mask, rmmean_key] = mmeans / ref_mmeans[group]
+            ldf.loc[mask, rmstat_key] = mstats / ref_mstats[group]
 
 def _get_lib(x):
     aux = x.split('_')
