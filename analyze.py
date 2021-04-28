@@ -947,7 +947,8 @@ def main():
             else:
                 return tn2key[val]
 
-        for key, diff in product(['twwmean', 'mmean'], [False, True]):
+        ylabels = {'twwmean' : 'twwmean [s]', 'mmax' : 'mmax [MB]'}
+        for key, diff in product(['twwmean', 'mmax'], [False, True]):
             fig, ax = plt.subplots()
 
             tns = term_names[5*diff:5*diff+5]
@@ -992,12 +993,12 @@ def main():
             ax.set_xscale(xscale)
             ax.set_yscale(yscale)
             ax.set_title('matrix mode' if diff else 'residual mode')
-            ax.set_xlabel('n_cell')
-            ax.set_ylabel(key)
+            ax.set_xlabel(r'\#cells')
+            ax.set_ylabel(ylabels[key])
 
             for order, (mx, my) in maxs.items():
                 fmt = '{:.2f}' if my < 1 else '{:.1f}'
-                ax.annotate(fmt.format(my), xy=(mx, my), xytext=(0, 15),
+                ax.annotate(fmt.format(my), xy=(mx, my), xytext=(-5, 15),
                             textcoords='offset points',
                             arrowprops=dict(facecolor='black',
                                             arrowstyle='->',
