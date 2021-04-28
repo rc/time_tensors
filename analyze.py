@@ -408,6 +408,13 @@ def format_labels(key, iv, val):
 def format_labels2(key, iv, val):
     return val
 
+def format_labels3(key, iv, val, tn2key=None):
+    if key == 'order':
+        return val
+
+    else:
+        return tn2key[val]
+
 def make_patch_spines_invisible(ax):
     ax.set_frame_on(True)
     ax.patch.set_visible(False)
@@ -940,12 +947,6 @@ def main():
             'dw_lin_elastic::u' : 'elasticity',
         }
         term_names = list(tn2key.keys())
-        def format_labels(key, iv, val):
-            if key == 'order':
-                return val
-
-            else:
-                return tn2key[val]
 
         ylabels = {'twwmean' : 'twwmean [s]', 'mmax' : 'mmax [MB]'}
         for key, diff in product(['twwmean', 'mmax'], [False, True]):
@@ -984,7 +985,7 @@ def main():
                     maxs[order] = (sdf.loc[imax, 'n_cell'], sdf.loc[imax, key])
 
             sps.add_legend(ax, select, styles, used, per_parameter=True,
-                           format_labels=format_labels,
+                           format_labels=partial(format_labels3, tn2key=tn2key),
                            loc=['center right', 'lower right'],
                            frame_alpha=0.8, ncol=1,
                            handlelength=1, handletextpad=0.4, columnspacing=0.2,
