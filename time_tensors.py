@@ -590,6 +590,8 @@ def _create_ldf(df, data):
 
     _insert_ldf_ranks(ldf, 'tmean', 'mmean')
     _insert_ldf_ranks(ldf, 'twwmean', 'mwwmean')
+    _insert_ldf_ranks(ldf, 'tmax', 'mmax')
+    _insert_ldf_ranks(ldf, 'tmin', 'mmin')
 
     # Work around old runs, nans cannot be compared in sps.get_row_style().
     if 'timeout' in ldf:
