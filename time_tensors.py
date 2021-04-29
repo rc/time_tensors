@@ -438,6 +438,7 @@ def scrape_output(filename, rdata=None):
 
                 else:
                     paths = []
+                    blas = {}
                     for ii in range(len(val)):
                         line = io.skip_lines_to(fd, 'path:')
                         path = literal_eval(line.split(':')[2].strip())
@@ -445,13 +446,21 @@ def scrape_output(filename, rdata=None):
                             path = path[1:]
                         paths.append(path)
 
+                        line = io.skip_lines_to(fd, 'current')
+                        if line.split()[1] == 'BLAS':
+                            line = next(fd)
+                            for ic in range(len(path)):
+                                line = next(fd).split()
+                                blas.setdefault(line[1], 0)
+                                blas[line[1]] += 1
+
                     if not len(line):
                         break
 
             else:
                 sizes = None
 
-            exprs[key] = (val, paths, sizes)
+            exprs[key] = (val, paths, sizes, blas)
 
     return out
 
