@@ -677,14 +677,14 @@ def _insert_ldf_ranks(ldf, tstat_key, mstat_key):
     """
     Modifies ldf inplace.
     """
-    is_mem = 'mstat' in ldf
+    is_mem = 'mmean' in ldf
 
-    trank_key = tstat_key.replace('stat', 'rank')
+    trank_key = tstat_key + '_rank'
     rtstat_key = 'r' + tstat_key
     ldf[trank_key] = len(ldf)
     ldf[rtstat_key] = nm.nan
     if is_mem:
-        mrank_key = mstat_key.replace('stat', 'rank')
+        mrank_key = mstat_key + '_rank'
         rmstat_key = 'r' + mstat_key
         ldf[mrank_key] = len(ldf)
         ldf[rmstat_key] = nm.nan
@@ -726,16 +726,16 @@ def _create_fdf(ldf):
     """
     gbf = ldf.groupby('fun_name')
     fdf = gbf['expressions'].apply(lambda x: x.iloc[0])
-    _fdf1 = get_groupby_stats(gbf, 'trank')
+    _fdf1 = get_groupby_stats(gbf, 'tmean_rank')
     _fdf2 = get_groupby_stats(gbf, 'rtmean')
-    _fdf3 = get_groupby_stats(gbf, 'twwrank')
+    _fdf3 = get_groupby_stats(gbf, 'twwmean_rank')
     _fdf4 = get_groupby_stats(gbf, 'rtwwmean')
     fdf = pd.concat((fdf, _fdf1, _fdf2, _fdf3, _fdf4), axis=1)
     is_mem = 'mmean' in ldf
     if is_mem:
-        _fdf1 = get_groupby_stats(gbf, 'mrank')
+        _fdf1 = get_groupby_stats(gbf, 'mmean_rank')
         _fdf2 = get_groupby_stats(gbf, 'rmmean')
-        _fdf3 = get_groupby_stats(gbf, 'mwwrank')
+        _fdf3 = get_groupby_stats(gbf, 'mwwmean_rank')
         _fdf4 = get_groupby_stats(gbf, 'rmwwmean')
         fdf = pd.concat((fdf, _fdf1, _fdf2, _fdf3, _fdf4), axis=1)
 
