@@ -546,7 +546,7 @@ def _create_ldf(df, data):
                    .difference(data.omit).union(data.dfadd))
 
     df['lexpressions'] = df[['fun_name', 'expressions']].apply(
-        lambda x: [x[1].get(key, (None,) * 3) for key in x[0]],
+        lambda x: [x[1].get(key, (None,) * 4) for key in x[0]],
         axis=1,
     )
     tvariant = df['variant'].apply(
@@ -568,8 +568,8 @@ def _create_ldf(df, data):
                                   if x.name in ekeys else x)
     ldf.reset_index(drop=True, inplace=True)
     exprs = pd.DataFrame(ldf['lexpressions'].to_list(),
-                         columns=['expressions', 'paths', 'sizes'])
-    ldf[['expressions', 'paths', 'sizes']] = exprs
+                         columns=['expressions', 'paths', 'sizes', 'blas'])
+    ldf[['expressions', 'paths', 'sizes', 'blas']] = exprs
 
     fmt = lambda x: '+'.join([','.join(['{}{}'.format(*ii) for ii in path])
                               for path in x] if isinstance(x, list) else '-')
