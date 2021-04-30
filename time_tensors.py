@@ -742,7 +742,7 @@ def _create_fdf(ldf):
     return fdf
 
 @profile1
-def collect_stats(df, data=None):
+def collect_stats(df, data=None, regenerate=False):
     import soops.ioutils as io
 
     df = (df.dropna(subset=['fun_name', 't', 'norm', 'rnorm'])
@@ -757,22 +757,22 @@ def collect_stats(df, data=None):
     data.uadd = set(['lib', 'variant', 'opt', 'layout', 'expressions', 'paths',
                      'spaths', 'sizes'])
     ldf = io.get_from_store(data.store_filename, 'plugin_ldf')
-    if ldf is not None:
-        output('using stored ldf')
-        data._ldf = ldf
-
-    else:
+    if (ldf is None) or regenerate:
         data._ldf = _create_ldf(df, data)
         io.put_to_store(data.store_filename, 'plugin_ldf', data._ldf)
 
-    fdf = io.get_from_store(data.store_filename, 'plugin_fdf')
-    if fdf is not None:
-        output('using stored fdf')
-        data._fdf = fdf
-
     else:
+        output('using stored ldf')
+        data._ldf = ldf
+
+    fdf = io.get_from_store(data.store_filename, 'plugin_fdf')
+    if (fdf is None) or regenerate:
         data._fdf = _create_fdf(data._ldf)
         io.put_to_store(data.store_filename, 'plugin_fdf', data._fdf)
+
+    else:
+        output('using stored fdf')
+        data._fdf = fdf
 
     return data
 
