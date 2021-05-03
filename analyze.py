@@ -181,7 +181,6 @@ def plot_per_lib2(ax, ldf, data, style_key='layout', mark='cqgvd0',
         if style_val == mark:
             style_kwargs.update({
                 'color' : 'k',
-                'zorder' : 100,
                 'marker' : '+',
                 'markersize' : 10,
                 'mew' : 2,
@@ -194,12 +193,14 @@ def plot_per_lib2(ax, ldf, data, style_key='layout', mark='cqgvd0',
             xs = sdf[xkey]
 
         labels = sdf[['lib'] + minor_ykey].apply(lambda x: ': '.join(x), axis=1)
-        ax.plot(xs, yticks[nm.searchsorted(ysearch_labels, labels)], ls='None',
+        ax.plot(xs, yticks[nm.searchsorted(ysearch_labels, labels)],
                 **style_kwargs)
 
     if show_legend:
         sps.add_legend(ax, select, styles, used, format_labels=format_labels,
-                       loc='lower right', frame_alpha=0.8)
+                       loc='lower right', frame_alpha=0.8, ncol=1,
+                       handlelength=1, handletextpad=0.4, columnspacing=0.2,
+                       labelspacing=0.4)
 
     return ax
 
@@ -580,16 +581,19 @@ def main():
 
     if options.analysis == 'layouts':
         style = {
-            'color' : 'viridis',
-            # 'color' : ['k', 'b', 'g', 'c', 'r', 'm', 'y', 'tab:orange'],
-            'mew' : 2,
+            #'color' : 'viridis:max=0.8',
+            #'color' : 'nipy_spectral:max=0.95',
+            'color' : ['k', 'b', 'g', 'm', 'r', 'c', 'y', 'tab:orange'],
             'marker' : ['+', 'o', 'v', '^', '<', '>', 's', 'd'],
+            'ls' : 'None',
+            'mew' : 1.0,
             'alpha' : 0.8,
             'mfc' : 'None',
             'markersize' : 8,
+            'zorder' : nm.linspace(2.5, 2.1, 8),
         }
-        xkeys = ['rtwwmean', 'rmmean']
-        upxkeys = ['twwmean [s]', 'mmean [MB]']
+        xkeys = ['rtwwmean', 'rmmax']
+        upxkeys = ['twwmean [s]', 'mmax [MB]']
         limit = options.limits.get('rtwwmean', ldf['rtwwmean'].max())
         minor_ykey = 'spaths' if not options.shorten_spaths else 'short_spaths'
         for n_cell, order, xkey, upxkey in product(
@@ -608,19 +612,26 @@ def main():
             xlim = options.xlim.get(xkey, {'auto' : True})
             ax.set_xlim(**xlim)
             ax.set_xscale(options.xscale)
-            ax.xaxis.set_major_locator(mt.LogLocator(subs=(0.5, 1),
-                                                     numticks=2))
-            ax.xaxis.set_major_formatter(mt.StrMethodFormatter('{x:.2f}'))
+            if xkey == 'rtwwmean':
+                ax.xaxis.set_major_locator(mt.FixedLocator(
+                    [0.2, 0.3, 0.5, 0.7, 1, 1.5, 2, 3, 4, 5]
+                ))
+
+            else:
+                ax.xaxis.set_major_locator(mt.LogLocator(subs=(0.5, 1),
+                                                         numticks=5))
+            ax.xaxis.set_major_formatter(mt.StrMethodFormatter('{x:.1f}'))
             ax.xaxis.set_minor_locator(mt.LogLocator(subs=(0.5, 1),
                                                      numticks=2))
-            ax.xaxis.set_minor_formatter(mt.StrMethodFormatter('{x:.2f}'))
+            ax.xaxis.set_minor_formatter(mt.StrMethodFormatter('{x:.1f}'))
+            ax.xaxis.labelpad = -0
             xlim = nm.array(ax.get_xlim())
             ax.axvline(1, color='r')
 
             pax = ax.twiny()
             pax.xaxis.set_ticks_position('bottom')
             pax.xaxis.set_label_position('bottom')
-            pax.spines['bottom'].set_position(('axes', -0.15))
+            pax.spines['bottom'].set_position(('axes', -0.08))
             make_patch_spines_invisible(pax)
             pax.spines['bottom'].set_visible(True)
 
@@ -635,6 +646,7 @@ def main():
             pax.xaxis.set_minor_locator(mt.LogLocator(subs=(0.5, 1),
                                                       numticks=2))
             pax.xaxis.set_minor_formatter(mt.StrMethodFormatter('{x:.2f}'))
+            pax.xaxis.labelpad = -0
 
             plt.tight_layout()
             figname = ('{}-layout-n{}-o{}-{}{}'
