@@ -676,7 +676,7 @@ def main():
             pdf = pdf.replace(subs)
         output(pdf)
 
-        xkeys = ['rtwwmean', 'rmmean']
+        xkeys = ['rtwwmean', 'rmmax']
         limit = options.limits.get('rtwwmean', ldf['rtwwmean'].max())
         for term_name, xkey in product(term_names, xkeys):
             sdf = ldf[(ldf['term_name'] == term_name) &
@@ -727,7 +727,7 @@ def main():
                       'dw_lin_elastic::u']
         # times: n_cell / s, memory: n_cell / MB
         # keys = ['tmean', 'twwmean', 'mmean', 'mwwmean']
-        keys = ['twwmean', 'mmean']
+        keys = ['twwmean', 'mmax']
 
         if options.rate_mode == 'cell-counts':
             for key in keys:
@@ -914,10 +914,10 @@ def main():
                 sdf = tdf[tdf['lib'] != 'sfepy']
                 sgb = sdf.groupby(['n_cell', 'order'])
                 if 'min' in fname:
-                    mdf = sgb[['mmean', 'rmmean', 'lib']].apply(get_min)
+                    mdf = sgb[['mmax', 'rmmax', 'lib']].apply(get_min)
 
                 else:
-                    mdf = sgb[['mmean', 'rmmean', 'lib']].apply(get_max)
+                    mdf = sgb[['mmax', 'rmmax', 'lib']].apply(get_max)
 
                 key = tn2key[tn]
                 fts[key] = mdf.apply(
