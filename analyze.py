@@ -487,6 +487,7 @@ def main():
         fun_names="'sfepy'",
         limits = 'rtwwmean=4',
         plot_rc_params = "'text.usetex'=False",
+        layouts_params = "",
         shorten_spaths = False,
         rate_mode = 'cell-counts',
         xscale = 'log',
@@ -537,6 +538,7 @@ def main():
     options.fun_names = so.parse_as_list(options.fun_names)
     options.limits = so.parse_as_dict(options.limits)
     options.plot_rc_params = so.parse_as_dict(options.plot_rc_params)
+    options.layouts_params = so.parse_as_dict(options.layouts_params)
     options.xlim = so.parse_as_dict(options.xlim)
 
     output_dir = options.output_dir
@@ -596,6 +598,8 @@ def main():
         upxkeys = ['twwmean [s]', 'mmax [MB]']
         limit = options.limits.get('rtwwmean', ldf['rtwwmean'].max())
         minor_ykey = 'spaths' if not options.shorten_spaths else 'short_spaths'
+        labelpad = options.layouts_params.get('labelpad', 0.0)
+        pax_bottom = options.layouts_params.get('pax_bottom', 0.0)
         for n_cell, order, xkey, upxkey in product(
                 data.n_cell, data.orders, xkeys, upxkeys,
                 contracts=[(2, 3)],
@@ -624,14 +628,14 @@ def main():
             ax.xaxis.set_minor_locator(mt.LogLocator(subs=(0.5, 1),
                                                      numticks=2))
             ax.xaxis.set_minor_formatter(mt.StrMethodFormatter('{x:.1f}'))
-            ax.xaxis.labelpad = -0
+            ax.xaxis.labelpad = labelpad
             xlim = nm.array(ax.get_xlim())
             ax.axvline(1, color='r')
 
             pax = ax.twiny()
             pax.xaxis.set_ticks_position('bottom')
             pax.xaxis.set_label_position('bottom')
-            pax.spines['bottom'].set_position(('axes', -0.08))
+            pax.spines['bottom'].set_position(('axes', pax_bottom))
             make_patch_spines_invisible(pax)
             pax.spines['bottom'].set_visible(True)
 
@@ -646,7 +650,7 @@ def main():
             pax.xaxis.set_minor_locator(mt.LogLocator(subs=(0.5, 1),
                                                       numticks=2))
             pax.xaxis.set_minor_formatter(mt.StrMethodFormatter('{x:.2f}'))
-            pax.xaxis.labelpad = -0
+            pax.xaxis.labelpad = labelpad
 
             plt.tight_layout()
             figname = ('{}-layout-n{}-o{}-{}{}'
