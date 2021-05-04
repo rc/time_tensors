@@ -502,7 +502,8 @@ def main():
     parser.add_argument('--analysis', action='store', dest='analysis',
                         choices=['layouts', 'all-terms', 'all-terms-rate',
                                  'n-dofs', 'fastest-times',
-                                 'mem-usages-in-limit', 'times-mems-single-fun'],
+                                 'mem-usages-in-limit', 'times-mems-single-fun',
+                                 'blas-use'],
                         default='layouts',
                         help=helps['analysis'])
     for key, val in opts.items():
@@ -551,6 +552,9 @@ def main():
 
     df, data = load_results(options.results, output_dir)
     data._ldf['lgroup'] = data._ldf['layout'].apply(get_layout_group)
+    # Cannot use .fillna() to fill with a dict.
+    ii = data._ldf['blas'].isna()
+    data._ldf['blas'][ii] = data._ldf['blas'][ii].apply(lambda x: {})
     if options.shorten_spaths:
         term_names = data._ldf['term_name'].unique()
         for term_name in term_names:
@@ -1030,6 +1034,63 @@ def main():
                                options.suffix))
             fig = ax.figure
             fig.savefig(indir(figname), bbox_inches='tight')
+
+    elif options.analysis == 'blas-use':
+        marker_style = {
+            'ls' : 'None',
+            'lw' : 0.2,
+            'mew' : 1.0,
+            'marker' : ['o', '^', 'v', '<', 'x', '>', 's', '+', '.'],
+            'alpha' : 1.0,
+            'mfc' : 'None',
+            'markersize' : 8,
+        }
+        limit = options.limits.get('rtwwmean', ldf['rtwwmean'].max())
+        libs = sorted(ldf['lib'].unique())
+        if 'numba' in libs:
+            libs.remove('numba')
+        for term_name, n_cell, order in product(
+                data.term_names, data.n_cell, data.orders,
+        ):
+            sdf = ldf[(ldf['n_cell'] == n_cell) &
+                      (ldf['order'] == order) &
+                      (ldf['rtwwmean'] <= limit)]
+            bdf = pd.json_normalize(sdf['blas'])
+            bkeys = sorted(bdf.keys())
+            #bdf = bdf.fillna(0.0)
+            bdf['rtwwmean'] = sdf['rtwwmean'].values
+            bdf['lib'] = sdf['lib'].values
+            bdf = bdf.sort_values('rtwwmean')
+
+            select = {'lib' : libs, 'blas' : bkeys}
+            styles = {'lib' : marker_style,
+                      'blas' : {'color' : 'tab10:kind=qualitative'}}
+
+            styles = sps.setup_plot_styles(select, styles)
+            colors = styles['blas']['color']
+
+            for ii, lib in enumerate(libs):
+                sdf = bdf[bdf['lib'] == lib].copy()
+                if not len(sdf): continue
+
+                fig, ax = plt.subplots()
+                used = None
+                for col in bkeys:
+                    if not sdf[col].any(): continue
+                    sdf['blas'] = col
+                    style_kwargs, indices, used = sps.get_row_style_used(
+                        sdf.iloc[0], select, {}, styles, used
+                    )
+
+                    ax.plot(sdf.rtwwmean, sdf[col], **style_kwargs)
+
+                sps.add_legend(ax, select, styles, used, per_parameter=True,
+                               format_labels=format_labels2,
+                               loc=['center right', 'lower right'],
+                               frame_alpha=0.8, ncol=1,
+                               handlelength=1, handletextpad=0.4,
+                               columnspacing=0.2,
+                               labelspacing=0.4)
 
     else:
         # ldf.lgroup.hist()
