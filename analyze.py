@@ -554,7 +554,7 @@ def main():
     data._ldf['lgroup'] = data._ldf['layout'].apply(get_layout_group)
     # Cannot use .fillna() to fill with a dict.
     ii = data._ldf['blas'].isna()
-    data._ldf['blas'][ii] = data._ldf['blas'][ii].apply(lambda x: {})
+    data._ldf.loc[ii, 'blas'] = data._ldf.loc[ii, 'blas'].apply(lambda x: {})
     if options.shorten_spaths:
         term_names = data._ldf['term_name'].unique()
         for term_name in term_names:
