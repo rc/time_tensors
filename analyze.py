@@ -500,7 +500,8 @@ def main():
     parser.add_argument('output_dir', help=helps['output_dir'])
     parser.add_argument('results', help=helps['results'])
     parser.add_argument('--analysis', action='store', dest='analysis',
-                        choices=['layouts', 'all-terms', 'all-terms-rate',
+                        choices=['layouts', 'fastest-layouts-times',
+                                 'all-terms', 'all-terms-rate',
                                  'n-dofs', 'fastest-times',
                                  'mem-usages-in-limit', 'times-mems-single-fun',
                                  'blas-use'],
@@ -673,6 +674,48 @@ def main():
                                options.suffix))
             fig = ax.figure
             fig.savefig(indir(figname), bbox_inches='tight')
+
+    elif options.analysis == 'fastest-layouts-times':
+        def get_extreme(x):
+            k0 = x.keys()[0]
+            ii = nm.argmin(x[k0])
+            return x.iloc[ii]
+
+        tn2key = {
+            'dw_laplace::u' : 'Laplacian' ,
+            'dw_convect::u' : 'NS convective',
+        }
+        term_names = list(tn2key.keys())
+        tn = ldf['term_name'].iloc[0]
+        letters = {
+            'dw_laplace::u' : 'cqgd' ,
+            'dw_convect::u' : 'cqgvd',
+        }[tn]
+        omit = set('cqgvd0').difference(letters)
+
+        sdf = ldf[~ldf['lib'].isin(['sfepy', 'numba'])]
+        sgb = sdf.groupby(['order', 'lib'])
+        mdf = (sgb[['twwmean', 'rtwwmean', 'layout']]
+               .apply(get_extreme))
+        mdf['slayout'] =  (mdf['layout']
+                           .apply(lambda x:
+                                  ''.join(ii for ii in x if ii not in omit)))
+
+        ii = sgb.apply(lambda x: x[x['layout'] == 'cqgvd0']['rtwwmean'].idxmin())
+        rdf = sdf.loc[ii]
+        mdf['rdtwwmean'] = mdf['twwmean'] / rdf.set_index(mdf.index)['twwmean']
+        fmdf = mdf[['rtwwmean', 'slayout', 'rdtwwmean']].apply(
+            lambda x: ['{}'.format(sof.format_float_latex(x[0], '7.2f')),
+                       x[1],
+                       '{:.2f}'.format(x[2])],
+            axis=1, result_type='expand',
+        ).reset_index()
+        fmdf['order'] = sparsify_n_cell(fmdf['order'].to_list())
+
+        filename = indir('table-{}-flts-m.inc'.format(tn))
+        header = ['order', 'lib', 'rtwwmean', 'slayout', 'rdtwwmean']
+        fmdf.to_latex(filename, index=False, escape=False, header=header,
+                      column_format='rrlll')
 
     elif options.analysis == 'all-terms':
         term_names = ['dw_laplace::', 'dw_volume_dot:v:', 'dw_volume_dot:vm:',
