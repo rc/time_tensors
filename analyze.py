@@ -611,6 +611,16 @@ def main():
             sdf = ldf[(ldf['n_cell'] == n_cell) &
                       (ldf['order'] == order) &
                       (ldf['rtwwmean'] <= limit)]
+            aux = ldf[(ldf['n_cell'] == n_cell) &
+                      (ldf['order'] == order) &
+                      (ldf['rtwwmean'] > limit)]
+            ls = len(sdf)
+            la = len(aux)
+            l0 = (sdf['rtwwmean'] <= 1.0).sum()
+            l1 = (sdf['rtwwmean'] > 1.0).sum()
+            assert (l0 + l1) == ls
+            output(n_cell, order, ls, la, 100.0 * la / (ls + la),
+                   l0, l1, 100 * l0 / (ls + la))
             ax = plot_per_lib2(
                 None, sdf, data, xkey=xkey,
                 style_key='lgroup', mark='0cqgvd0',
@@ -649,11 +659,11 @@ def main():
             pax.set_xlim(*(coef * xlim))
             pax.set_xscale(options.xscale)
             pax.xaxis.set_major_locator(mt.LogLocator(subs=(0.5, 1),
-                                                      numticks=2))
-            pax.xaxis.set_major_formatter(mt.StrMethodFormatter('{x:.2f}'))
+                                                      numticks=5))
+            pax.xaxis.set_major_formatter(mt.StrMethodFormatter('{x:.1f}'))
             pax.xaxis.set_minor_locator(mt.LogLocator(subs=(0.5, 1),
                                                       numticks=2))
-            pax.xaxis.set_minor_formatter(mt.StrMethodFormatter('{x:.2f}'))
+            pax.xaxis.set_minor_formatter(mt.StrMethodFormatter('{x:.1f}'))
             pax.xaxis.labelpad = labelpad
 
             plt.tight_layout()
