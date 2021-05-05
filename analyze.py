@@ -403,6 +403,23 @@ def get_layout_group(layout):
     else:
         return '7default'
 
+def get_reduced_layout_group(rlayout):
+    if ('c' in rlayout):
+        nl = len(rlayout)
+        ic = rlayout.index('c')
+        iq = rlayout.index('q')
+        ii = ic * nl + iq
+        if ii == 1:
+            default = ''.join([c for c in 'cqgvd0' if c in rlayout])
+            if default == rlayout:
+                return '0000_' + rlayout
+
+        out = rlayout.translate(str.maketrans('dvg0', '----'))
+        return '{:04d}_{}'.format(ii, out.replace('-', r'$\ast$'))
+
+    else:
+        return '9999_' + rlayout
+
 def format_labels(key, iv, val):
     return val[1:]
 
@@ -415,6 +432,9 @@ def format_labels3(key, iv, val, tn2key=None):
 
     else:
         return tn2key[val]
+
+def format_labels4(key, iv, val):
+    return val.split('_')[1]
 
 def make_patch_spines_invisible(ax):
     ax.set_frame_on(True)
@@ -587,17 +607,46 @@ def main():
     plt.rcParams.update(options.plot_rc_params)
 
     if options.analysis == 'layouts':
+        tn = ldf['term_name'].iloc[0]
+        letters = {
+            'dw_laplace::u' : 'cqgd' ,
+            'dw_convect::u' : 'cqgvd',
+        }[tn]
+        omit = set('cqgvd0').difference(letters)
+        ldf['rlayout'] =  (ldf['layout']
+                           .apply(lambda x:
+                                  ''.join(ii for ii in x if ii not in omit)))
+
+        gb = ldf.groupby(['order', 'lib', 'opt', 'rlayout'])
+        sldf = (gb['rtwwmean']
+                .agg(['count', 'min', 'mean', 'max', 'std', 'idxmin']))
+        # Take the fastest group among the same layouts.
+        ldf = ldf.loc[sldf['idxmin']]
+        # Take the first among the same layouts.
+        #ldf = gb.apply(lambda x: x.iloc[0]).reset_index(drop=True)
+
+        ldf = ldf[ldf['lib'] != 'sfepy']
+        ldf['lgroup'] = ldf['rlayout'].apply(get_reduced_layout_group)
+
+        lgs = sorted(ldf['lgroup'].unique())
+        nleg = len(lgs)
+        mark = lgs[0]
+
         style = {
             #'color' : 'viridis:max=0.8',
-            #'color' : 'nipy_spectral:max=0.95',
-            'color' : ['k', 'b', 'g', 'm', 'r', 'c', 'y', 'tab:orange'],
-            'marker' : ['+', 'o', 'v', '^', '<', '>', 's', 'd'],
+            'color' : 'nipy_spectral:max=0.95',
+            #'color' : ['k', 'b', 'g', 'm', 'r', 'c', 'y', 'tab:orange'],
+            # 'marker' : ['+', 'o', 'v', '^', '<', '>', 's', 'd'],
+            'marker' : (['+']
+                        + ((['o', 'v', '^', '<', '>',
+                             'h', 's', 'p', 'P', '*']) * 5)[1:nleg-1]
+                        + ['d']),
             'ls' : 'None',
-            'mew' : 1.0,
+            'mew' : 2.0,
             'alpha' : 0.8,
             'mfc' : 'None',
             'markersize' : 8,
-            'zorder' : nm.linspace(2.5, 2.1, 8),
+            'zorder' : nm.linspace(2.5, 2.1, nleg),
         }
         xkeys = ['rtwwmean', 'rmmax']
         upxkeys = ['twwmean [s]', 'mmax [MB]']
@@ -624,9 +673,9 @@ def main():
                    l0, l1, 100 * l0 / (ls + la))
             ax = plot_per_lib2(
                 None, sdf, data, xkey=xkey,
-                style_key='lgroup', mark='0cqgvd0',
+                style_key='lgroup', mark=mark,
                 minor_ykey=minor_ykey, all_ldf=ldf, style=style,
-                format_labels=format_labels, show_legend=True,
+                format_labels=format_labels4, show_legend=True,
             )
             xlim = options.xlim.get(xkey, {'auto' : True})
             ax.set_xlim(**xlim)
