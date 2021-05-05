@@ -625,6 +625,8 @@ def main():
         # Take the first among the same layouts.
         #ldf = gb.apply(lambda x: x.iloc[0]).reset_index(drop=True)
 
+        output('reduced ldf shape:', ldf.shape)
+
         ldf = ldf[ldf['lib'] != 'sfepy']
         ldf['lgroup'] = ldf['rlayout'].apply(get_reduced_layout_group)
 
@@ -669,7 +671,7 @@ def main():
             l0 = (sdf['rtwwmean'] <= 1.0).sum()
             l1 = (sdf['rtwwmean'] > 1.0).sum()
             assert (l0 + l1) == ls
-            output(n_cell, order, ls, la, 100.0 * la / (ls + la),
+            output(n_cell, order, ls, la, 100.0 * ls / (ls + la),
                    l0, l1, 100 * l0 / (ls + la))
             ax = plot_per_lib2(
                 None, sdf, data, xkey=xkey,
