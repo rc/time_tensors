@@ -127,7 +127,7 @@ def plot_per_lib2(ax, ldf, data, style_key='layout', mark='cqgvd0',
                   .drop_duplicates()
                   .sort_values(style_key)[style_key])
 
-    select = sps.select_by_keys(ldf, [style_key])
+    select = sps.select_by_keys(all_ldf, [style_key])
     if style is None:
         style = {
             'color' : 'viridis',
@@ -183,7 +183,7 @@ def plot_per_lib2(ax, ldf, data, style_key='layout', mark='cqgvd0',
                 'color' : 'k',
                 'marker' : '+',
                 'markersize' : 10,
-                'mew' : 2,
+                'mew' : 4,
             })
 
         if xvals.dtype == 'object':
