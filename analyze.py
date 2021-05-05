@@ -730,6 +730,7 @@ def main():
         def get_extreme(x):
             k0 = x.keys()[0]
             ii = nm.argmin(x[k0])
+            # ii = nm.argsort(x[k0])[:10]
             return x.iloc[ii]
 
         tn2key = {
@@ -748,14 +749,14 @@ def main():
         sgb = sdf.groupby(['order', 'lib'])
         mdf = (sgb[['twwmean', 'rtwwmean', 'layout']]
                .apply(get_extreme))
-        mdf['slayout'] =  (mdf['layout']
+        mdf['rlayout'] =  (mdf['layout']
                            .apply(lambda x:
                                   ''.join(ii for ii in x if ii not in omit)))
 
         ii = sgb.apply(lambda x: x[x['layout'] == 'cqgvd0']['rtwwmean'].idxmin())
         rdf = sdf.loc[ii]
         mdf['rdtwwmean'] = mdf['twwmean'] / rdf.set_index(mdf.index)['twwmean']
-        fmdf = mdf[['rtwwmean', 'slayout', 'rdtwwmean']].apply(
+        fmdf = mdf[['rtwwmean', 'rlayout', 'rdtwwmean']].apply(
             lambda x: ['{}'.format(sof.format_float_latex(x[0], '7.2f')),
                        x[1],
                        '{:.2f}'.format(x[2])],
@@ -764,7 +765,8 @@ def main():
         fmdf['order'] = sparsify_n_cell(fmdf['order'].to_list())
 
         filename = indir('table-{}-flts-m.inc'.format(tn))
-        header = ['order', 'lib', 'rtwwmean', 'slayout', 'rdtwwmean']
+        header = ['order', 'lib', r'$\bar T^{ww} / \bar T^{ww}_r$', 'layout',
+                  r'$\bar T^{ww} / \bar T^{ww}_d$']
         fmdf.to_latex(filename, index=False, escape=False, header=header,
                       column_format='rrlll')
 
