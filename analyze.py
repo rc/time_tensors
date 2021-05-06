@@ -604,6 +604,11 @@ def main():
     output('ldf shape:', ldf.shape)
     output('fdf shape:', fdf.shape)
 
+    twwmean_label = r'$\bar T^{\rm ww}$ [s]'
+    mmax_label = r'$M^{\rm max}$ [MB]'
+    rtwwmean_label = r'$\bar T^{\rm ww} / \bar T^{ww}_r$'
+    rmmax_label = r'$M^{\rm max} / M^{\rm max}_r$'
+
     plt.rcParams.update(options.plot_rc_params)
 
     if options.analysis == 'layouts':
@@ -651,13 +656,15 @@ def main():
             'zorder' : nm.linspace(2.5, 2.1, nleg),
         }
         xkeys = ['rtwwmean', 'rmmax']
-        upxkeys = ['twwmean [s]', 'mmax [MB]']
+        pxkeys = ['twwmean', 'mmax']
+        xlabels = {'rtwwmean' : rtwwmean_label, 'rmmax' : rmmax_label,
+                   'twwmean' : twwmean_label, 'mmax' : mmax_label}
         limit = options.limits.get('rtwwmean', ldf['rtwwmean'].max())
         minor_ykey = 'spaths' if not options.shorten_spaths else 'short_spaths'
         labelpad = options.layouts_params.get('labelpad', 0.0)
         pax_bottom = options.layouts_params.get('pax_bottom', 0.0)
-        for n_cell, order, xkey, upxkey in product(
-                data.n_cell, data.orders, xkeys, upxkeys,
+        for n_cell, order, xkey, pxkey in product(
+                data.n_cell, data.orders, xkeys, pxkeys,
                 contracts=[(2, 3)],
         ):
             sdf = ldf[(ldf['n_cell'] == n_cell) &
@@ -682,6 +689,7 @@ def main():
             xlim = options.xlim.get(xkey, {'auto' : True})
             ax.set_xlim(**xlim)
             ax.set_xscale(options.xscale)
+            ax.set_xlabel(xlabels[xkey])
             if xkey == 'rtwwmean':
                 ax.xaxis.set_major_locator(mt.FixedLocator(
                     [0.2, 0.3, 0.5, 0.7, 1, 1.5, 2, 3, 4, 5]
@@ -705,8 +713,7 @@ def main():
             make_patch_spines_invisible(pax)
             pax.spines['bottom'].set_visible(True)
 
-            pxkey = upxkey.split()[0]
-            pax.set_xlabel(upxkey)
+            pax.set_xlabel(xlabels[pxkey])
             coef = sdf[pxkey].iloc[0] / sdf[xkey].iloc[0]
             pax.set_xlim(*(coef * xlim))
             pax.set_xscale(options.xscale)
@@ -765,7 +772,7 @@ def main():
         fmdf['order'] = sparsify_n_cell(fmdf['order'].to_list())
 
         filename = indir('table-{}-flts-m.inc'.format(tn))
-        header = ['order', 'lib', r'$\bar T^{ww} / \bar T^{ww}_r$', 'layout',
+        header = ['order', 'backend', rtwwmean_label, 'layout',
                   r'$\bar T^{ww} / \bar T^{ww}_d$']
         fmdf.to_latex(filename, index=False, escape=False, header=header,
                       column_format='rrlll')
