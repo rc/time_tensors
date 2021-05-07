@@ -606,9 +606,13 @@ def main():
 
     twwmean_label = r'$\bar T^{\rm ww}$ [s]'
     mmax_label = r'$M^{\rm max}$ [MB]'
+    twwmeanr_label = r'$\bar T^{\rm ww}_r$ [s]'
+    mmaxr_label = r'$M^{\rm max}_r$ [MB]'
     rtwwmean_label = r'$\bar T^{\rm ww} / \bar T^{ww}_r$'
     rmmax_label = r'$M^{\rm max} / M^{\rm max}_r$'
 
+    xlabels = {'rtwwmean' : rtwwmean_label, 'rmmax' : rmmax_label,
+               'twwmean' : twwmean_label, 'mmax' : mmax_label}
     plt.rcParams.update(options.plot_rc_params)
 
     if options.analysis == 'layouts':
@@ -657,8 +661,6 @@ def main():
         }
         xkeys = ['rtwwmean', 'rmmax']
         pxkeys = ['twwmean', 'mmax']
-        xlabels = {'rtwwmean' : rtwwmean_label, 'rmmax' : rmmax_label,
-                   'twwmean' : twwmean_label, 'mmax' : mmax_label}
         limit = options.limits.get('rtwwmean', ldf['rtwwmean'].max())
         minor_ykey = 'spaths' if not options.shorten_spaths else 'short_spaths'
         labelpad = options.layouts_params.get('labelpad', 0.0)
@@ -815,6 +817,7 @@ def main():
             xlim = options.xlim.get(xkey, {'auto' : True})
             ax.set_xlim(**xlim)
             ax.set_xscale(options.xscale)
+            ax.set_xlabel(xlabels[xkey])
             if xkey == 'rtwwmean':
                 ax.xaxis.set_major_locator(mt.FixedLocator(
                     [0.1, 0.2, 0.3, 0.4, 0.5, 0.65, 0.8, 1, 1.5, 2, 3, 4, 5]
@@ -850,6 +853,8 @@ def main():
             for key in keys:
                 ldf[key + '_rate'] = ldf['n_cell'] / ldf[key]
 
+            rlabels = {'twwmean_rate' : r'\#cells $/ \bar T^{\rm ww}$ [1/s]',
+                       'mmax_rate' : r'\#cells $/ M^{\rm max}$ [1/MB]'}
             def get_extreme(x):
                 k0 = x.keys()[0]
                 ii = nm.argmax(x[k0])
@@ -859,6 +864,8 @@ def main():
             for key in keys:
                 ldf[key + '_rate'] = ldf[key] / ldf['n_cell']
 
+            rlabels = {'twwmean_rate' : r'$\bar T^{\rm ww} /$ \#cells [s]',
+                       'mmax_rate' : r'$M^{\rm max} /$ \#cells [MB]'}
             def get_extreme(x):
                 k0 = x.keys()[0]
                 ii = nm.argmin(x[k0])
@@ -872,6 +879,8 @@ def main():
             for key in keys:
                 ldf[key + '_rate'] = size / ldf[key]
 
+            rlabels = {'twwmean_rate' : r'$|%s| / \bar T^{\rm ww}$ [1/s]',
+                       'mmax_rate' : r'$|%s| / M^{\rm max}$ [1/MB]'}
             def get_extreme(x):
                 k0 = x.keys()[0]
                 ii = nm.argmax(x[k0])
@@ -904,6 +913,10 @@ def main():
                     format_labels=format_labels2, show_legend=True
                 )
                 ax.set_yscale(options.xscale)
+                label = rlabels[key]
+                if options.rate_mode == 'result-sizes':
+                    label = label % ('r' if term_name.endswith(':') else 'M')
+                ax.set_ylabel(label)
 
                 plt.tight_layout()
                 figname = ('{}-{}-rate-n_cell-order-{}{}'
@@ -1081,7 +1094,7 @@ def main():
         }
         term_names = list(tn2key.keys())
 
-        ylabels = {'twwmean' : 'twwmean [s]', 'mmax' : 'mmax [MB]'}
+        ylabels = {'twwmean' : twwmeanr_label, 'mmax' : mmaxr_label}
         for key, diff in product(['twwmean', 'mmax'], [False, True]):
             fig, ax = plt.subplots()
 
