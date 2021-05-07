@@ -566,6 +566,8 @@ def _create_ldf(df, data):
 
     ldf = df[lkeys + ekeys].apply(lambda x: x.explode()
                                   if x.name in ekeys else x)
+    # Hot-fix for wrong repeat count.
+    ldf = ldf[ldf.repeat > 2]
     ldf.reset_index(drop=True, inplace=True)
     exprs = pd.DataFrame(ldf['lexpressions'].to_list(),
                          columns=['expressions', 'paths', 'sizes', 'blas'])
