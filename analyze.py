@@ -512,6 +512,7 @@ def main():
         rate_mode = 'cell-counts',
         xscale = 'log',
         xlim = 'auto=True',
+        key = '',
         suffix = '.png',
     )
 
@@ -976,7 +977,7 @@ def main():
             'dw_lin_elastic::u' : 'elasticity',
         }
         term_names = list(tn2key.keys())
-        for ii, fname in enumerate(('table-fts-r.inc', 'table-fts-m.inc')):
+        for ii, fname in enumerate(('table-fts-r{}.inc', 'table-fts-m{}.inc')):
             fts = {}
             for tn in term_names[5*ii:5*ii+5]:
                 tdf = ldf[ldf['term_name'] == tn]
@@ -1001,7 +1002,7 @@ def main():
 
             ftdf = pd.concat(fts, axis=1).reset_index()
             ftdf['n_cell'] = sparsify_n_cell(ftdf['n_cell'].to_list())
-            filename = indir(fname)
+            filename = indir(fname.format(options.key))
             header = ['\#cells', 'order'] + list(ftdf.keys())[2:]
             ftdf.to_latex(filename, index=False, escape=False, header=header,
                           column_format='rrlllll')
