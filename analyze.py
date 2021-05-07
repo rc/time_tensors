@@ -262,6 +262,7 @@ def plot_per_n_cell(ax, ldf, ykeys=('n_cell', 'order'),
     ysearch_labels = ydf.apply(ylabel_fun, axis=1)
     ax.set_yticks(yticks)
     ax.set_yticklabels(yticklabels)
+    ax.set_ylim(-0.5, yticks[-1] + 0.5)
     for vy in ysplits:
         ax.axhline(vy, color='k', ls=':')
 
@@ -350,6 +351,7 @@ def plot_per_n_cell_t(ax, ldf, ykeys=('order', 'n_cell'),
     ysearch_labels = ydf.apply(ylabel_fun, axis=1)
     ax.set_xticks(yticks)
     ax.set_xticklabels(yticklabels, rotation=90)
+    ax.set_xlim(-0.5, yticks[-1] + 0.5)
     for vy in ysplits:
         ax.axvline(vy, color='k', ls=':')
 
