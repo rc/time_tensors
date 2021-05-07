@@ -821,18 +821,12 @@ def main():
             ax.set_xlim(**xlim)
             ax.set_xscale(options.xscale)
             ax.set_xlabel(xlabels[xkey])
-            if xkey == 'rtwwmean':
-                ax.xaxis.set_major_locator(mt.FixedLocator(
-                    [0.1, 0.2, 0.3, 0.4, 0.5, 0.65, 0.8, 1, 1.5, 2, 3, 4, 5]
-                ))
-
-            else:
-                ax.xaxis.set_major_locator(mt.LogLocator(subs=(0.5, 1),
-                                                         numticks=5))
-            ax.xaxis.set_major_formatter(mt.StrMethodFormatter('{x:.2f}'))
+            ax.xaxis.set_major_locator(mt.LogLocator(subs=(0.2, 0.5, 1),
+                                                     numticks=5))
+            ax.xaxis.set_major_formatter(mt.StrMethodFormatter('{x:g}'))
             ax.xaxis.set_minor_locator(mt.LogLocator(subs=(0.5, 1),
                                                      numticks=3))
-            ax.xaxis.set_minor_formatter(mt.StrMethodFormatter('{x:.2f}'))
+            ax.xaxis.set_minor_formatter(mt.StrMethodFormatter('{x:g}'))
             ax.axvline(1, color='r')
 
             plt.tight_layout()
