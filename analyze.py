@@ -200,7 +200,7 @@ def plot_per_lib2(ax, ldf, data, style_key='layout', mark='cqgvd0',
         sps.add_legend(ax, select, styles, used, format_labels=format_labels,
                        loc='lower right', frame_alpha=0.8, ncol=1,
                        handlelength=1, handletextpad=0.4, columnspacing=0.2,
-                       labelspacing=0.4)
+                       labelspacing=0.2)
 
     return ax
 
@@ -291,7 +291,7 @@ def plot_per_n_cell(ax, ldf, ykeys=('n_cell', 'order'),
                        loc=['lower left', 'lower right'],
                        frame_alpha=0.8, ncol=1,
                        handlelength=1, handletextpad=0.4, columnspacing=0.2,
-                       labelspacing=0.4)
+                       labelspacing=0.2)
 
     return ax
 
@@ -374,7 +374,7 @@ def plot_per_n_cell_t(ax, ldf, ykeys=('order', 'n_cell'),
                        loc=['lower left', 'upper right'],
                        frame_alpha=0.8, ncol=1,
                        handlelength=1, handletextpad=0.4, columnspacing=0.2,
-                       labelspacing=0.4)
+                       labelspacing=0.2)
 
     return ax
 
@@ -1136,7 +1136,7 @@ def main():
                            loc=['center right', 'lower right'],
                            frame_alpha=0.8, ncol=1,
                            handlelength=1, handletextpad=0.4, columnspacing=0.2,
-                           labelspacing=0.4)
+                           labelspacing=0.2)
 
             ax.set_xscale(xscale)
             ax.set_yscale(yscale)
@@ -1217,7 +1217,7 @@ def main():
                                frame_alpha=0.8, ncol=1,
                                handlelength=1, handletextpad=0.4,
                                columnspacing=0.2,
-                               labelspacing=0.4)
+                               labelspacing=0.2)
 
     else:
         # ldf.lgroup.hist()
