@@ -229,7 +229,7 @@ def plot_per_n_cell(ax, ldf, ykeys=('n_cell', 'order'),
             'markersize' : 8,
         }
 
-    select = sps.select_by_keys(ldf, style_keys)
+    select = sps.select_by_keys(all_ldf, style_keys)
     styles = {marker_key : marker_style,
               color_key : {'color' : 'nipy_spectral:max=0.95',}}
     styles = sps.setup_plot_styles(select, styles)
@@ -324,7 +324,7 @@ def plot_per_n_cell_t(ax, ldf, ykeys=('order', 'n_cell'),
             'markersize' : 8,
         }
 
-    select = sps.select_by_keys(ldf, style_keys)
+    select = sps.select_by_keys(all_ldf, style_keys)
     styles = {marker_key : marker_style,
               color_key : {'color' : 'nipy_spectral:max=0.95',}}
     styles = sps.setup_plot_styles(select, styles)
