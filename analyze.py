@@ -701,12 +701,12 @@ def main():
                 ))
 
             else:
-                ax.xaxis.set_major_locator(mt.LogLocator(subs=(0.5, 1),
+                ax.xaxis.set_major_locator(mt.LogLocator(subs=(0.2, 0.5, 1),
                                                          numticks=5))
-            ax.xaxis.set_major_formatter(mt.StrMethodFormatter('{x:.1f}'))
-            ax.xaxis.set_minor_locator(mt.LogLocator(subs=(0.5, 1),
+            ax.xaxis.set_major_formatter(mt.StrMethodFormatter('{x:g}'))
+            ax.xaxis.set_minor_locator(mt.LogLocator(subs=(0.2, 0.5, 1),
                                                      numticks=2))
-            ax.xaxis.set_minor_formatter(mt.StrMethodFormatter('{x:.1f}'))
+            ax.xaxis.set_minor_formatter(mt.StrMethodFormatter('{x:g}'))
             ax.xaxis.labelpad = labelpad
             ax.axvline(1, color='r')
             xlim = nm.array(ax.get_xlim())
@@ -722,12 +722,12 @@ def main():
             coef = sdf[pxkey].iloc[0] / sdf[xkey].iloc[0]
             pax.set_xlim(*(coef * xlim))
             pax.set_xscale(options.xscale)
-            pax.xaxis.set_major_locator(mt.LogLocator(subs=(0.5, 1),
+            pax.xaxis.set_major_locator(mt.LogLocator(subs=(0.2, 0.5, 1),
                                                       numticks=5))
-            pax.xaxis.set_major_formatter(mt.StrMethodFormatter('{x:.1f}'))
-            pax.xaxis.set_minor_locator(mt.LogLocator(subs=(0.5, 1),
+            pax.xaxis.set_major_formatter(mt.StrMethodFormatter('{x:g}'))
+            pax.xaxis.set_minor_locator(mt.LogLocator(subs=(0.2, 0.5, 1),
                                                       numticks=2))
-            pax.xaxis.set_minor_formatter(mt.StrMethodFormatter('{x:.1f}'))
+            pax.xaxis.set_minor_formatter(mt.StrMethodFormatter('{x:g}'))
             pax.xaxis.labelpad = labelpad
 
             plt.tight_layout()
