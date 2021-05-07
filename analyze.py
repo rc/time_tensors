@@ -812,7 +812,7 @@ def main():
             ax = plot_per_n_cell(
                 None, sdf, ykeys=('order', 'n_cell'),
                 marker_key='lib', color_key=color_key,
-                xkey=xkey, all_ldf=ldf,
+                xkey=xkey, all_ldf=sdf,
                 format_labels=format_labels2, show_legend=True
             )
             xlim = options.xlim.get(xkey, {'auto' : True})
@@ -889,7 +889,6 @@ def main():
 
         ldf = ldf[ldf['term_name'].isin(term_names)]
 
-
         gbt = ldf.groupby(['term_name', 'n_cell', 'order', 'lib'])
 
         for key in [key + '_rate' for key in keys]:
@@ -899,6 +898,7 @@ def main():
 
             for term_name in term_names:
                 sdf = rdf[(rdf['term_name'] == term_name)]
+                asdf = ldf[(ldf['term_name'] == term_name)]
 
                 if term_name == 'dw_convect::u':
                     color_key = ('spaths' if not options.shorten_spaths else
@@ -910,7 +910,7 @@ def main():
                 ax = plot_per_n_cell_t(
                     None, sdf, ykeys=('order', 'n_cell'),
                     marker_key='lib', color_key=color_key,
-                    xkey=key, all_ldf=rdf,
+                    xkey=key, all_ldf=asdf,
                     format_labels=format_labels2, show_legend=True
                 )
                 ax.set_yscale(options.xscale)
