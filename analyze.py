@@ -879,8 +879,8 @@ def main():
             for key in keys:
                 ldf[key + '_rate'] = size / ldf[key]
 
-            rlabels = {'twwmean_rate' : r'$|%s| / \bar T^{\rm ww}$ [1/s]',
-                       'mmax_rate' : r'$|%s| / M^{\rm max}$ [1/MB]'}
+            rlabels = {'twwmean_rate' : r'$|%s| / \bar T^{\rm ww}$ [MB/s]',
+                       'mmax_rate' : r'$|%s| / M^{\rm max}$ [MB/MB]'}
             def get_extreme(x):
                 k0 = x.keys()[0]
                 ii = nm.argmax(x[k0])
