@@ -705,8 +705,8 @@ def main():
                                                      numticks=2))
             ax.xaxis.set_minor_formatter(mt.StrMethodFormatter('{x:.1f}'))
             ax.xaxis.labelpad = labelpad
-            xlim = nm.array(ax.get_xlim())
             ax.axvline(1, color='r')
+            xlim = nm.array(ax.get_xlim())
 
             pax = ax.twiny()
             pax.xaxis.set_ticks_position('bottom')
