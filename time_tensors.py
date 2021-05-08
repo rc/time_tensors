@@ -573,7 +573,8 @@ def _create_ldf(df, data):
                          columns=['expressions', 'paths', 'sizes', 'blas'])
     ldf[['expressions', 'paths', 'sizes', 'blas']] = exprs
 
-    fmt = lambda x: '+'.join([','.join(['{}{}'.format(*ii) for ii in path])
+    fmt = lambda x: '+'.join([','.join([('{}' * len(ii)).format(*ii)
+                                        for ii in path])
                               for path in x] if isinstance(x, list) else '-')
     ldf['spaths'] = ldf['paths'].apply(fmt)
 
