@@ -909,6 +909,21 @@ def main():
                     xkey=key, all_ldf=asdf,
                     format_labels=format_labels2, show_legend=True
                 )
+                if term_name in ('dw_volume_dot:vm:u', 'dw_convect::u'):
+                    from matplotlib.legend import Legend
+                    legs = [ii for ii in ax.get_children()
+                            if isinstance(ii, Legend)]
+                    leg = legs[1]
+                    lines = leg.get_lines()
+                    labels = [tt.get_text() for tt in leg.get_texts()]
+                    leg.remove()
+                    leg = ax.legend(lines, labels, fontsize=8, loc='upper right',
+                              ncol=1,
+                              handlelength=1, handletextpad=0.4,
+                              columnspacing=0.2,
+                              labelspacing=0.1)
+                    leg.get_frame().set_alpha(0.8)
+
                 ax.set_yscale(options.xscale)
                 label = rlabels[key]
                 if options.rate_mode == 'result-sizes':
