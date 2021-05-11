@@ -223,29 +223,41 @@ def main():
             cost = get_naive_cost(ebuilder, operands)
             costs.append(cost)
 
+    tn2key = {
+        'dw_laplace' : 'Laplacian',
+        'dw_volume_dot:vector' : 'vector dot',
+        'dw_volume_dot:vector-material' : 'weighted vector dot',
+        'dw_convect' : 'NS convective',
+        'dw_lin_elastic' : 'elasticity',
+    }
+    keys = [tn2key.get(ii, ii) for ii in all_costs.keys()]
+
     markers = list(Line2D.filled_markers)
-    select = sps.normalize_selected({'term' : list(all_costs.keys())})
+    select = sps.normalize_selected({'term' : keys})
     styles = {'term' : {'color' : 'tab10:kind=qualitative', 'marker' : markers,
                         'mfc' : 'None', 'ms' : 8}}
     styles = sps.setup_plot_styles(select, styles)
 
+    plt.rcParams.update({'font.size' : 14, 'text.usetex' : True})
+
     fig, ax = plt.subplots()
     used = None
-    for key, costs in all_costs.items():
+    for _key, costs in all_costs.items():
+        key = tn2key.get(_key, _key)
         style_kwargs, indices = sps.get_row_style(
             {'term' : key}, select, {}, styles
         )
         used = sps.update_used(used, indices)
         ax.semilogy(orders, costs, **style_kwargs)
 
-    mode = 'vector' if options.diff is None else 'matrix'
+    mode = 'residual' if options.diff is None else 'matrix'
     ax.set_title('{} mode'.format(mode))
     ax.set_xticks(orders)
     ax.set_xlabel('order')
     ax.set_ylabel('flops per cell')
-    ax.grid(which='both', axis='y')
+    ax.grid(which='major', axis='y')
     sps.add_legend(ax, select, styles, used,
-                   format_labels=lambda key, iv, val: val[3:])
+                   format_labels=lambda key, iv, val: val)
     plt.tight_layout()
 
     filename = os.path.join(options.output_dir, 'flops-{}.pdf'.format(mode))
