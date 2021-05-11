@@ -963,7 +963,7 @@ def main():
         filename = indir('table-cdc.inc')
         # header = ['#cells', 'order', '#QP', 'scalar #DOFs', 'vector #DOFs']
         header = ['\#cells', 'order', '\#QP', '\#DOFs/comp.', 'repeat',
-                  '$r_s$ [MB]', '$M_s$ [MB]', '$r_v$ [MB]', '$M_v$ [MB]']
+                  '$|r_s|$ [MB]', '$|M_s|$ [MB]', '$|r_v|$ [MB]', '$|M_v|$ [MB]']
         cdf.to_latex(filename, index=False, escape=False,
                      formatters=(['{}'.format] + (['{:,}'.format] * 4)
                                  + ['{:,.1f}'.format] * 4),
