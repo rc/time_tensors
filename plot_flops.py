@@ -50,7 +50,7 @@ def get_naive_cost(ebuilder, operands):
     for ia, (expr, ops) in enumerate(zip(ebuilder.get_expressions(),
                                          operands)):
         print(expr)
-        sizes = ebuilder.get_sizes(ia, operands)
+        sizes = tm.get_sizes(ebuilder.subscripts[ia], ops)
         print(sizes)
 
         input_sets = [set(val) for val in ebuilder.subscripts[ia]]
@@ -160,13 +160,14 @@ def main():
                 bf=nm.empty((1, n_qp, 1, n_en)),
                 bfg=nm.empty((n_cell, n_qp, dim, n_en)),
                 det=nm.empty((n_cell, n_qp)),
+                region_name='r',
                 n_components=n_c,
                 dim=dim,
                 kind='virtual',
             )
 
             arg = Struct(evaluate_cache={
-                'dofs' : {0 : {'u' : nm.empty((n_cell, n_c, n_en))}}
+                'dofs' : {0 : {('u', 'r') : nm.empty((n_cell, n_c, n_en))}}
             })
             state = tm.ExpressionArg(
                 name='u',
@@ -174,6 +175,7 @@ def main():
                 bf=nm.empty((1, n_qp, 1, n_en)),
                 bfg=nm.empty((n_cell, n_qp, dim, n_en)),
                 det=nm.empty((n_cell, n_qp)),
+                region_name='r',
                 n_components=n_c,
                 dim=dim,
                 kind='state',
@@ -223,7 +225,7 @@ def main():
 
     markers = list(Line2D.filled_markers)
     select = sps.normalize_selected({'term' : list(all_costs.keys())})
-    styles = {'term' : {'color' : 'tab10:qualitative', 'marker' : markers,
+    styles = {'term' : {'color' : 'tab10:kind=qualitative', 'marker' : markers,
                         'mfc' : 'None', 'ms' : 8}}
     styles = sps.setup_plot_styles(select, styles)
 
