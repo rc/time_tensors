@@ -1002,6 +1002,7 @@ def main():
         term_names = list(tn2key.keys())
         for ii, fname in enumerate(('table-fts-r{}.inc', 'table-fts-m{}.inc')):
             fts = {}
+            smins = {}
             for tn in term_names[5*ii:5*ii+5]:
                 tdf = ldf[ldf['term_name'] == tn]
                 rdf = tdf[tdf['lib'] == 'sfepy']
@@ -1014,6 +1015,7 @@ def main():
 
                 aux = pd.concat((rmin, smin), axis=1)
                 key = tn2key[tn]
+                smins[key] = smin
                 fts[key] = aux.apply(
                     lambda x: '{} ({} {:.1f})'.format(
                         sof.format_float_latex(x[1], '5.2f'),
@@ -1029,6 +1031,8 @@ def main():
             header = ['\#cells', 'order'] + list(ftdf.keys())[2:]
             ftdf.to_latex(filename, index=False, escape=False, header=header,
                           column_format='rrlllll')
+            smindf = pd.concat(smins, axis=1).reset_index()
+            smindf.to_hdf(io.edit_filename(filename, new_ext='.h5'), key='df')
 
     elif options.analysis == 'mem-usages-in-limit':
         def get_min(x):
