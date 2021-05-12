@@ -512,6 +512,7 @@ def main():
         layouts_params = "",
         shorten_spaths = False,
         rate_mode = 'cell-counts',
+        markers = '',
         xscale = 'log',
         xlim = 'auto=True',
         key = '',
@@ -564,6 +565,7 @@ def main():
     options.limits = so.parse_as_dict(options.limits)
     options.plot_rc_params = so.parse_as_dict(options.plot_rc_params)
     options.layouts_params = so.parse_as_dict(options.layouts_params)
+    options.markers = so.parse_as_list(options.markers)
     options.xlim = so.parse_as_dict(options.xlim)
 
     output_dir = options.output_dir
@@ -886,6 +888,16 @@ def main():
         ldf = ldf[ldf['term_name'].isin(term_names)]
 
         gbt = ldf.groupby(['term_name', 'n_cell', 'order', 'lib'])
+        markers = (options.markers if len(options.markers)
+                   else ['o', '^', 'v', '<', 'x', '>', 's', '+', '.'])
+        marker_style = {
+            'lw' : 0.2,
+            'mew' : 1.0,
+            'marker' : markers,
+            'alpha' : 1.0,
+            'mfc' : 'None',
+            'markersize' : 8,
+        }
 
         for key in [key + '_rate' for key in keys]:
             aux = [key, 'spaths']
@@ -906,7 +918,7 @@ def main():
                 ax = plot_per_n_cell_t(
                     None, sdf, ykeys=('order', 'n_cell'),
                     marker_key='lib', color_key=color_key,
-                    xkey=key, all_ldf=asdf,
+                    xkey=key, all_ldf=asdf, marker_style=marker_style,
                     format_labels=format_labels2, show_legend=True
                 )
                 if term_name in ('dw_volume_dot:vm:u', 'dw_convect::u'):
