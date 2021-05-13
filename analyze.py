@@ -989,13 +989,13 @@ def main():
 
         tn2key = {
             'dw_laplace::' : 'Laplacian' ,
-            'dw_volume_dot:v:' : 'dot' ,
-            'dw_volume_dot:vm:' : 'weighted dot',
+            'dw_volume_dot:v:' : 'v. dot' ,
+            'dw_volume_dot:vm:' : 'weighted v. dot',
             'dw_convect::' : 'NS convective',
             'dw_lin_elastic::' : 'elasticity',
             'dw_laplace::u' : 'Laplacian' ,
-            'dw_volume_dot:v:u' : 'dot' ,
-            'dw_volume_dot:vm:u' : 'weighted dot',
+            'dw_volume_dot:v:u' : 'v. dot' ,
+            'dw_volume_dot:vm:u' : 'weighted v. dot',
             'dw_convect::u' : 'NS convective',
             'dw_lin_elastic::u' : 'elasticity',
         }
@@ -1047,13 +1047,13 @@ def main():
 
         tn2key = {
             'dw_laplace::' : 'Laplacian' ,
-            'dw_volume_dot:v:' : 'dot' ,
-            'dw_volume_dot:vm:' : 'weighted dot',
+            'dw_volume_dot:v:' : 'v. dot' ,
+            'dw_volume_dot:vm:' : 'weighted v. dot',
             'dw_convect::' : 'NS convective',
             'dw_lin_elastic::' : 'elasticity',
             'dw_laplace::u' : 'Laplacian' ,
-            'dw_volume_dot:v:u' : 'dot' ,
-            'dw_volume_dot:vm:u' : 'weighted dot',
+            'dw_volume_dot:v:u' : 'v. dot' ,
+            'dw_volume_dot:vm:u' : 'weighted v. dot',
             'dw_convect::u' : 'NS convective',
             'dw_lin_elastic::u' : 'elasticity',
         }
