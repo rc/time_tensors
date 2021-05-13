@@ -517,6 +517,7 @@ def main():
         xlim = 'auto=True',
         key = '',
         suffix = '.png',
+        ldf_filename = 'ldf.h5'
     )
 
     parser = ArgumentParser(description=__doc__.rstrip(),
@@ -640,6 +641,7 @@ def main():
         #ldf = gb.apply(lambda x: x.iloc[0]).reset_index(drop=True)
 
         output('reduced ldf shape:', ldf.shape)
+        ldf.to_hdf(options.ldf_filename, key='df')
 
         ldf = ldf[ldf['lib'] != 'sfepy']
         ldf['lgroup'] = ldf['rlayout'].apply(get_reduced_layout_group)
@@ -790,6 +792,7 @@ def main():
                       'dw_volume_dot:v:u', 'dw_volume_dot:vm:u', 'dw_convect::u',
                       'dw_lin_elastic::u']
         ldf = ldf[ldf['term_name'].isin(term_names)]
+        output('reduced ldf shape:', ldf.shape)
 
         gbt = ldf.groupby('term_name')
         thist = {key : len(val) for key, val in gbt.groups.items()}
@@ -886,6 +889,8 @@ def main():
                 return x.iloc[ii]
 
         ldf = ldf[ldf['term_name'].isin(term_names)]
+        output('reduced ldf shape:', ldf.shape)
+        ldf.to_hdf(options.ldf_filename, key='df')
 
         gbt = ldf.groupby(['term_name', 'n_cell', 'order', 'lib'])
         markers = (options.markers if len(options.markers)
