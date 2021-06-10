@@ -1,6 +1,9 @@
+#!/usr/bin/env python
 """
 fenics also assembles -> compare with full problem.evaluate()!
 """
+from argparse import ArgumentParser, RawDescriptionHelpFormatter
+import os.path as op
 import numpy as nm
 
 import fenics as fe
@@ -15,23 +18,13 @@ from sfepy.mesh.mesh_generators import gen_block_mesh
 from soops import Struct
 from soops.timing import Timer
 
-fe.set_log_active(True)
+def print_fenics_n_qp():
+    shape = 'hexahedron'
+    scheme = 'default'
 
-shape = 'hexahedron'
-scheme = 'default'
-
-for deg in range(1, 12):
-    points, weights = cquad(shape, deg, scheme)
-    print(deg, len(points))
-
-options = Struct(
-    #n_cell = 1024,
-    #n_cell = 32768,
-    n_cell = 262144,
-    #n_cell = 1048576,
-    order = 1,
-    repeat = 2,
-)
+    for deg in range(1, 12):
+        points, weights = cquad(shape, deg, scheme)
+        print('degree:', deg, 'n_qp:', len(points))
 
 def assemble_sfepy_form(n_cell, order, repeat):
     mesh = gen_block_mesh((n_cell, 1, 1), (n_cell + 1, 2, 2), (0, 0, 0),
@@ -86,5 +79,59 @@ def assemble_fenics_form(n_cell, order, repeat):
         print(timer.stop())
         print(mtx.size(0))
 
-assemble_fenics_form(options.n_cell, options.order, options.repeat)
-assemble_sfepy_form(options.n_cell, options.order, options.repeat)
+helps = {
+    'output_dir'
+    : 'output directory',
+    'silent'
+    : 'do not print messages to screen',
+    'shell'
+    : 'run ipython shell after all computations',
+}
+
+def main():
+    opts = Struct(
+        n_cell = 1024,
+        order = 1,
+        repeat = 2,
+    )
+    parser = ArgumentParser(description=__doc__.rstrip(),
+                            formatter_class=RawDescriptionHelpFormatter)
+    parser.add_argument('output_dir', help=helps['output_dir'])
+    for key, val in opts.items():
+        helps[key] = '[default: %(default)s]'
+        action = 'store'
+        if val is True:
+            action = 'store_false'
+
+        elif val is False:
+            action = 'store_true'
+
+        if action == 'store':
+            parser.add_argument('--' + key.replace('_', '-'),
+                                type=type(val),
+                                action=action, dest=key,
+                                default=val, help=helps[key])
+        else:
+            parser.add_argument('--' + key.replace('_', '-'),
+                                action=action, dest=key,
+                                default=val, help=helps[key])
+    parser.add_argument('--silent',
+                        action='store_true', dest='silent',
+                        default=False, help=helps['silent'])
+    parser.add_argument('--shell',
+                        action='store_true', dest='shell',
+                        default=False, help=helps['shell'])
+    options = parser.parse_args()
+
+    fe.set_log_active(False)
+
+    print_fenics_n_qp()
+
+    assemble_fenics_form(options.n_cell, options.order, options.repeat)
+    assemble_sfepy_form(options.n_cell, options.order, options.repeat)
+
+    if options.shell:
+        from soops.base import shell; shell()
+
+if __name__ == '__main__':
+    main()
