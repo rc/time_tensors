@@ -5,6 +5,7 @@ fenics also assembles -> compare with full problem.evaluate()!
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 import os.path as op
 import numpy as nm
+import gc
 
 import fenics as fe
 from ffc.fiatinterface import create_quadrature as cquad
@@ -82,6 +83,8 @@ def assemble_sfepy_form(form, n_cell, order, repeat):
                           mode='weak', dw_mode='matrix')
         times.append(timer.stop())
         output('repeat:', ir, mtx.shape[0], times[-1])
+        del mtx
+        gc.collect()
 
     return times
 
@@ -115,6 +118,8 @@ def assemble_fenics_form(form, n_cell, order, repeat):
         mtx = fe.assemble(term, form_compiler_parameters=fcc_pars)
         times.append(timer.stop())
         output('repeat:', ir, mtx.size(0), times[-1])
+        del mtx
+        gc.collect()
 
     return times
 
