@@ -5,6 +5,7 @@ fenics also assembles -> compare with full problem.evaluate()!
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 import os.path as op
 import numpy as nm
+from functools import partial
 import gc
 
 import fenics as fe
@@ -47,6 +48,53 @@ def get_run_info():
     output_dir_key = 'output_dir'
 
     return run_cmd, opt_args, output_dir_key, 'output_log.txt'
+
+def get_scoop_info():
+    import soops.scoop_outputs as sc
+
+    info = [
+        ('options.txt', partial(
+            sc.load_split_options,
+            split_keys=None,
+        ), True),
+        ('mprofile.dat', load_mprofile),
+        ('output_log.txt', scrape_output),
+    ]
+
+    return info
+
+def load_mprofile(filename, rdata=None):
+    from mprof import read_mprofile_file
+
+    mdata = read_mprofile_file(filename)
+    mdata.pop('children')
+    mdata.pop('cmd_line')
+    mdata['mem_usage'] = nm.array(mdata['mem_usage'])
+    mdata['timestamp'] = nm.array(mdata['timestamp'])
+    mdata['func_timestamp'] = {key.split('_')[-2] : val
+                               for key, val in mdata['func_timestamp'].items()}
+
+    return mdata
+
+def scrape_output(filename, rdata=None):
+    import soops.ioutils as io
+    from ast import literal_eval
+
+    out = {}
+    with open(filename, 'r') as fd:
+        out['t'] = []
+        for ir in range(rdata['repeat']):
+            line = io.skip_lines_to(fd, 'repeat:')
+            if line:
+                line = line.split(':')[2].strip().split()
+
+            else:
+                break
+
+            out['t'].append(literal_eval(line[-1]))
+            out['mtx_size'] = literal_eval(line[-2])
+
+    return out
 
 def print_fenics_n_qp():
     shape = 'hexahedron'
