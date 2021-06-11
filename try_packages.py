@@ -96,6 +96,43 @@ def scrape_output(filename, rdata=None):
 
     return out
 
+def get_plugin_info():
+    info = [
+        collect_stats,
+    ]
+
+    return info
+
+def _get_mem(drow):
+    mu = drow['mem_usage']
+    tss = drow['timestamp']
+    ts = drow['func_timestamp'][drow['package']][0]
+
+    i0, i1 = nm.searchsorted(tss, ts[:2])
+    if i1 > i0:
+        mmax = max(mu[i0:i1].max(), ts[3])
+        mmin = min(mu[i0:i1].min(), ts[2])
+
+    else:
+        mmax = ts[3]
+        mmin = ts[2]
+
+    mem = mmax - mmin
+    return mem
+
+def collect_stats(df, data=None):
+    import time_tensors as tt
+
+    stat_keys = ('mean', 'min', 'max', 'emin', 'emax', 'wwmean')
+    for key, val in zip(['t' + ii for ii in stat_keys],
+                        tt.get_stats(df, 't')):
+        df[key] = val
+
+    if 'func_timestamp' in df:
+        df['mem'] = df.apply(_get_mem, axis=1)
+
+    return data
+
 def print_fenics_n_qp():
     shape = 'hexahedron'
     scheme = 'default'
