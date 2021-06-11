@@ -25,6 +25,28 @@ try:
 except NameError:
     profile = lambda x: x
 
+def get_run_info():
+    # script_dir is added by soops-run, it is the normalized path to
+    # this script.
+    run_cmd = """
+    rm {output_dir}/mprofile.dat; mprof run -T {sampling} -C -o {output_dir}/mprofile.dat try_packages.py {output_dir}
+    """
+    run_cmd = ' '.join(run_cmd.split())
+
+    # Arguments allowed to be missing in soops-run calls.
+    opt_args = {
+        '--package' : '--package={--package}',
+        '--form' : '--form={--form}',
+        '--n-cell' : '--n-cell={--n-cell}',
+        '--order' : '--order={--order}',
+        '--repeat' : '--repeat={--repeat}',
+        '--silent' : '--silent',
+    }
+
+    output_dir_key = 'output_dir'
+
+    return run_cmd, opt_args, output_dir_key, 'output_log.txt'
+
 def print_fenics_n_qp():
     shape = 'hexahedron'
     scheme = 'default'
