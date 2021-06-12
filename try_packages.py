@@ -49,7 +49,22 @@ def get_run_info():
 
     output_dir_key = 'output_dir'
 
-    return run_cmd, opt_args, output_dir_key, 'output_log.txt'
+    def is_finished(pars, options):
+        output_dir = pars[output_dir_key]
+        filename = op.join(output_dir, 'output_log.txt')
+        ok = op.exists(filename)
+        if ok:
+            with open(filename, 'r') as fd:
+                for line in fd:
+                    if 'times:' in line:
+                        break
+
+                else:
+                    ok = False
+
+        return ok
+
+    return run_cmd, opt_args, output_dir_key, is_finished
 
 def get_scoop_info():
     import soops.scoop_outputs as sc
