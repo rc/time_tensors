@@ -20,7 +20,9 @@ from sfepy.terms import Term
 from sfepy.mesh.mesh_generators import gen_block_mesh
 
 import soops as so
+from soops.base import product
 from soops.timing import Timer
+import soops.plot_selected as sps
 
 try:
     _ = profile
@@ -114,8 +116,12 @@ def scrape_output(filename, rdata=None):
     return out
 
 def get_plugin_info():
+    from soops.plugins import show_figures
+
     info = [
         collect_stats,
+        plot_results,
+        show_figures,
     ]
 
     return info
@@ -149,6 +155,106 @@ def collect_stats(df, data=None):
         df['mem'] = df.apply(_get_mem, axis=1)
 
     return data
+
+def _format_labels(key, iv, val, tn2key=None):
+    if key == 'form':
+        return tn2key[val]
+
+    else:
+        return val
+
+def plot_results(df, data=None, suffix='.png'):
+    import matplotlib.pyplot as plt
+    indir = partial(op.join, data.output_dir)
+
+    plt.rcParams.update({
+        'text.usetex' : True,
+        'font.size' : 14.0,
+        'legend.fontsize' : 12.0
+    })
+
+    twwmeanr_label = r'$\bar T^{\rm ww}_r$ [s]'
+    mmaxr_label = r'$M^{\rm max}_r$ [MB]'
+
+    marker_style = {
+        'lw' : 1,
+        'mew' : 1.0,
+        'marker' : ['o', '^', 'v', 'D', 's'],
+        'alpha' : 1.0,
+        'mfc' : 'None',
+        'markersize' : 8,
+    }
+
+    xscale = 'log'
+    yscale = 'log'
+
+    tn2key = {
+        'dw_laplace' : 'Laplacian' ,
+        'dw_volume_dot' : 'scalar dot' ,
+    }
+    term_names = list(tn2key.keys())
+    ylabels = {'twwmean' : twwmeanr_label, 'mmax' : mmaxr_label}
+    orders = data.par_uniques['order']
+    packages = data.par_uniques['package']
+    for key in ['twwmean', 'mmax']:
+        if key not in df: continue
+        fig, ax = plt.subplots()
+
+        select = sps.select_by_keys(df, ['order', 'package'])
+        select.update({'form' : term_names})
+        styles = {'form' : marker_style,
+                  'order' : {'color' : 'tab10:kind=qualitative',},
+                  'package' : {'ls' : ['--', '-'],}}
+        styles = sps.setup_plot_styles(select, styles)
+
+        ax.grid(True)
+        used = None
+        maxs = {ii : (0, 0) for ii in select['order']}
+        for term_name, order, package in product(
+                term_names, orders, packages,
+        ):
+            sdf = df[(df['form'] == term_name) &
+                     (df['order'] == order) &
+                     (df['package'] == package)]
+            if not len(sdf): continue
+
+            style_kwargs, indices, used = sps.get_row_style_used(
+                sdf.iloc[0], select, {}, styles, used
+            )
+            vx = sdf.n_cell.values
+            means = sdf[key].values
+            ax.plot(vx, means, **style_kwargs)
+
+            imax = sdf[key].idxmax()
+            if sdf.loc[imax, key] > maxs[order][1]:
+                maxs[order] = (sdf.loc[imax, 'n_cell'], sdf.loc[imax, key])
+
+        sps.add_legend(ax, select, styles, used, per_parameter=False,
+                       format_labels=partial(_format_labels, tn2key=tn2key),
+                       loc='best',
+                       # loc=['upper right', 'center right', 'lower right'],
+                       frame_alpha=0.8, ncol=1,
+                       handlelength=1, handletextpad=0.4, columnspacing=0.2,
+                       labelspacing=0.2)
+
+        ax.set_xscale(xscale)
+        ax.set_yscale(yscale)
+        ax.set_xlabel(r'\#cells')
+        ax.set_ylabel(ylabels[key])
+
+        for order, (mx, my) in maxs.items():
+            fmt = '{:.2f}' if my < 1 else '{:.1f}'
+            ax.annotate(fmt.format(my), xy=(mx, my), xytext=(-5, 15),
+                        textcoords='offset points',
+                        arrowprops=dict(facecolor='black',
+                                        arrowstyle='->',
+                                        shrinkA=0,
+                                        shrinkB=0))
+
+        plt.tight_layout()
+        figname = ('packages-{}{}'.format(key, suffix))
+        fig = ax.figure
+        fig.savefig(indir(figname), bbox_inches='tight')
 
 def print_fenics_n_qp():
     shape = 'hexahedron'
