@@ -4,6 +4,7 @@ fenics also assembles -> compare with full problem.evaluate()!
 """
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 import os.path as op
+import psutil
 import numpy as nm
 from functools import partial
 import gc
@@ -42,6 +43,7 @@ def get_run_info():
         '--n-cell' : '--n-cell={--n-cell}',
         '--order' : '--order={--order}',
         '--repeat' : '--repeat={--repeat}',
+        '--affinity' : '--affinity={--affinity}',
         '--silent' : '--silent',
     }
 
@@ -224,6 +226,7 @@ def main():
         n_cell = 1024,
         order = 1,
         repeat = 2,
+        affinity = 0,
     )
     parser = ArgumentParser(description=__doc__.rstrip(),
                             formatter_class=RawDescriptionHelpFormatter)
@@ -268,6 +271,9 @@ def main():
     filename = op.join(output_dir, 'options.txt')
     so.save_options(filename, [('options', vars(options))],
                     quote_command_line=True)
+
+    this = psutil.Process()
+    this.cpu_affinity(options.affinity)
 
     if options.package == 'sfepy':
         times = assemble_sfepy_form(options.form, options.n_cell,
