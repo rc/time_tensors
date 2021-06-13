@@ -368,7 +368,7 @@ def main():
         n_cell = 1024,
         order = 1,
         repeat = 2,
-        affinity = 0,
+        affinity = '',
     )
     parser = ArgumentParser(description=__doc__.rstrip(),
                             formatter_class=RawDescriptionHelpFormatter)
@@ -403,6 +403,8 @@ def main():
                         action='store_true', dest='shell',
                         default=False, help=helps['shell'])
     options = parser.parse_args()
+
+    options.affinity = so.parse_as_list(options.affinity)
 
     output_dir = options.output_dir
     output.prefix = 'try_packages:'
