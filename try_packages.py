@@ -277,11 +277,15 @@ def assemble_sfepy_form(form, n_cell, order, repeat):
                           name='')
     domain = FEDomain('el', mesh)
     omega = domain.create_region('omega', 'all')
-    field = Field.from_args('fu', nm.float64, 1, omega,
+
+    nc = 3 if ':v' in form else 1
+    field = Field.from_args('fu', nm.float64, nc, omega,
                             approx_order=order)
 
     u = FieldVariable('u', 'unknown', field)
     v = FieldVariable('v', 'test', field, primary_var_name='u')
+
+    form = form.split(':')[0]
 
     timer = Timer()
     times = []
@@ -309,7 +313,11 @@ def assemble_fenics_form(form, n_cell, order, repeat):
                              [n_cell, 1, 1],
                              fe.CellType.Type.hexahedron)
 
-    V = fe.FunctionSpace(mesh, 'Q', order)
+    if ':v' in form:
+        V = fe.VectorFunctionSpace(mesh, 'Lagrange', order)
+
+    else:
+        V = fe.FunctionSpace(mesh, 'Lagrange', order)
 
     u = fe.TrialFunction(V)
     v = fe.TestFunction(V)
@@ -324,11 +332,14 @@ def assemble_fenics_form(form, n_cell, order, repeat):
     times = []
     for ir in range(repeat):
         timer.start()
-        if form == 'dw_laplace':
+        if form == 'dw_laplace::u':
+            term = fe.dot(fe.grad(u), fe.grad(v))*fe.dx
+
+        elif form == 'dw_volume_dot::u':
             term = fe.dot(u, v)*fe.dx
 
-        elif form == 'dw_volume_dot':
-            term = fe.dot(fe.grad(u), fe.grad(v))*fe.dx
+        elif form == 'dw_volume_dot:v:u':
+            term = fe.dot(u, v)*fe.dx
 
         mtx = fe.assemble(term, form_compiler_parameters=fcc_pars)
         times.append(timer.stop())
@@ -350,7 +361,7 @@ helps = {
 def main():
     opts = so.Struct(
         package = ('sfepy', 'fenics'),
-        form = ('dw_laplace', 'dw_volume_dot'),
+        form = ('dw_laplace::u', 'dw_volume_dot::u', 'dw_volume_dot:v:u'),
         n_cell = 1024,
         order = 1,
         repeat = 2,
