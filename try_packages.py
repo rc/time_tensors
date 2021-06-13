@@ -170,7 +170,7 @@ def _format_labels(key, iv, val, tn2key=None):
     else:
         return val
 
-def plot_results(df, data=None, suffix='.png'):
+def plot_results(df, data=None, term_names=None, suffix='.png'):
     import matplotlib.pyplot as plt
     indir = partial(op.join, data.output_dir)
 
@@ -180,11 +180,11 @@ def plot_results(df, data=None, suffix='.png'):
         'legend.fontsize' : 12.0
     })
 
-    twwmeanr_label = r'$\bar T^{\rm ww}_r$ [s]'
-    mmaxr_label = r'$M^{\rm max}_r$ [MB]'
+    twwmean_label = r'$\bar T^{\rm ww}$ [s]'
+    mem_label = r'$M$ [MB]'
 
     marker_style = {
-        'lw' : 1,
+        'lw' : 2,
         'mew' : 1.0,
         'marker' : ['o', '^', 'v', 'D', 's'],
         'alpha' : 1.0,
@@ -196,14 +196,17 @@ def plot_results(df, data=None, suffix='.png'):
     yscale = 'log'
 
     tn2key = {
-        'dw_laplace' : 'Laplacian' ,
-        'dw_volume_dot' : 'scalar dot' ,
+        'dw_laplace::u' : 'Laplacian',
+        'dw_volume_dot::u' : 'scalar dot',
+        'dw_volume_dot:v:u' : 'vector dot',
     }
-    term_names = list(tn2key.keys())
-    ylabels = {'twwmean' : twwmeanr_label, 'mmax' : mmaxr_label}
+    if term_names is None:
+        term_names = list(tn2key.keys())
+
+    ylabels = {'twwmean' : twwmean_label, 'mem' : mem_label}
     orders = data.par_uniques['order']
     packages = data.par_uniques['package']
-    for key in ['twwmean', 'mmax']:
+    for key in ['twwmean', 'mem']:
         if key not in df: continue
         fig, ax = plt.subplots()
 
