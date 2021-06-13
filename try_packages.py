@@ -113,6 +113,9 @@ def scrape_output(filename, rdata=None):
             out['t'].append(literal_eval(line[-1]))
             out['mtx_size'] = literal_eval(line[-2])
 
+        if len(out['t']) < rdata['repeat']:
+            out['t'].extend([nm.nan] * (rdata['repeat'] - len(out['t'])))
+
     return out
 
 def get_plugin_info():
@@ -129,7 +132,11 @@ def get_plugin_info():
 def _get_mem(drow):
     mu = drow['mem_usage']
     tss = drow['timestamp']
-    ts = drow['func_timestamp'][drow['package']][0]
+    ts = drow['func_timestamp'].get(drow['package'])
+    if ts is None:
+        return nm.nan
+
+    ts = ts[0]
 
     i0, i1 = nm.searchsorted(tss, ts[:2])
     if i1 > i0:
