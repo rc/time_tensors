@@ -170,7 +170,7 @@ def _format_labels(key, iv, val, tn2key=None):
     else:
         return val
 
-def plot_results(df, data=None, term_names=None, suffix='.png'):
+def plot_results(df, data=None, term_names=None, prefix='', suffix='.png'):
     import matplotlib.pyplot as plt
     indir = partial(op.join, data.output_dir)
 
@@ -203,6 +203,11 @@ def plot_results(df, data=None, term_names=None, suffix='.png'):
     if term_names is None:
         term_names = list(tn2key.keys())
 
+    is_form_legend = len(term_names) > 1
+
+    # Omit incomplete runs.
+    df = df.dropna()
+
     ylabels = {'twwmean' : twwmean_label, 'mem' : mem_label}
     orders = data.par_uniques['order']
     packages = data.par_uniques['package']
@@ -211,7 +216,8 @@ def plot_results(df, data=None, term_names=None, suffix='.png'):
         fig, ax = plt.subplots()
 
         select = sps.select_by_keys(df, ['order', 'package'])
-        select.update({'form' : term_names})
+        if is_form_legend:
+            select.update({'form' : term_names})
         styles = {'form' : marker_style,
                   'order' : {'color' : 'tab10:kind=qualitative',},
                   'package' : {'ls' : ['--', '-'],}}
@@ -262,7 +268,7 @@ def plot_results(df, data=None, term_names=None, suffix='.png'):
                                         shrinkB=0))
 
         plt.tight_layout()
-        figname = ('packages-{}{}'.format(key, suffix))
+        figname = ('packages-{}-{}{}'.format(prefix, key, suffix))
         fig = ax.figure
         fig.savefig(indir(figname), bbox_inches='tight')
 
