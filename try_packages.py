@@ -199,6 +199,7 @@ def plot_results(df, data=None, term_names=None, prefix='', suffix='.png'):
         'dw_laplace::u' : 'Laplacian',
         'dw_volume_dot::u' : 'scalar dot',
         'dw_volume_dot:v:u' : 'vector dot',
+        'dw_convect::u' : 'NS convective',
     }
     if term_names is None:
         term_names = list(tn2key.keys())
