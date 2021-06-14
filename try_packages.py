@@ -280,6 +280,11 @@ def print_fenics_n_qp():
         points, weights = cquad(shape, deg, scheme)
         print('degree:', deg, 'n_qp:', len(points))
 
+
+def get_nc(form):
+    nc = 3 if (':v' in form) or (form in {'dw_convect::u',}) else 1
+    return nc
+
 @profile
 def assemble_sfepy_form(form, n_cell, order, repeat):
     mesh = gen_block_mesh((n_cell, 1, 1), (n_cell + 1, 2, 2), (0, 0, 0),
@@ -287,12 +292,14 @@ def assemble_sfepy_form(form, n_cell, order, repeat):
     domain = FEDomain('el', mesh)
     omega = domain.create_region('omega', 'all')
 
-    nc = 3 if ':v' in form else 1
+    nc = get_nc(form)
     field = Field.from_args('fu', nm.float64, nc, omega,
                             approx_order=order)
 
     u = FieldVariable('u', 'unknown', field)
     v = FieldVariable('v', 'test', field, primary_var_name='u')
+    if form == 'dw_convect::u':
+        u.set_constant(1.0)
 
     form = form.split(':')[0]
 
@@ -322,7 +329,8 @@ def assemble_fenics_form(form, n_cell, order, repeat):
                              [n_cell, 1, 1],
                              fe.CellType.Type.hexahedron)
 
-    if ':v' in form:
+    nc = get_nc(form)
+    if nc > 1:
         V = fe.VectorFunctionSpace(mesh, 'Lagrange', order)
 
     else:
@@ -330,6 +338,8 @@ def assemble_fenics_form(form, n_cell, order, repeat):
 
     u = fe.TrialFunction(V)
     v = fe.TestFunction(V)
+    if form == 'dw_convect::u':
+        u0 = fe.Function(V)
 
     fcc_pars = {
         'quadrature_degree': 2 * order,
@@ -349,6 +359,10 @@ def assemble_fenics_form(form, n_cell, order, repeat):
 
         elif form == 'dw_volume_dot:v:u':
             term = fe.dot(u, v)*fe.dx
+
+        elif form == 'dw_convect::u':
+            term = (fe.inner(fe.grad(u0)*u, v)*fe.dx +
+                    fe.inner(fe.grad(u)*u0, v)*fe.dx)
 
         mtx = fe.assemble(term, form_compiler_parameters=fcc_pars)
         times.append(timer.stop())
@@ -370,7 +384,8 @@ helps = {
 def main():
     opts = so.Struct(
         package = ('sfepy', 'fenics'),
-        form = ('dw_laplace::u', 'dw_volume_dot::u', 'dw_volume_dot:v:u'),
+        form = ('dw_laplace::u', 'dw_volume_dot::u', 'dw_volume_dot:v:u',
+                'dw_convect::u'),
         n_cell = 1024,
         order = 1,
         repeat = 2,
