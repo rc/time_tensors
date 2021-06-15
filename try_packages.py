@@ -181,7 +181,7 @@ def plot_results(df, data=None, term_names=None, prefix='', suffix='.png'):
     })
 
     twwmean_label = r'$\bar T^{\rm ww}$ [s]'
-    mem_label = r'$M$ [MB]'
+    mem_label = r'$M^{\rm max}$ [MB]'
 
     marker_style = {
         'lw' : 2,
