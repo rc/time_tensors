@@ -123,6 +123,7 @@ def get_plugin_info():
 
     info = [
         collect_stats,
+        get_ratios,
         plot_results,
         show_figures,
     ]
@@ -160,6 +161,57 @@ def collect_stats(df, data=None):
 
     if 'func_timestamp' in df:
         df['mem'] = df.apply(_get_mem, axis=1)
+
+    return data
+
+def get_ratios(df, data=None, term_names=None):
+    import pandas as pd
+    import soops.formatting as sof
+
+    _format_ratios = partial(sof.format_float_latex, prec='5.2f')
+
+    tn2key = {
+        'dw_laplace::u' : 'Laplacian',
+        'dw_volume_dot::u' : 'scalar dot',
+        'dw_volume_dot:v:u' : 'vector dot',
+        'dw_convect::u' : 'NS convective',
+    }
+    st2key = {
+        'twwmean'
+        : r'med($\bar T^{\rm ww}_{\rm sfepy} / \bar T^{\rm ww}_{\rm fenics}$)',
+        'mem'
+        : r'med($M^{\rm max}_{\rm sfepy} / M^{\rm max}_{\rm fenics}$)',
+    }
+
+    if term_names is None:
+        term_names = data.par_uniques['form']
+    orders = data.par_uniques['order']
+    packages = data.par_uniques['package']
+    p0, p1  = packages
+    ratios = {}
+    for key in ['twwmean', 'mem']:
+        if key not in df: continue
+        ratio = ratios.setdefault(st2key[key], {})
+        for term_name, order in product(
+                term_names, orders,
+        ):
+            sdf = df[(df['form'] == term_name) &
+                     (df['order'] == order)]
+            if not len(sdf): continue
+
+            _ratios = sdf.groupby('n_cell')[key].apply(
+                lambda x: x.iloc[1] / x.iloc[0]
+            )
+            ratio[tn2key[term_name], order] = _ratios.median()
+
+    rdf = data.rdf = pd.DataFrame.from_dict(ratios)
+
+    indir = partial(op.join, data.output_dir)
+    filename = indir('table-packages-ratios.inc')
+    with pd.option_context("max_colwidth", 1000):
+        rdf.T.to_latex(filename, index=True, escape=False, na_rep='-',
+                       columns=data.rdf.T.columns.sort_values(),
+                       float_format=_format_ratios)
 
     return data
 
