@@ -236,7 +236,7 @@ def plot_results(df, data=None, term_names=None, prefix='', suffix='.png'):
     mem_label = r'$M^{\rm max}$ [MB]'
 
     marker_style = {
-        'lw' : 2,
+        'lw' : 1,
         'mew' : 1.0,
         'marker' : ['o', '^', 'v', 'D', 's'],
         'alpha' : 1.0,
@@ -258,8 +258,8 @@ def plot_results(df, data=None, term_names=None, prefix='', suffix='.png'):
 
     is_form_legend = len(term_names) > 1
 
-    # Omit incomplete runs.
-    df = df.dropna()
+    # Omit runs with no timing stats.
+    df = df.dropna(subset=['twwmean'])
 
     ylabels = {'twwmean' : twwmean_label, 'mem' : mem_label}
     orders = data.par_uniques['order']
@@ -274,6 +274,14 @@ def plot_results(df, data=None, term_names=None, prefix='', suffix='.png'):
         styles = {'form' : marker_style,
                   'order' : {'color' : 'tab10:kind=qualitative',},
                   'package' : {'ls' : ['--', '-'],}}
+        if not is_form_legend:
+            styles['package'].update({
+                'marker' : ['x', 'o'],
+                'lw' : 1,
+                'mew' : 1.0,
+                'mfc' : 'None',
+                'markersize' : 8,
+            })
         styles = sps.setup_plot_styles(select, styles)
 
         ax.grid(True)
@@ -295,15 +303,14 @@ def plot_results(df, data=None, term_names=None, prefix='', suffix='.png'):
             ax.plot(vx, means, **style_kwargs)
 
             imax = sdf[key].idxmax()
-            if sdf.loc[imax, key] > maxs[order][1]:
+            if nm.isfinite(imax) and (sdf.loc[imax, key] > maxs[order][1]):
                 maxs[order] = (sdf.loc[imax, 'n_cell'], sdf.loc[imax, key])
 
         sps.add_legend(ax, select, styles, used, per_parameter=False,
                        format_labels=partial(_format_labels, tn2key=tn2key),
                        loc='best',
-                       # loc=['upper right', 'center right', 'lower right'],
                        frame_alpha=0.8, ncol=1,
-                       handlelength=1, handletextpad=0.4, columnspacing=0.2,
+                       handlelength=2, handletextpad=0.4, columnspacing=0.2,
                        labelspacing=0.2)
 
         ax.set_xscale(xscale)
