@@ -9,8 +9,12 @@ import numpy as nm
 from functools import partial
 import gc
 
-import fenics as fe
-from ffc.fiatinterface import create_quadrature as cquad
+try:
+    import fenics as fe
+    from ffc.fiatinterface import create_quadrature as cquad
+
+except:
+    pass
 
 from sfepy.base.base import output
 from sfepy.discrete.fem import FEDomain, Field
