@@ -416,16 +416,17 @@ def assemble_fenics_form(form, n_cell, order, repeat):
     times = []
     for ir in range(repeat):
         timer.start()
-        if form == 'dw_laplace::u':
+        name = form[3:]
+        if name == 'laplace::u':
             term = fe.dot(fe.grad(u), fe.grad(v))*fe.dx
 
-        elif form == 'dw_volume_dot::u':
+        elif name == 'dot::u':
             term = fe.dot(u, v)*fe.dx
 
-        elif form == 'dw_volume_dot:v:u':
+        elif name == 'dot:v:u':
             term = fe.dot(u, v)*fe.dx
 
-        elif form == 'dw_convect::u':
+        elif name == 'convect::u':
             term = (fe.inner(fe.grad(u0)*u, v)*fe.dx +
                     fe.inner(fe.grad(u)*u0, v)*fe.dx)
 
