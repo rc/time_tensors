@@ -350,7 +350,7 @@ def get_nc(form):
     return nc
 
 @profile
-def assemble_sfepy_form(form, n_cell, order, repeat):
+def assemble_sfepy_form(form, n_cell, order, repeat, eterm_options=None):
     mesh = gen_block_mesh((n_cell, 1, 1), (n_cell + 1, 2, 2), (0, 0, 0),
                           name='')
     domain = FEDomain('el', mesh)
@@ -379,7 +379,8 @@ def assemble_sfepy_form(form, n_cell, order, repeat):
 
         pb = Problem('pb', equations=eqs)
         mtx = pb.evaluate('{}.{}.omega(v, u)'.format(form, 2 * order),
-                          mode='weak', dw_mode='matrix')
+                          mode='weak', dw_mode='matrix',
+                          eterm_options=eterm_options)
         times.append(timer.stop())
         output('repeat:', ir, mtx.shape[0], times[-1])
         del mtx
@@ -448,8 +449,10 @@ helps = {
 def main():
     opts = so.Struct(
         package = ('sfepy', 'fenics'),
-        form = ('dw_laplace::u', 'dw_volume_dot::u', 'dw_volume_dot:v:u',
-                'dw_convect::u'),
+        form = ('dw_laplace::u', 'dw_dot::u', 'dw_dot:v:u', 'dw_convect::u',
+                'de_laplace::u', 'de_dot::u', 'de_dot:v:u', 'de_convect::u'),
+        eterm_options = ("verbosity=0, backend_args={backend='numpy', "
+                         "optimize='optimal', layout=None}"),
         n_cell = 1024,
         order = 1,
         repeat = 2,
@@ -490,6 +493,7 @@ def main():
     options = parser.parse_args()
 
     options.affinity = so.parse_as_list(options.affinity)
+    options.eterm_options = so.parse_as_dict(options.eterm_options)
 
     output_dir = options.output_dir
     output.prefix = 'try_packages:'
@@ -506,7 +510,8 @@ def main():
 
     if options.package == 'sfepy':
         times = assemble_sfepy_form(options.form, options.n_cell,
-                                    options.order, options.repeat)
+                                    options.order, options.repeat,
+                                    eterm_options=options.eterm_options)
 
     elif options.package == 'fenics':
         fe.set_log_active(False)
