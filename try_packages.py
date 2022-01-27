@@ -346,7 +346,7 @@ def print_fenics_n_qp():
 
 
 def get_nc(form):
-    nc = 3 if (':v' in form) or (form in {'dw_convect::u',}) else 1
+    nc = 3 if (':v' in form) or ('convect' in form) else 1
     return nc
 
 @profile
