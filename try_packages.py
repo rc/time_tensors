@@ -362,7 +362,7 @@ def assemble_sfepy_form(form, n_cell, order, repeat, eterm_options=None):
 
     u = FieldVariable('u', 'unknown', field)
     v = FieldVariable('v', 'test', field, primary_var_name='u')
-    if form == 'dw_convect::u':
+    if 'convect' in form:
         u.set_constant(1.0)
 
     form = form.split(':')[0]
@@ -403,7 +403,7 @@ def assemble_fenics_form(form, n_cell, order, repeat):
 
     u = fe.TrialFunction(V)
     v = fe.TestFunction(V)
-    if form == 'dw_convect::u':
+    if 'convect' in form:
         u0 = fe.Function(V)
 
     fcc_pars = {
