@@ -168,18 +168,23 @@ def collect_stats(df, data=None):
 
     return data
 
+tn2key = {
+    'dw_laplace::u' : 'Laplacian',
+    'dw_dot::u' : 'scalar dot',
+    'dw_dot:v:u' : 'vector dot',
+    'dw_convect::u' : 'NS convective',
+    'de_laplace::u' : 'Laplacian',
+    'de_dot::u' : 'scalar dot',
+    'de_dot:v:u' : 'vector dot',
+    'de_convect::u' : 'NS convective',
+}
+
 def get_ratios(df, data=None, term_names=None):
     import pandas as pd
     import soops.formatting as sof
 
     _format_ratios = partial(sof.format_float_latex, prec='5.2f')
 
-    tn2key = {
-        'dw_laplace::u' : 'Laplacian',
-        'dw_volume_dot::u' : 'scalar dot',
-        'dw_volume_dot:v:u' : 'vector dot',
-        'dw_convect::u' : 'NS convective',
-    }
     st2key = {
         'twwmean'
         : r'med($\bar T^{\rm ww}_{\rm sfepy} / \bar T^{\rm ww}_{\rm fenics}$)',
@@ -251,12 +256,6 @@ def plot_results(df, data=None, term_names=None, prefix='', suffix='.png'):
     xscale = 'log'
     yscale = 'log'
 
-    tn2key = {
-        'dw_laplace::u' : 'Laplacian',
-        'dw_volume_dot::u' : 'scalar dot',
-        'dw_volume_dot:v:u' : 'vector dot',
-        'dw_convect::u' : 'NS convective',
-    }
     if term_names is None:
         term_names = list(tn2key.keys())
 
