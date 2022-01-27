@@ -46,6 +46,7 @@ def get_run_info():
     opt_args = {
         '--package' : '--package={--package}',
         '--form' : '--form={--form}',
+        '--eterm-options' : '--eterm-options={--eterm-options}',
         '--n-cell' : '--n-cell={--n-cell}',
         '--order' : '--order={--order}',
         '--repeat' : '--repeat={--repeat}',
