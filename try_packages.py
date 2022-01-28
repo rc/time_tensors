@@ -203,7 +203,7 @@ def get_ratios(df, data=None, term_names=None):
             if not len(sdf): continue
 
             _ratios = sdf.groupby('n_cell')[key].apply(
-                lambda x: x.iloc[1] / x.iloc[0]
+                lambda x: x.iloc[1] / x.iloc[0] if len(x) == 2 else nm.nan
             )
             ratio[tn2key[term_name], order] = _ratios.median()
 
