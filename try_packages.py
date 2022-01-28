@@ -9,13 +9,6 @@ import numpy as nm
 from functools import partial
 import gc
 
-try:
-    import fenics as fe
-    from ffc.fiatinterface import create_quadrature as cquad
-
-except:
-    pass
-
 from sfepy.base.base import output
 from sfepy.discrete.fem import FEDomain, Field
 from sfepy.discrete import (FieldVariable, Integral, Equation, Equations,
@@ -337,6 +330,8 @@ def plot_results(df, data=None, term_names=None, prefix='', suffix='.png'):
         fig.savefig(indir(figname), bbox_inches='tight')
 
 def print_fenics_n_qp():
+    from ffc.fiatinterface import create_quadrature as cquad
+
     shape = 'hexahedron'
     scheme = 'default'
 
@@ -389,7 +384,7 @@ def assemble_sfepy_form(form, n_cell, order, repeat, eterm_options=None):
     return times
 
 @profile
-def assemble_fenics_form(form, n_cell, order, repeat):
+def assemble_fenics_form(form, n_cell, order, repeat, fe):
     mesh = fe.BoxMesh.create([fe.Point(0,0,0), fe.Point(n_cell, 1, 1)],
                              [n_cell, 1, 1],
                              fe.CellType.Type.hexahedron)
@@ -515,11 +510,18 @@ def main():
                                     eterm_options=options.eterm_options)
 
     elif options.package == 'fenics':
-        fe.set_log_active(False)
+        try:
+            import fenics as fe
 
-        print_fenics_n_qp()
-        times = assemble_fenics_form(options.form, options.n_cell,
-                                     options.order, options.repeat)
+        except:
+            times = None
+
+        else:
+            fe.set_log_active(False)
+            print_fenics_n_qp()
+
+            times = assemble_fenics_form(options.form, options.n_cell,
+                                         options.order, options.repeat, fe)
 
     output('times:', times)
     if options.shell:
