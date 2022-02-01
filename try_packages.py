@@ -121,6 +121,7 @@ def get_plugin_info():
 
     info = [
         collect_stats,
+        select_data,
         get_ratios,
         plot_results,
         show_figures,
@@ -164,6 +165,30 @@ def collect_stats(df, data=None):
     if 'func_timestamp' in df:
         df['mem'] = df.apply(_get_mem, axis=1)
 
+    return data
+
+def select_data(df, data=None, selects=None):
+    import pandas as pd
+
+    df = data.get('df', df)
+    if selects is not None:
+        aux = pd.DataFrame()
+        for select in selects:
+            package, form, backend = select.split('-')
+            if len(backend):
+                sdf = df[(df['package'] == package) &
+                         (df['form'] == form) &
+                         (df['backend_args.backend'] == backend)]
+
+            else:
+                sdf = df[(df['package'] == package) &
+                         (df['form'] == form)]
+
+            aux = pd.concat([aux, sdf], axis=0)
+
+        df = aux.sort_values(['package', 'form', 'n_cell', 'order'])
+
+    data.df = df
     return data
 
 tn2key = {
