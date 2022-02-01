@@ -150,7 +150,11 @@ def _get_mem(drow):
     return mem
 
 def collect_stats(df, data=None):
+    import pandas as pd
     import time_tensors as tt
+
+    aux = pd.json_normalize(df['eterm_options'])
+    df = data.df = pd.concat([df, aux], axis=1)
 
     stat_keys = ('mean', 'min', 'max', 'emin', 'emax', 'wwmean')
     for key, val in zip(['t' + ii for ii in stat_keys],
@@ -176,6 +180,8 @@ tn2key = {
 def get_ratios(df, data=None, term_names=None):
     import pandas as pd
     import soops.formatting as sof
+
+    df = data.get('df', df)
 
     _format_ratios = partial(sof.format_float_latex, prec='5.2f')
 
@@ -228,6 +234,8 @@ def _format_labels(key, iv, val, tn2key=None):
 def plot_results(df, data=None, term_names=None, prefix='', suffix='.png'):
     import matplotlib.pyplot as plt
     indir = partial(op.join, data.output_dir)
+
+    df = data.get('df', df)
 
     plt.rcParams.update({
         'text.usetex' : True,
