@@ -1,5 +1,7 @@
 *
 !*/
 !*.py
-build/
-.tox/
+dask-worker-space/
+output/
+ref-results/
+zenodo/
