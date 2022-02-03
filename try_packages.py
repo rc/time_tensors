@@ -230,7 +230,7 @@ def get_ratios(df, data=None, term_names=None):
         for term_name, order in product(
                 term_names, orders,
         ):
-            sdf = df[(df['form'] == term_name) &
+            sdf = df[df['form'].str.endswith(term_name[3:]) &
                      (df['order'] == order)]
             if not len(sdf): continue
 
