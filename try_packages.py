@@ -363,7 +363,7 @@ def plot_results(df, data=None, term_names=None, prefix='', suffix='.png'):
         fig = ax.figure
         fig.savefig(indir(figname), bbox_inches='tight')
 
-def plot_results2(df, data=None, prefix='', suffix='.png'):
+def plot_results2(df, data=None, markers=None, prefix='', suffix='.png'):
     import matplotlib.pyplot as plt
     import soops.formatting as sof
     indir = partial(op.join, data.output_dir)
@@ -382,7 +382,8 @@ def plot_results2(df, data=None, prefix='', suffix='.png'):
     marker_style = {
         'lw' : 1,
         'mew' : 1.0,
-        'marker' : ['o', '^', 'v', 'D', 's'],
+        'marker' : (['x', 'o', '^', 'v', 'D', 's']
+                    if markers is None else markers),
         'alpha' : 1.0,
         'mfc' : 'None',
         'markersize' : 8,
@@ -412,12 +413,14 @@ def plot_results2(df, data=None, prefix='', suffix='.png'):
 
     ylabels = {'twwmean' : twwmean_label, 'mem' : mem_label}
     orders = data.par_uniques['order']
-    packages = data.par_uniques['package']
+    packages = df['package'].unique()
+    is_package = len(packages) > 1
     for key in ['twwmean', 'mem']:
         if key not in df: continue
         fig, ax = plt.subplots()
 
-        select = sps.select_by_keys(df, ['order', 'package'])
+        select = sps.select_by_keys(df, ['order']
+                                    + (['package'] if is_package else []))
         select.update({'function' : efuns.unique()})
         styles = {'function' : marker_style,
                   'order' : {'color' : 'tab10:kind=qualitative',},
